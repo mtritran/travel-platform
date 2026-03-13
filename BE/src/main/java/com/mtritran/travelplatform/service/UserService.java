@@ -6,6 +6,8 @@ import com.mtritran.travelplatform.dto.response.UserResponse;
 import com.mtritran.travelplatform.entity.Role;
 import com.mtritran.travelplatform.entity.User;
 import com.mtritran.travelplatform.enums.RoleName;
+import com.mtritran.travelplatform.exception.AppException;
+import com.mtritran.travelplatform.exception.ErrorCode;
 import com.mtritran.travelplatform.mapper.UserMapper;
 import com.mtritran.travelplatform.repository.RoleRepository;
 import com.mtritran.travelplatform.repository.UserRepository;
@@ -30,11 +32,11 @@ public class UserService {
 
     public UserResponse createUser(UserCreateRequest request) {
         if (userRepository.existsByEmail(request.getEmail())){
-            throw new RuntimeException("Email already exists");
+            throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
 
         if (userRepository.existsByPhone(request.getPhone())){
-            throw new RuntimeException("Phone already exists");
+            throw new AppException(ErrorCode.PHONE_EXISTED);
         }
 
         User user = userMapper.toUser(request);
@@ -42,7 +44,7 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         Role customerRole = roleRepository.findByName(RoleName.CUSTOMER)
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         user.setRoles(new HashSet<>(Set.of(customerRole)));
 
         return userMapper.toResponse(userRepository.save(user));
@@ -57,13 +59,13 @@ public class UserService {
 
     public UserResponse getUserById(String id){
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         return userMapper.toResponse(user);
     }
 
     public UserResponse updateUserById(String id, UserUpdateRequest request){
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         userMapper.updateUser(user, request);
 
@@ -76,7 +78,7 @@ public class UserService {
 
     public void deleteUser(String id){
         if (!userRepository.existsById(id)) {
-            throw new RuntimeException("User not found");
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
         }
 
         userRepository.deleteById(id);
