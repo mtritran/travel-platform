@@ -5,7 +5,6 @@ import com.mtritran.travelplatform.dto.request.UserUpdateRequest;
 import com.mtritran.travelplatform.dto.response.UserResponse;
 import com.mtritran.travelplatform.entity.User;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
 import org.mapstruct.ReportingPolicy;
