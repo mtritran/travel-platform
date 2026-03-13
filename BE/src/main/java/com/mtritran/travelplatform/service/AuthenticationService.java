@@ -7,6 +7,8 @@ import com.mtritran.travelplatform.dto.response.AuthenticationResponse;
 import com.mtritran.travelplatform.dto.response.IntrospectResponse;
 import com.mtritran.travelplatform.entity.InvalidatedToken;
 import com.mtritran.travelplatform.entity.User;
+import com.mtritran.travelplatform.exception.AppException;
+import com.mtritran.travelplatform.exception.ErrorCode;
 import com.mtritran.travelplatform.repository.InvalidatedTokenRepository;
 import com.mtritran.travelplatform.repository.UserRepository;
 import com.nimbusds.jose.*;
@@ -58,7 +60,7 @@ public class AuthenticationService {
 
         try {
             verifyToken(token, false);
-        } catch (RuntimeException e) {
+        } catch (AppException e) {
             isValid = false;
         }
 
@@ -69,12 +71,12 @@ public class AuthenticationService {
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         var user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
 
         if (!authenticated)
-            throw new RuntimeException("Unauthenticated");
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
 
         var token = generateToken(user);
         var refreshToken = generateRefreshToken(user);
@@ -99,7 +101,7 @@ public class AuthenticationService {
                     .build();
 
             invalidatedTokenRepository.save(invalidatedToken);
-        } catch (RuntimeException e) {
+        } catch (AppException e) {
             log.info("Token already expired");
         }
     }
@@ -120,7 +122,7 @@ public class AuthenticationService {
         var email = signedJWT.getJWTClaimsSet().getSubject();
 
         var user = userRepository.findByEmail(email).orElseThrow(
-                () -> new RuntimeException("Unauthenticated")
+                () -> new AppException(ErrorCode.UNAUTHENTICATED)
         );
 
         var token = generateToken(user);
@@ -156,7 +158,7 @@ public class AuthenticationService {
             return jwsObject.serialize();
         } catch (JOSEException e) {
             log.error("Cannot create token", e);
-            throw new RuntimeException(e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 
@@ -182,7 +184,7 @@ public class AuthenticationService {
             return jwsObject.serialize();
         } catch (JOSEException e) {
             log.error("Cannot create refresh token", e);
-            throw new RuntimeException(e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 
@@ -199,10 +201,10 @@ public class AuthenticationService {
         var verified = signedJWT.verify(verifier);
 
         if (!(verified && expiryTime.after(new Date())))
-            throw new RuntimeException("Unauthenticated");
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
 
         if (invalidatedTokenRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID()))
-            throw new RuntimeException("Unauthenticated");
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
 
         return signedJWT;
     }
