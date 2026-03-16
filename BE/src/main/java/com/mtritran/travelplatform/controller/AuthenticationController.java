@@ -7,6 +7,7 @@ import com.mtritran.travelplatform.dto.response.AuthenticationResponse;
 import com.mtritran.travelplatform.dto.response.IntrospectResponse;
 import com.mtritran.travelplatform.service.AuthenticationService;
 import com.nimbusds.jose.JOSEException;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -26,21 +27,25 @@ import java.text.ParseException;
 public class AuthenticationController {
     AuthenticationService authenticationService;
 
+    @Operation(summary = "Authenticate user and generate token")
     @PostMapping("/login")
     public AuthenticationResponse authenticate(@RequestBody AuthenticationRequest request) {
         return authenticationService.authenticate(request);
     }
 
+    @Operation(summary = "Introspect token to check its validity")
     @PostMapping("/introspect")
     public IntrospectResponse introspect(@RequestBody IntrospectRequest request) throws ParseException, JOSEException {
         return authenticationService.introspect(request);
     }
 
+    @Operation(summary = "Refresh expired token")
     @PostMapping("/refresh")
     public AuthenticationResponse refreshToken(@RequestBody RefreshRequest request) throws ParseException, JOSEException {
         return authenticationService.refreshToken(request);
     }
 
+    @Operation(summary = "Logout user and invalidate token")
     @PostMapping("/logout")
     public void logout(@RequestBody RefreshRequest request) throws ParseException, JOSEException {
         authenticationService.logout(request);
