@@ -13,11 +13,20 @@ public enum ErrorCode {
     PHONE_EXISTED(1002, "Phone already exists", HttpStatus.BAD_REQUEST),
     USERNAME_INVALID(1003, "Username must be at least 3 characters", HttpStatus.BAD_REQUEST),
     INVALID_PASSWORD(1004, "Password must be at least 8 characters", HttpStatus.BAD_REQUEST),
+    INVALID_EMAIL(1001, "Invalid email format", HttpStatus.BAD_REQUEST),
+    INVALID_PHONE(1001, "Invalid phone number", HttpStatus.BAD_REQUEST),
+    EMPTY_FULLNAME(1001, "Full name is required", HttpStatus.BAD_REQUEST),
+    INVALID_FULLNAME(1001, "Full name must be at least 3 characters", HttpStatus.BAD_REQUEST),
     USER_NOT_EXISTED(1005, "User not existed", HttpStatus.NOT_FOUND),
     UNAUTHENTICATED(1006, "Unauthenticated", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED(1007, "You do not have permission", HttpStatus.FORBIDDEN),
     ROLE_NOT_FOUND(1009, "Role not found", HttpStatus.NOT_FOUND),
     INVALID_DOB(1008, "Your age must be at least {min}", HttpStatus.BAD_REQUEST),
+    FILE_REQUIRED(1010, "File is required", HttpStatus.BAD_REQUEST),
+    UPLOAD_FAILED(1011, "File upload failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    FILE_NOT_FOUND(1012, "File not found", HttpStatus.NOT_FOUND),
+    APPLICATION_EXISTED(1013, "Application already existed", HttpStatus.BAD_REQUEST),
+    APPLICATION_NOT_FOUND(1014, "Application not found", HttpStatus.NOT_FOUND),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
