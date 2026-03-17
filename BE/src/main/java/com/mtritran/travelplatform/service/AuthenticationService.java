@@ -82,7 +82,7 @@ public class AuthenticationService {
         var refreshToken = generateRefreshToken(user);
 
         return AuthenticationResponse.builder()
-                .accessToken(token)
+                .token(token)
                 .refreshToken(refreshToken)
                 .authenticated(true)
                 .build();
@@ -129,7 +129,7 @@ public class AuthenticationService {
         var refreshToken = generateRefreshToken(user);
 
         return AuthenticationResponse.builder()
-                .accessToken(token)
+                .token(token)
                 .refreshToken(refreshToken)
                 .authenticated(true)
                 .build();
