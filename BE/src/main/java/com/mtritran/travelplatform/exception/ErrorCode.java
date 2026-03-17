@@ -27,6 +27,12 @@ public enum ErrorCode {
     FILE_NOT_FOUND(1012, "File not found", HttpStatus.NOT_FOUND),
     APPLICATION_EXISTED(1013, "Application already existed", HttpStatus.BAD_REQUEST),
     APPLICATION_NOT_FOUND(1014, "Application not found", HttpStatus.NOT_FOUND),
+    LOCATION_NOT_FOUND(1015, "Location not found", HttpStatus.NOT_FOUND),
+    TOUR_NOT_FOUND(1016, "Tour not found", HttpStatus.NOT_FOUND),
+    TOUR_REQUEST_NOT_FOUND(1017, "Tour request not found", HttpStatus.NOT_FOUND),
+    BOOKING_NOT_FOUND(1018, "Booking not found", HttpStatus.NOT_FOUND),
+    CANNOT_BOOK_OWN_TOUR(1019, "You cannot book your own tour", HttpStatus.BAD_REQUEST),
+    CANNOT_ACCEPT_OWN_REQUEST(1020, "You cannot accept your own tour request", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
