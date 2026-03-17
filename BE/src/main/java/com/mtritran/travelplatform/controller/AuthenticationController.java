@@ -3,6 +3,7 @@ package com.mtritran.travelplatform.controller;
 import com.mtritran.travelplatform.dto.request.AuthenticationRequest;
 import com.mtritran.travelplatform.dto.request.IntrospectRequest;
 import com.mtritran.travelplatform.dto.request.RefreshRequest;
+import com.mtritran.travelplatform.dto.response.ApiResponse;
 import com.mtritran.travelplatform.dto.response.AuthenticationResponse;
 import com.mtritran.travelplatform.dto.response.IntrospectResponse;
 import com.mtritran.travelplatform.service.AuthenticationService;
@@ -29,20 +30,26 @@ public class AuthenticationController {
 
     @Operation(summary = "Authenticate user and generate token")
     @PostMapping("/login")
-    public AuthenticationResponse authenticate(@RequestBody AuthenticationRequest request) {
-        return authenticationService.authenticate(request);
+    public ApiResponse<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest request) {
+        return ApiResponse.<AuthenticationResponse>builder()
+                .result(authenticationService.authenticate(request))
+                .build();
     }
 
     @Operation(summary = "Introspect token to check its validity")
     @PostMapping("/introspect")
-    public IntrospectResponse introspect(@RequestBody IntrospectRequest request) throws ParseException, JOSEException {
-        return authenticationService.introspect(request);
+    public ApiResponse<IntrospectResponse> introspect(@RequestBody IntrospectRequest request) throws ParseException, JOSEException {
+        return ApiResponse.<IntrospectResponse>builder()
+                .result(authenticationService.introspect(request))
+                .build();
     }
 
     @Operation(summary = "Refresh expired token")
     @PostMapping("/refresh")
-    public AuthenticationResponse refreshToken(@RequestBody RefreshRequest request) throws ParseException, JOSEException {
-        return authenticationService.refreshToken(request);
+    public ApiResponse<AuthenticationResponse> refreshToken(@RequestBody RefreshRequest request) throws ParseException, JOSEException {
+        return ApiResponse.<AuthenticationResponse>builder()
+                .result(authenticationService.refreshToken(request))
+                .build();
     }
 
     @Operation(summary = "Logout user and invalidate token")
