@@ -12,4 +12,5 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     List<Booking> findAllByUser(User user);
     // Find sessions for a guide (via Tour)
     List<Booking> findAllByTour_Guide(User guide);
+    boolean existsByTour(com.mtritran.travelplatform.entity.Tour tour);
 }
