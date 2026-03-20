@@ -3,6 +3,7 @@ import { Lock, Mail, ArrowRight } from 'lucide-react';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { ENDPOINTS } from '../constants/endpoints';
+import { useAuth } from '../context/AuthContext';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,10 +23,28 @@ const LoginPage: React.FC = () => {
       const response = await api.post(ENDPOINTS.AUTH.LOGIN, { email, password });
       console.log('Login success:', response.data);
       localStorage.setItem('token', response.data.result.token);
-      navigate('/');
+      
+      // Fetch user info to know the role before navigating
+      const userRes = await api.get(ENDPOINTS.USER.GET_MY_INFO);
+      const user = userRes.data.result;
+      console.log('User roles check:', user.roles);
+      
+      const isAdmin = user.roles?.some((r: any) => r.name === 'ADMIN');
+      console.log('Is Admin?:', isAdmin);
+      
+      if (isAdmin) {
+        console.log('Navigating to /admin');
+        navigate('/admin');
+      } else {
+        console.log('Navigating to /');
+        navigate('/');
+      }
+      
+      // Update global context
+      await refreshUser();
     } catch (err: any) {
       console.error('Login error details:', err);
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      setError(err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
     } finally {
       setLoading(false);
     }
@@ -46,7 +66,7 @@ const LoginPage: React.FC = () => {
       }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <h1 style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.025em' }}>TravelX</h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Welcome back, explorer!</p>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Chào mừng bạn trở lại!</p>
         </div>
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -54,7 +74,7 @@ const LoginPage: React.FC = () => {
             <Mail size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
             <input
               type="email"
-              placeholder="Email address"
+              placeholder="Địa chỉ Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{ paddingLeft: '40px' }}
@@ -66,7 +86,7 @@ const LoginPage: React.FC = () => {
             <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
             <input
               type="password"
-              placeholder="Password"
+              placeholder="Mật khẩu"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={{ paddingLeft: '40px' }}
@@ -90,16 +110,16 @@ const LoginPage: React.FC = () => {
               opacity: loading ? 0.7 : 1
             }}
           >
-            {loading ? 'Authenticating...' : (
+            {loading ? 'Đang xác thực...' : (
               <>
-                Sign In <ArrowRight size={18} />
+                Đăng nhập <ArrowRight size={18} />
               </>
             )}
           </button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '24px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Don't have an account? <a href="/register" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Register here</a>
+          Chưa có tài khoản? <a href="/register" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Đăng ký tại đây</a>
         </p>
       </div>
     </div>
