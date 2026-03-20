@@ -15,10 +15,10 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 @Service
@@ -50,11 +50,9 @@ public class UserService {
         return userMapper.toResponse(userRepository.save(user));
     }
 
-    public List<UserResponse> getAllUsers(){
-        return userRepository.findAll()
-                .stream()
-                .map(userMapper::toResponse)
-                .toList();
+    public org.springframework.data.domain.Page<UserResponse> getAllUsers(org.springframework.data.domain.Pageable pageable){
+        return userRepository.findAll(pageable)
+                .map(userMapper::toResponse);
     }
 
     public UserResponse getUserById(String id){
@@ -73,6 +71,21 @@ public class UserService {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
+        if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+            Set<Role> updatedRoles = new HashSet<>();
+            for (String rName : request.getRoles()) {
+                try {
+                    RoleName enumRole = RoleName.valueOf(rName);
+                    roleRepository.findByName(enumRole).ifPresent(updatedRoles::add);
+                } catch (IllegalArgumentException e) {
+                    // Ignore invalid roles
+                }
+            }
+            if (!updatedRoles.isEmpty()) {
+                user.setRoles(updatedRoles);
+            }
+        }
+
         return userMapper.toResponse(userRepository.save(user));
     }
 
@@ -82,5 +95,15 @@ public class UserService {
         }
 
         userRepository.deleteById(id);
+    }
+
+    public UserResponse getMyInfo() {
+        var context = SecurityContextHolder.getContext();
+        String name = context.getAuthentication().getName();
+
+        User user = userRepository.findByEmail(name).orElseThrow(
+                () -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        return userMapper.toResponse(user);
     }
 }
