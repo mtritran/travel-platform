@@ -19,7 +19,22 @@ public class BookingResponse {
     String tourTitle;
     String guideName;
     LocalDate bookingDate;
+    Integer numberOfGuests;
     BigDecimal totalPrice;
     BookingStatus status;
+
+    String pickupLocationName;
+    String pickupLocationAddress;
+    Double pickupLatitude;
+    Double pickupLongitude;
+
+    BigDecimal depositAmount;
+    BigDecimal paidAmount;
+    BigDecimal refundAmount;
+    BigDecimal depositPercentage;
+    java.time.LocalDate tourStartDate;
+    java.time.LocalTime tourStartTime;
+
+    boolean reviewed;
     LocalDateTime createdAt;
 }
