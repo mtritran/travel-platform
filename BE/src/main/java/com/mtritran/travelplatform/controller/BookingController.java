@@ -41,7 +41,7 @@ public class BookingController {
     }
 
     @Operation(summary = "Get guide bookings", description = "Guide views bookings made for their tours.")
-    @PreAuthorize("hasAuthority('GUIDE')")
+    @PreAuthorize("hasRole('GUIDE')")
     @GetMapping("/guide-bookings")
     public ApiResponse<List<BookingResponse>> getGuideBookings() {
         return ApiResponse.<List<BookingResponse>>builder()
@@ -50,11 +50,44 @@ public class BookingController {
     }
 
     @Operation(summary = "Update booking status", description = "Guide confirms or cancels a booking.")
-    @PreAuthorize("hasAuthority('GUIDE')")
+    @PreAuthorize("hasRole('GUIDE')")
     @PostMapping("/{id}/status")
     public ApiResponse<BookingResponse> updateStatus(@PathVariable String id, @RequestParam BookingStatus status) {
         return ApiResponse.<BookingResponse>builder()
                 .result(bookingService.updateStatus(id, status))
+                .build();
+    }
+
+    @Operation(summary = "Cancel booking", description = "User or guide cancels a booking with refund logic.")
+    @PostMapping("/{id}/cancel")
+    public ApiResponse<BookingResponse> cancelBooking(@PathVariable String id) {
+        return ApiResponse.<BookingResponse>builder()
+                .result(bookingService.cancelBooking(id))
+                .build();
+    }
+
+    @Operation(summary = "Pay deposit", description = "Customer pays the required deposit amount.")
+    @PostMapping("/{id}/pay")
+    public ApiResponse<BookingResponse> payDeposit(@PathVariable String id) {
+        return ApiResponse.<BookingResponse>builder()
+                .result(bookingService.payDeposit(id))
+                .build();
+    }
+
+    @Operation(summary = "Pay remaining balance", description = "Customer pays the rest of the tour price.")
+    @PostMapping("/{id}/pay-remaining")
+    public ApiResponse<BookingResponse> payRemaining(@PathVariable String id) {
+        return ApiResponse.<BookingResponse>builder()
+                .result(bookingService.payRemaining(id))
+                .build();
+    }
+
+    @Operation(summary = "Complete tour", description = "Guide marks tour as completed and receives funds.")
+    @PreAuthorize("hasRole('GUIDE')")
+    @PostMapping("/{id}/complete")
+    public ApiResponse<BookingResponse> completeTour(@PathVariable String id) {
+        return ApiResponse.<BookingResponse>builder()
+                .result(bookingService.completeTour(id))
                 .build();
     }
 }
