@@ -16,9 +16,17 @@ public interface TourRepository extends JpaRepository<Tour, String> {
     List<Tour> findAllByLocation(Location location);
     List<Tour> findAllByActiveTrue();
 
+    @Query("SELECT t FROM Tour t WHERE t.active = true " +
+           "AND (t.startDate > :date OR (t.startDate = :date AND t.startTime > :time)) " +
+           "AND (SELECT COALESCE(SUM(b.numberOfGuests), 0) FROM Booking b WHERE b.tour.id = t.id AND b.status != 'CANCELLED') < t.maxGuests")
+    List<Tour> findAvailableTours(@Param("date") java.time.LocalDate date, 
+                                 @Param("time") java.time.LocalTime time);
+
     @Query(value = "SELECT t.* FROM tours t " +
             "JOIN locations l ON t.location_id = l.id " +
             "WHERE t.active = true AND " +
+            "(t.start_date > :date OR (t.start_date = :date AND t.start_time > :time)) AND " +
+            "(SELECT COALESCE(SUM(b.number_of_guests), 0) FROM bookings b WHERE b.tour_id = t.id AND b.status != 'CANCELLED') < t.max_guests AND " +
             "(6371 * acos(cos(radians(:lat)) * cos(radians(l.latitude)) * " +
             "cos(radians(l.longitude) - radians(:lng)) + " +
             "sin(radians(:lat)) * sin(radians(l.latitude)))) <= :radius " +
@@ -27,5 +35,7 @@ public interface TourRepository extends JpaRepository<Tour, String> {
             "sin(radians(:lat)) * sin(radians(l.latitude)))) ASC", nativeQuery = true)
     List<Tour> findNearbyTours(@Param("lat") double lat, 
                                @Param("lng") double lng, 
-                               @Param("radius") double radius);
+                               @Param("radius") double radius,
+                               @Param("date") java.time.LocalDate date,
+                               @Param("time") java.time.LocalTime time);
 }
