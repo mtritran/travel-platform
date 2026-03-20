@@ -39,7 +39,14 @@ public class TourRequest {
     @Column(nullable = false)
     LocalDate plannedDate;
 
+    @Column(nullable = false)
+    String title;
+
     BigDecimal budget;
+
+    @Column(nullable = false)
+    @Builder.Default
+    Integer numberOfGuests = 1;
 
     @Column(columnDefinition = "TEXT")
     String description;
