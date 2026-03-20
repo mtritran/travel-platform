@@ -16,6 +16,9 @@ public class TourCreateRequest {
     @NotBlank(message = "LOCATION_NOT_FOUND")
     String locationId;
 
+    @NotBlank(message = "LOCATION_NOT_FOUND")
+    String meetingLocationId;
+
     @NotBlank(message = "UNCATEGORIZED_EXCEPTION")
     String title;
 
@@ -25,4 +28,15 @@ public class TourCreateRequest {
     BigDecimal price;
 
     String imageUrl;
+
+    java.time.LocalDate startDate;
+
+    java.time.LocalDate endDate;
+
+    java.time.LocalTime startTime;
+
+    java.time.LocalTime endTime;
+
+    Integer maxGuests;
+    BigDecimal depositPercentage;
 }
