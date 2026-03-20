@@ -30,7 +30,7 @@ const RegisterPage: React.FC = () => {
       await api.post(ENDPOINTS.USER.REGISTER, formData);
       navigate('/login');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -51,8 +51,8 @@ const RegisterPage: React.FC = () => {
         padding: '40px',
       }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.025em' }}>Join TravelX</h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Start your journey with us today</p>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.025em' }}>Tham gia TravelX</h1>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Bắt đầu hành trình của bạn ngay hôm nay</p>
         </div>
 
         <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -61,7 +61,7 @@ const RegisterPage: React.FC = () => {
               <User size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               <input
                 name="fullName"
-                placeholder="Full Name"
+                placeholder="Họ và Tên"
                 value={formData.fullName}
                 onChange={handleChange}
                 style={{ paddingLeft: '40px' }}
@@ -72,7 +72,7 @@ const RegisterPage: React.FC = () => {
               <Phone size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               <input
                 name="phone"
-                placeholder="Phone Number"
+                placeholder="Số điện thoại"
                 value={formData.phone}
                 onChange={handleChange}
                 style={{ paddingLeft: '40px' }}
@@ -86,7 +86,7 @@ const RegisterPage: React.FC = () => {
             <input
               name="email"
               type="email"
-              placeholder="Email address"
+              placeholder="Địa chỉ Email"
               value={formData.email}
               onChange={handleChange}
               style={{ paddingLeft: '40px' }}
@@ -99,7 +99,7 @@ const RegisterPage: React.FC = () => {
             <input
               name="password"
               type="password"
-              placeholder="Password"
+              placeholder="Mật khẩu"
               value={formData.password}
               onChange={handleChange}
               style={{ paddingLeft: '40px' }}
@@ -132,9 +132,9 @@ const RegisterPage: React.FC = () => {
                 cursor: 'pointer'
               }}
             >
-              <option value="MALE">Male</option>
-              <option value="FEMALE">Female</option>
-              <option value="OTHER">Other</option>
+              <option value="MALE">Nam</option>
+              <option value="FEMALE">Nữ</option>
+              <option value="OTHER">Khác</option>
             </select>
           </div>
 
@@ -156,16 +156,16 @@ const RegisterPage: React.FC = () => {
               opacity: loading ? 0.7 : 1
             }}
           >
-            {loading ? 'Creating Account...' : (
+            {loading ? 'Đang tạo tài khoản...' : (
               <>
-                Create Account <UserPlus size={18} />
+                Đăng ký tài khoản <UserPlus size={18} />
               </>
             )}
           </button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '24px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Already have an account? <a href="/login" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '600' }}>Sign In</a>
+          Đã có tài khoản? <a href="/login" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '600' }}>Đăng nhập</a>
         </p>
       </div>
     </div>
