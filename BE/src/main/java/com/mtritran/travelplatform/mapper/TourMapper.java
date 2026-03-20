@@ -9,5 +9,12 @@ import org.mapstruct.Mapping;
 public interface TourMapper {
     @Mapping(target = "guideName", source = "guide.fullName")
     @Mapping(target = "locationName", source = "location.name")
+    @Mapping(target = "locationAddress", source = "location.address")
+    @Mapping(target = "latitude", source = "location.latitude")
+    @Mapping(target = "longitude", source = "location.longitude")
+    @Mapping(target = "meetingLocationName", source = "meetingLocation.name")
+    @Mapping(target = "meetingLocationAddress", source = "meetingLocation.address")
+    @Mapping(target = "meetingLatitude", source = "meetingLocation.latitude")
+    @Mapping(target = "meetingLongitude", source = "meetingLocation.longitude")
     TourResponse toResponse(Tour tour);
 }
