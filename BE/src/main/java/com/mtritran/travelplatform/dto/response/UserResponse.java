@@ -16,4 +16,5 @@ public class UserResponse {
     String fullName;
     Gender gender;
     LocalDate dob;
+    java.util.Set<RoleResponse> roles;
 }
