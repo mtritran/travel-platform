@@ -29,6 +29,7 @@ public class TourRequestService {
     UserRepository userRepository;
     LocationRepository locationRepository;
     TourRequestMapper tourRequestMapper;
+    NotificationService notificationService;
 
     public TourRequestResponse createRequest(TourRequestCreateRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -48,16 +49,45 @@ public class TourRequestService {
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
                 .plannedDate(request.getPlannedDate())
+                .title(request.getTitle())
                 .budget(request.getBudget())
+                .numberOfGuests(request.getNumberOfGuests() != null ? request.getNumberOfGuests() : 1)
                 .description(request.getDescription())
                 .status(TourRequestStatus.OPEN)
                 .build();
 
-        return tourRequestMapper.toResponse(tourRequestRepository.save(tourRequest));
+        TourRequest saved = tourRequestRepository.save(tourRequest);
+
+        // Broadcast to all guides about new request
+        notificationService.broadcastNotification("requests", 
+            java.util.Map.of(
+                "type", "NEW_TOUR_REQUEST",
+                "message", "Có một yêu cầu tour mới: " + tourRequest.getTitle()
+            ));
+
+        return tourRequestMapper.toResponse(saved);
     }
 
     public List<TourRequestResponse> getAllOpenRequests() {
         return tourRequestRepository.findAllByStatus(TourRequestStatus.OPEN).stream()
+                .map(tourRequestMapper::toResponse)
+                .toList();
+    }
+
+    public List<TourRequestResponse> getMyRequests() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+        return tourRequestRepository.findAllByUser(user).stream()
+                .map(tourRequestMapper::toResponse)
+                .toList();
+    }
+
+    public List<TourRequestResponse> getAcceptedRequests() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User guide = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+        return tourRequestRepository.findAllByGuide(guide).stream()
                 .map(tourRequestMapper::toResponse)
                 .toList();
     }
@@ -88,6 +118,16 @@ public class TourRequestService {
         tourRequest.setStatus(TourRequestStatus.MATCHED);
         tourRequest.setGuide(guide);
 
-        return tourRequestMapper.toResponse(tourRequestRepository.save(tourRequest));
+        TourRequest saved = tourRequestRepository.save(tourRequest);
+
+        // Notify Customer real-time
+        notificationService.sendNotification(tourRequest.getUser().getId(), 
+            java.util.Map.of(
+                "type", "TOUR_REQUEST_MATCHED", 
+                "message", "HDV " + guide.getFullName() + " đã chấp nhận yêu cầu của bạn: " + tourRequest.getTitle(),
+                "requestId", saved.getId()
+            ));
+
+        return tourRequestMapper.toResponse(saved);
     }
 }
