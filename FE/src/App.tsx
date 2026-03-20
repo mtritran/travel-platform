@@ -3,30 +3,152 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import MarketplacePage from './pages/MarketplacePage';
+import TourDetailPage from './pages/TourDetailPage';
+import MyBookingsPage from './pages/MyBookingsPage';
+import TripRequestsPage from './pages/TripRequestsPage';
+import BecomeGuidePage from './pages/BecomeGuidePage';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AdminToursPage from './pages/admin/AdminToursPage';
+import AdminLocationsPage from './pages/admin/AdminLocationsPage';
+import AdminGuideApplications from './pages/admin/AdminGuideApplications';
+import CreateTourPage from './pages/guide/CreateTourPage';
+import EditTourPage from './pages/guide/EditTourPage';
+import GuideToursPage from './pages/guide/GuideToursPage';
+import GuideBookingsPage from './pages/guide/GuideBookingsPage';
+import CreateTourRequestPage from './pages/customer/CreateTourRequestPage';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 
-// Simple Protected Route component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+// Improved Protected Route component with role support
+const ProtectedRoute = ({ children, role }: { children: React.ReactNode, role?: string }) => {
+  const { user, loading } = useAuth();
   const token = localStorage.getItem('token');
+
+  if (loading) return <div style={{ textAlign: 'center', padding: '100px 0' }}>Đang tải...</div>;
+  
   if (!token) return <Navigate to="/login" replace />;
+  
+  if (role && !user?.roles?.some(r => r.name === role)) {
+    // If user is not admin and tries to access admin, send home
+    if (role === 'ADMIN') return <Navigate to="/" replace />;
+    // If admin tries to access user page, send to admin dashboard
+    if (user?.roles?.some(r => r.name === 'ADMIN')) return <Navigate to="/admin" replace />;
+    return <Navigate to="/" replace />;
+  }
+
+  // Auto-redirect Admin from home to dashboard if they land on "/"
+  if (!role && window.location.pathname === '/' && user?.roles?.some(r => r.name === 'ADMIN')) {
+    return <Navigate to="/admin" replace />;
+  }
+
   return <>{children}</>;
 };
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        
-        {/* Marketplace - Protected Route */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <MarketplacePage />
-          </ProtectedRoute>
-        } />
+      <AuthProvider>
+        <NotificationProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            
+            {/* Marketplace - Protected Route */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <MarketplacePage />
+              </ProtectedRoute>
+            } />
 
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
+            <Route path="/tours/:id" element={
+              <ProtectedRoute>
+                <TourDetailPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/bookings" element={
+              <ProtectedRoute>
+                <MyBookingsPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/requests" element={
+              <ProtectedRoute>
+                <TripRequestsPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/become-guide" element={
+              <ProtectedRoute>
+                <BecomeGuidePage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/customer/create-request" element={
+              <ProtectedRoute>
+                <CreateTourRequestPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/users" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminUsersPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/tours" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminToursPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/locations" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminLocationsPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/applications" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminGuideApplications />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/guide/create-tour" element={
+              <ProtectedRoute role="GUIDE">
+                <CreateTourPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/guide/tours" element={
+              <ProtectedRoute role="GUIDE">
+                <GuideToursPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/guide/bookings" element={
+              <ProtectedRoute role="GUIDE">
+                <GuideBookingsPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/guide/edit-tour/:id" element={
+              <ProtectedRoute role="GUIDE">
+                <EditTourPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </NotificationProvider>
+      </AuthProvider>
     </Router>
   );
 }
