@@ -13,7 +13,8 @@ import org.mapstruct.ReportingPolicy;
 public interface UserMapper {
     User toUser(UserCreateRequest request);
 
-//    @Mapping(target = "roles", ignore = true)
+    @org.mapstruct.Mapping(target = "roles", ignore = true)
+    @org.mapstruct.Mapping(target = "password", ignore = true)
     void updateUser(@MappingTarget User user, UserUpdateRequest request);
 
     UserResponse toResponse(User user);
