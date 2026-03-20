@@ -39,6 +39,23 @@ public class TourRequestController {
                 .build();
     }
 
+    @Operation(summary = "Get my tour requests", description = "Customer gets their own tour requests.")
+    @GetMapping("/me")
+    public ApiResponse<List<TourRequestResponse>> getMyRequests() {
+        return ApiResponse.<List<TourRequestResponse>>builder()
+                .result(tourRequestService.getMyRequests())
+                .build();
+    }
+
+    @Operation(summary = "Get accepted tour requests", description = "Guide gets tour requests they have accepted.")
+    @PreAuthorize("hasRole('GUIDE')")
+    @GetMapping("/accepted")
+    public ApiResponse<List<TourRequestResponse>> getAcceptedRequests() {
+        return ApiResponse.<List<TourRequestResponse>>builder()
+                .result(tourRequestService.getAcceptedRequests())
+                .build();
+    }
+
     @Operation(summary = "Find nearby requests", description = "Guide finds tour requests within radius (km) from current GPS location.")
     @GetMapping("/nearby")
     public ApiResponse<List<TourRequestResponse>> getNearby(
@@ -51,7 +68,7 @@ public class TourRequestController {
     }
 
     @Operation(summary = "Accept a tour request", description = "Guide accepts a user's tour request.")
-    @PreAuthorize("hasAuthority('GUIDE')")
+    @PreAuthorize("hasRole('GUIDE')")
     @PostMapping("/{id}/accept")
     public ApiResponse<TourRequestResponse> accept(@PathVariable String id) {
         return ApiResponse.<TourRequestResponse>builder()
