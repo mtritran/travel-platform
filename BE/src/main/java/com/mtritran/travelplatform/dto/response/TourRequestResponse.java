@@ -20,6 +20,8 @@ public class TourRequestResponse {
     String customLocationName;
     LocalDate plannedDate;
     BigDecimal budget;
+    Integer numberOfGuests;
+    String title;
     String description;
     TourRequestStatus status;
     String guideName; // populated when matched
