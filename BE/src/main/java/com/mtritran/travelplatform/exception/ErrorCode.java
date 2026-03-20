@@ -33,6 +33,12 @@ public enum ErrorCode {
     BOOKING_NOT_FOUND(1018, "Booking not found", HttpStatus.NOT_FOUND),
     CANNOT_BOOK_OWN_TOUR(1019, "You cannot book your own tour", HttpStatus.BAD_REQUEST),
     CANNOT_ACCEPT_OWN_REQUEST(1020, "You cannot accept your own tour request", HttpStatus.BAD_REQUEST),
+    DATE_REQUIRED(1021, "Planned date is required", HttpStatus.BAD_REQUEST),
+    TOUR_HAS_BOOKINGS(1022, "Cannot delete tour as it has bookings", HttpStatus.BAD_REQUEST),
+    EXCEED_MAX_GUESTS(1023, "Number of guests exceeds tour limit", HttpStatus.BAD_REQUEST),
+    INVALID_TOUR_DATE(1024, "Tour start date and time cannot be in the past", HttpStatus.BAD_REQUEST),
+    INVALID_BOOKING_STATUS(1025, "Invalid booking status for this action", HttpStatus.BAD_REQUEST),
+    ALREADY_REVIEWED(1026, "You have already reviewed this booking", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
