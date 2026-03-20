@@ -77,32 +77,6 @@ public class ApplicationInitConfig {
                 userRepository.save(adminUser);
                 log.info("Admin user has been created with email: {}", adminEmail);
             }
-
-            // Seed Locations
-            if (locationRepository.count() == 0) {
-                locationRepository.save(Location.builder()
-                        .name("Đà Lạt")
-                        .address("Thành phố Đà Lạt, Lâm Đồng")
-                        .latitude(11.9404)
-                        .longitude(108.4583)
-                        .imageUrl("https://example.com/dalat.jpg")
-                        .build());
-                locationRepository.save(Location.builder()
-                        .name("Hội An")
-                        .address("Thành phố Hội An, Quảng Nam")
-                        .latitude(15.8801)
-                        .longitude(108.3380)
-                        .imageUrl("https://example.com/hoian.jpg")
-                        .build());
-                locationRepository.save(Location.builder()
-                        .name("Huế")
-                        .address("Thành phố Huế, Thừa Thiên Huế")
-                        .latitude(16.4637)
-                        .longitude(107.5909)
-                        .imageUrl("https://example.com/hue.jpg")
-                        .build());
-                log.info("Initial locations have been seeded");
-            }
         };
     }
 }
