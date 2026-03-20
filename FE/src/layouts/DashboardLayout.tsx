@@ -1,13 +1,16 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, NavLink } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { 
   Compass, 
   MapPin, 
   Calendar, 
   User, 
   LogOut, 
-  Search,
-  Bell
+  Bell,
+  ShieldCheck,
+  PlusCircle,
+  Briefcase
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -16,10 +19,10 @@ interface DashboardLayoutProps {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
-  const userName = "Explorer"; // Hardcoded for now, will get from context later
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    logout();
     navigate('/login');
   };
 
@@ -44,15 +47,36 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           </Link>
 
           <nav style={{ display: 'flex', gap: '24px' }}>
-            <Link to="/" style={{ color: 'var(--primary)', fontWeight: '600', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Search size={18} /> Marketplace
-            </Link>
-            <Link to="/requests" style={{ color: 'var(--text-secondary)', fontWeight: '500', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <MapPin size={18} /> Trip Requests
-            </Link>
-            <Link to="/bookings" style={{ color: 'var(--text-secondary)', fontWeight: '500', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={18} /> My Bookings
-            </Link>
+            {user?.roles?.some(r => r.name === 'ADMIN') ? (
+              null
+            ) : (
+              <>
+                <NavLink to="/requests" style={({ isActive }) => ({ color: isActive ? 'var(--primary)' : 'var(--text-primary)', fontWeight: isActive ? '700' : '500', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' })}>
+                  <MapPin size={18} /> Yêu cầu chuyến đi
+                </NavLink>
+                <NavLink to="/bookings" style={({ isActive }) => ({ color: isActive ? 'var(--primary)' : 'var(--text-primary)', fontWeight: isActive ? '700' : '500', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' })}>
+                  <Calendar size={18} /> Lịch sử đặt tour
+                </NavLink>
+                {user?.roles?.some(r => r.name === 'GUIDE') && (
+                  <>
+                    <NavLink to="/guide/bookings" style={({ isActive }) => ({ color: isActive ? 'var(--primary)' : 'var(--text-primary)', fontWeight: isActive ? '700' : '500', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' })}>
+                      <Calendar size={18} /> Đơn khách đặt
+                    </NavLink>
+                    <NavLink to="/guide/tours" style={({ isActive }) => ({ color: isActive ? 'var(--primary)' : 'var(--text-primary)', fontWeight: isActive ? '700' : '500', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' })}>
+                      <Briefcase size={18} /> Quản lý Tour
+                    </NavLink>
+                    <NavLink to="/guide/create-tour" style={({ isActive }) => ({ color: isActive ? 'var(--primary)' : 'var(--text-primary)', fontWeight: isActive ? '700' : '500', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' })}>
+                      <PlusCircle size={18} /> Đăng Tour mới
+                    </NavLink>
+                  </>
+                )}
+                {!user?.roles?.some(r => r.name === 'GUIDE') && (
+                  <NavLink to="/become-guide" style={({ isActive }) => ({ color: isActive ? 'var(--primary)' : 'var(--text-primary)', fontWeight: isActive ? '700' : '500', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' })}>
+                    <ShieldCheck size={18} /> Trở thành HDV
+                  </NavLink>
+                )}
+              </>
+            )}
           </nav>
         </div>
 
@@ -63,8 +87,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           
           <div style={{ padding: '4px 12px', background: 'var(--surface-hover)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid var(--glass-border)' }}>
             <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-primary)' }}>{userName}</p>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Member</p>
+              <p style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-primary)' }}>{user?.fullName || 'Người khám phá'}</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                {user?.roles?.map(r => {
+                  if (r.name === 'ADMIN') return 'Quản trị viên';
+                  if (r.name === 'GUIDE') return 'Hướng dẫn viên';
+                  if (r.name === 'CUSTOMER') return 'Khách hàng';
+                  return r.name;
+                }).join(', ') || 'Thành viên'}
+              </p>
             </div>
             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(to bottom right, var(--primary), var(--accent))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
                <User size={20} style={{ margin: 'auto' }} />
