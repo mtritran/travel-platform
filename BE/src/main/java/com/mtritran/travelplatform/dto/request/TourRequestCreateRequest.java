@@ -18,9 +18,11 @@ public class TourRequestCreateRequest {
     Double latitude;
     Double longitude;
 
-    @NotNull(message = "UNCATEGORIZED_EXCEPTION")
+    @NotNull(message = "DATE_REQUIRED")
     LocalDate plannedDate;
 
     BigDecimal budget;
+    Integer numberOfGuests;
+    String title;
     String description;
 }
