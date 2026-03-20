@@ -30,6 +30,10 @@ public class Tour {
     @JoinColumn(name = "location_id", nullable = false)
     Location location;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "meeting_location_id")
+    Location meetingLocation;
+
     @Column(nullable = false)
     String title;
 
@@ -44,6 +48,26 @@ public class Tour {
     boolean active = true;
 
     String imageUrl;
+
+    @Column
+    java.time.LocalDate startDate;
+
+    @Column
+    java.time.LocalDate endDate;
+
+    @Column
+    java.time.LocalTime startTime;
+
+    @Column
+    java.time.LocalTime endTime;
+
+    @Column
+    @Builder.Default
+    Integer maxGuests = 1;
+
+    @Column
+    @Builder.Default
+    BigDecimal depositPercentage = BigDecimal.valueOf(30);
 
     @CreationTimestamp
     LocalDateTime createdAt;
