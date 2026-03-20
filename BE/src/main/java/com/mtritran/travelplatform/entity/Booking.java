@@ -31,15 +31,34 @@ public class Booking {
     @JoinColumn(name = "tour_id", nullable = false)
     Tour tour;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pickup_location_id")
+    Location pickupLocation;
+
     @Column(nullable = false)
     LocalDate bookingDate;
 
     @Column(nullable = false)
     BigDecimal totalPrice;
 
+    @Column(nullable = false)
+    @Builder.Default
+    Integer numberOfGuests = 1;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     BookingStatus status = BookingStatus.PENDING;
+
+    @Column
+    BigDecimal depositAmount;
+    
+    @Column
+    @Builder.Default
+    BigDecimal paidAmount = BigDecimal.ZERO;
+
+    @Column
+    @Builder.Default
+    BigDecimal refundAmount = BigDecimal.ZERO;
 
     @CreationTimestamp
     LocalDateTime createdAt;
