@@ -47,4 +47,7 @@ public class User {
     )
     @Builder.Default
     Set<Role> roles = new HashSet<>();
+
+    @Builder.Default
+    java.math.BigDecimal balance = java.math.BigDecimal.ZERO;
 }
