@@ -2,26 +2,30 @@ import React, { useState } from 'react';
 import { Star, X, MessageSquare, Send } from 'lucide-react';
 import api from '../services/api';
 import { ENDPOINTS } from '../constants/endpoints';
-import type { Booking } from '../types';
+import type { Booking, TourRequest } from '../types';
 
 interface ReviewModalProps {
-  booking: Booking;
+  booking?: Booking;
+  tourRequest?: TourRequest;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const ReviewModal: React.FC<ReviewModalProps> = ({ booking, onClose, onSuccess }) => {
+const ReviewModal: React.FC<ReviewModalProps> = ({ booking, tourRequest, onClose, onSuccess }) => {
   const [rating, setRating] = useState(5);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const title = booking ? booking.tourTitle : (tourRequest ? tourRequest.title : '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await api.post(ENDPOINTS.REVIEW.CREATE, {
-        bookingId: booking.id,
+        bookingId: booking?.id,
+        tourRequestId: tourRequest?.id,
         rating,
         comment
       });
@@ -68,7 +72,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ booking, onClose, onSuccess }
             <Star size={32} color="var(--primary)" fill="var(--primary)" />
           </div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-primary)' }}>Đánh giá chuyến đi</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Hãy chia sẻ trải nghiệm của bạn về tour <strong>{booking.tourTitle}</strong></p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Hãy chia sẻ trải nghiệm của bạn về tour <strong>{title}</strong></p>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

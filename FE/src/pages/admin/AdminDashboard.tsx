@@ -5,7 +5,8 @@ import {
   ShieldCheck, 
   TrendingUp, 
   ExternalLink,
-  MapPinned
+  MapPinned,
+  Wallet
 } from 'lucide-react';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
@@ -31,15 +32,15 @@ const AdminDashboard: React.FC = () => {
   const fetchStats = async () => {
     try {
       const [usersRes, toursRes, appsRes] = await Promise.all([
-        api.get<ApiResponse<any[]>>(ENDPOINTS.USER.GET_ALL),
-        api.get<ApiResponse<any[]>>(ENDPOINTS.TOUR.GET_ALL),
+        api.get<ApiResponse<any>>(ENDPOINTS.USER.GET_ALL),
+        api.get<ApiResponse<any>>(ENDPOINTS.TOUR.GET_ALL_ADMIN),
         api.get<ApiResponse<any[]>>(ENDPOINTS.GUIDE_APPLICATION.GET_ALL + "?status=PENDING")
       ]);
 
       setStats({
-        totalUsers: usersRes.data.result.length,
-        totalTours: toursRes.data.result.length,
-        pendingApplications: appsRes.data.result.length,
+        totalUsers: usersRes.data.result.totalElements || 0,
+        totalTours: toursRes.data.result.totalElements || 0,
+        pendingApplications: appsRes.data.result.length || 0,
         totalBookings: 0 
       });
     } catch (err) {
@@ -69,11 +70,18 @@ const AdminDashboard: React.FC = () => {
       link: '/admin/applications' 
     },
     { 
-      label: 'Quản lý Tour', 
-      desc: `${stats.totalTours} tour trên hệ thống`,
+      label: 'Phê duyệt Tour', 
+      desc: 'Duyệt các tour mới đăng tải',
       icon: <MapPin size={32} />, 
       color: '#10b981', 
-      link: '/admin/tours' 
+      link: '/admin/tours-approval' 
+    },
+    { 
+      label: 'Duyệt Rút tiền', 
+      desc: 'Xử lý yêu cầu giải ngân cho Guide',
+      icon: <Wallet size={32} />, 
+      color: '#6366f1', 
+      link: '/admin/payouts' 
     },
     { 
       label: 'Quản lý Địa điểm', 

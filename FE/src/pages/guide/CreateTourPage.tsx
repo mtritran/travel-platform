@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Calendar, Clock, Users, FileText, Image as ImageIcon, 
-  MapPin, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, 
-  Trash2, Plus, Navigation 
+  FileText, Image as ImageIcon, 
+  MapPin, CheckCircle2, Navigation 
 } from 'lucide-react';
 import api from '../../services/api';
 import { ENDPOINTS } from '../../constants/endpoints';
@@ -24,18 +23,18 @@ const CreateTourPage: React.FC = () => {
     
     return {
       title: '',
-    description: '',
-    price: '',
-    imageUrl: '',
-    locationName: '',
-    address: '',
-    latitude: 0,
-    longitude: 0,
-    meetingLocationName: '',
-    meetingAddress: '',
-    meetingLatitude: 0,
-    meetingLongitude: 0,
-    startDate: now.toISOString().split('T')[0],
+      description: '',
+      price: '',
+      imageUrl: '',
+      locationName: '',
+      address: '',
+      latitude: 0,
+      longitude: 0,
+      meetingLocationName: '',
+      meetingAddress: '',
+      meetingLatitude: 0,
+      meetingLongitude: 0,
+      startDate: now.toISOString().split('T')[0],
       endDate: '',
       startTime: formatTime(startHour),
       endTime: formatTime(endHour),
@@ -101,6 +100,31 @@ const CreateTourPage: React.FC = () => {
     return error;
   };
 
+  const validateStep2 = () => {
+    const newErrors: Record<string, string> = {};
+    let isValid = true;
+
+    if (!formData.latitude) {
+      newErrors.location = 'Vui lòng chọn địa điểm tham quan trên bản đồ';
+      isValid = false;
+    }
+    if (!formData.meetingLatitude) {
+      newErrors.meetingLocation = 'Vui lòng chọn điểm tập trung trên bản đồ';
+      isValid = false;
+    }
+    if (!formData.locationName.trim()) {
+      newErrors.locationName = 'Vui lòng nhập tên địa danh';
+      isValid = false;
+    }
+    if (!formData.meetingLocationName.trim()) {
+      newErrors.meetingLocationName = 'Vui lòng nhập tên điểm hẹn';
+      isValid = false;
+    }
+
+    setErrors(prev => ({ ...prev, ...newErrors }));
+    return isValid;
+  };
+
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {};
     const fieldsToValidate = ['title', 'price', 'startDate', 'startTime', 'endTime', 'maxGuests', 'description', 'imageUrl'];
@@ -159,7 +183,7 @@ const CreateTourPage: React.FC = () => {
         startTime: formData.startTime,
         endTime: formData.endTime,
         maxGuests: Number(formData.maxGuests),
-        depositPercentage: Number(formData.depositPercentage)
+        depositPercentage: 30
       });
 
       setStep(3); // Success step
@@ -180,33 +204,31 @@ const CreateTourPage: React.FC = () => {
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem' }}>Chia sẻ những trải nghiệm thú vị của bạn với du khách.</p>
         </div>
-
-        {/* Form Steps */}
-        <div style={{ display: 'flex', gap: '32px', marginBottom: '40px' }}>
-           <div style={{ flex: 1, padding: '12px', background: step === 1 ? 'var(--primary-light)' : 'var(--surface)', borderRadius: '12px', border: `2px solid ${step === 1 ? 'var(--primary)' : 'var(--glass-border)'}`, color: step === 1 ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: '700', textAlign: 'center' }}>
+        <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', background: 'var(--surface)', padding: '8px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
+           <div style={{ flex: 1, padding: '16px', background: step === 1 ? 'var(--primary)' : 'transparent', borderRadius: '16px', color: step === 1 ? 'white' : 'var(--text-secondary)', fontWeight: '700', textAlign: 'center', transition: 'all 0.3s ease' }}>
              1. Thông tin cơ bản
            </div>
-           <div style={{ flex: 1, padding: '12px', background: step === 2 ? 'var(--primary-light)' : 'var(--surface)', borderRadius: '12px', border: `2px solid ${step === 2 ? 'var(--primary)' : 'var(--glass-border)'}`, color: step === 2 ? 'var(--primary)' : 'var(--text-secondary)', fontWeight: '700', textAlign: 'center' }}>
-             2. Chọn vị trí trên Map
+           <div style={{ flex: 1, padding: '16px', background: step === 2 ? 'var(--primary)' : 'transparent', borderRadius: '16px', color: step === 2 ? 'white' : 'var(--text-secondary)', fontWeight: '700', textAlign: 'center', transition: 'all 0.3s ease' }}>
+             2. Vị trí trên bản đồ
            </div>
-           <div style={{ flex: 1, padding: '12px', background: step === 3 ? 'var(--success-light)' : 'var(--surface)', borderRadius: '12px', border: `2px solid ${step === 3 ? 'var(--success)' : 'var(--glass-border)'}`, color: step === 3 ? 'var(--success)' : 'var(--text-secondary)', fontWeight: '700', textAlign: 'center' }}>
+           <div style={{ flex: 1, padding: '16px', background: step === 3 ? 'var(--success)' : 'transparent', borderRadius: '16px', color: step === 3 ? 'white' : 'var(--text-secondary)', fontWeight: '700', textAlign: 'center', transition: 'all 0.3s ease' }}>
              3. Hoàn tất
            </div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '40px' }}>
+        <div className="glass-panel" style={{ padding: '48px', borderRadius: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.1)' }}>
            {step === 1 && (
-             <form style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+             <form style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
                   <div className="input-group">
-                    <label>Tiêu đề Tour</label>
+                    <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Tiêu đề Tour</label>
                     <div style={{ position: 'relative', width: '100%' }}>
-                      <FileText size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                      <FileText size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.7 }} />
                       <input 
                         type="text" 
                         className={errors.title ? 'error' : ''}
                         placeholder="Ví dụ: Khám phá Phố cổ Hội An về đêm" 
-                        style={{ paddingLeft: '40px', width: '100%', borderColor: errors.title ? 'var(--error)' : '' }} 
+                        style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
                         value={formData.title}
                         onChange={e => {
                            setFormData({...formData, title: e.target.value});
@@ -214,17 +236,17 @@ const CreateTourPage: React.FC = () => {
                         }}
                       />
                     </div>
-                    {errors.title && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '4px' }}>{errors.title}</p>}
+                    {errors.title && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '6px', fontWeight: 600 }}>{errors.title}</p>}
                   </div>
                   <div className="input-group">
-                    <label>Giá tour (VND)</label>
+                    <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giá tour (VND)</label>
                     <div style={{ position: 'relative', width: '100%' }}>
-                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '700', color: 'var(--primary)' }}>₫</span>
+                      <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: 'var(--primary)' }}>₫</span>
                       <input 
                         type="number" 
                         className={errors.price ? 'error' : ''}
                         placeholder="500,000" 
-                        style={{ paddingLeft: '32px', width: '100%', borderColor: errors.price ? 'var(--error)' : '' }} 
+                        style={{ padding: '16px 16px 16px 40px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1.1rem', fontWeight: 700 }} 
                         value={formData.price}
                         onChange={e => {
                            setFormData({...formData, price: e.target.value});
@@ -232,33 +254,33 @@ const CreateTourPage: React.FC = () => {
                         }}
                       />
                     </div>
-                    {errors.price && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '4px' }}>{errors.price}</p>}
+                    {errors.price && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '6px', fontWeight: 600 }}>{errors.price}</p>}
                   </div>
                 </div>
 
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
                   <div className="input-group">
-                    <label>Ngày diễn ra Tour</label>
+                    <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Ngày diễn ra Tour</label>
                     <input 
                       type="date" 
                       className={errors.startDate ? 'error' : ''}
-                      style={{ padding: '12px 16px', width: '100%', borderColor: errors.startDate ? 'var(--error)' : '' }} 
+                      style={{ padding: '16px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
                       value={formData.startDate}
                       onChange={e => {
                         setFormData({...formData, startDate: e.target.value});
                         validateField('startDate', e.target.value);
                       }}
                     />
-                    {errors.startDate && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '4px' }}>{errors.startDate}</p>}
+                    {errors.startDate && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.startDate}</p>}
                   </div>
                   <div className="input-group">
-                    <label>Số khách tối đa nhận</label>
+                    <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Số khách tối đa</label>
                     <input 
                       type="number" 
                       min="1"
                       className={errors.maxGuests ? 'error' : ''}
-                      placeholder="Ví dụ: 8" 
-                      style={{ padding: '12px 16px', width: '100%', borderColor: errors.maxGuests ? 'var(--error)' : '' }} 
+                      placeholder="8" 
+                      style={{ padding: '16px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
                       value={formData.maxGuests}
                       onChange={e => {
                         const val = e.target.value;
@@ -266,65 +288,47 @@ const CreateTourPage: React.FC = () => {
                         validateField('maxGuests', val);
                       }}
                     />
-                    {errors.maxGuests && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '4px' }}>{errors.maxGuests}</p>}
-                  </div>
-                  <div className="input-group">
-                    <label>% Tiền cọc trước</label>
-                    <div style={{ position: 'relative' }}>
-                        <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '700', color: 'var(--text-secondary)' }}>%</span>
-                        <input 
-                            type="number" 
-                            min="0"
-                            max="100"
-                            placeholder="Ví dụ: 30" 
-                            style={{ padding: '12px 32px 12px 16px', width: '100%' }} 
-                            value={formData.depositPercentage}
-                            onChange={e => setFormData({...formData, depositPercentage: e.target.value})}
-                        />
-                    </div>
                   </div>
                  </div>
 
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
                   <div className="input-group">
-                    <label>Giờ bắt đầu</label>
+                    <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giờ bắt đầu</label>
                     <input 
                       type="time" 
                       className={errors.startTime ? 'error' : ''}
-                      style={{ padding: '12px 16px', width: '100%', borderColor: errors.startTime ? 'var(--error)' : '' }} 
+                      style={{ padding: '16px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
                       value={formData.startTime}
                       onChange={e => {
                        setFormData({...formData, startTime: e.target.value});
                        validateField('startTime', e.target.value);
                       }}
                     />
-                    {errors.startTime && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '4px' }}>{errors.startTime}</p>}
                   </div>
                   <div className="input-group">
-                    <label>Giờ kết thúc</label>
+                    <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giờ kết thúc</label>
                     <input 
                       type="time" 
                       className={errors.endTime ? 'error' : ''}
-                      style={{ padding: '12px 16px', width: '100%', borderColor: errors.endTime ? 'var(--error)' : '' }} 
+                      style={{ padding: '16px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
                       value={formData.endTime}
                       onChange={e => {
                         setFormData({...formData, endTime: e.target.value});
                         validateField('endTime', e.target.value);
                       }}
                     />
-                    {errors.endTime && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '4px' }}>{errors.endTime}</p>}
                   </div>
                  </div>
 
                  <div className="input-group">
-                    <label>Mô tả chuyến đi</label>
+                    <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Mô tả chuyến đi</label>
                     <div style={{ position: 'relative', width: '100%' }}>
-                      <FileText size={18} style={{ position: 'absolute', left: '12px', top: '16px', color: 'var(--text-secondary)' }} />
+                      <FileText size={20} style={{ position: 'absolute', left: '16px', top: '18px', color: 'var(--primary)', opacity: 0.7 }} />
                       <textarea 
-                        rows={5} 
+                        rows={6} 
                         className={errors.description ? 'error' : ''}
                         placeholder="Bạn sẽ dẫn khách đi những đâu? Những điểm thú vị của tour này là gì?" 
-                        style={{ paddingLeft: '40px', width: '100%', resize: 'none', borderColor: errors.description ? 'var(--error)' : '' }} 
+                        style={{ padding: '16px 16px 16px 48px', width: '100%', resize: 'none', borderRadius: '20px', border: '2px solid var(--glass-border)', fontSize: '1rem', lineHeight: 1.6 }} 
                         value={formData.description}
                         onChange={e => {
                            setFormData({...formData, description: e.target.value});
@@ -332,48 +336,38 @@ const CreateTourPage: React.FC = () => {
                         }}
                       />
                     </div>
-                    {errors.description && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '4px' }}>{errors.description}</p>}
                 </div>
 
                 <div className="input-group">
-                    <label>URL Hình ảnh Tour</label>
+                    <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Hình ảnh minh họa (URL)</label>
                     <div style={{ position: 'relative', width: '100%' }}>
-                      <ImageIcon size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                      <ImageIcon size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.7 }} />
                       <input 
                         type="text" 
-                        className={errors.imageUrl ? 'error' : ''}
-                        placeholder="https://images.unsplash.com/..." 
-                        style={{ paddingLeft: '40px', width: '100%', borderColor: errors.imageUrl ? 'var(--error)' : '' }} 
+                        placeholder="Dán link ảnh tại đây..." 
+                        style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
                         value={formData.imageUrl}
-                        onChange={e => {
-                           setFormData({...formData, imageUrl: e.target.value});
-                           validateField('imageUrl', e.target.value);
-                        }}
+                        onChange={e => setFormData({...formData, imageUrl: e.target.value})}
                       />
                     </div>
-                    {errors.imageUrl && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '4px' }}>{errors.imageUrl}</p>}
                     {formData.imageUrl && (
-                        <div style={{ marginTop: '12px', width: '100%', height: '200px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
+                        <div style={{ marginTop: '20px', width: '100%', height: '240px', borderRadius: '20px', overflow: 'hidden', border: '4px solid white', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
                             <img src={formData.imageUrl} alt="Tour Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                     )}
                 </div>
 
-                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
                    <button 
                     className="btn-primary" 
                     type="button"
-                    style={{ padding: '16px 48px' }}
+                    style={{ padding: '18px 60px', borderRadius: '18px', fontSize: '1.1rem', fontWeight: 800, boxShadow: '0 10px 15px -3px rgba(var(--primary-rgb), 0.3)' }}
                     onClick={() => {
-                      if (validateStep1()) {
-                        setStep(2);
-                      } else {
-                        alert("Vui lòng kiểm tra lại các thông tin lỗi.");
-                      }
+                      if (validateStep1()) setStep(2);
+                      else alert("Vui lòng hoàn thiện các trường còn thiếu.");
                     }}
-                    disabled={Object.values(errors).some(e => e !== '')}
                    >
-                     Tiếp theo: Chọn vị trí
+                     Tiếp tục: Chọn bản đồ ➜
                    </button>
                 </div>
              </form>
@@ -381,63 +375,68 @@ const CreateTourPage: React.FC = () => {
 
            {step === 2 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                 {/* Section 1: Tour Destination */}
-                 <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <MapPin size={18} />
+                 <div className="glass-panel" style={{ padding: '32px', borderRadius: '24px', border: '2px solid var(--primary-light)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <MapPin size={22} />
                         </div>
-                        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>1. Địa điểm tham quan chính</h3>
+                        <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800' }}>1. Địa điểm tham quan chính</h3>
                     </div>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>Chọn vị trí du khách sẽ đến tham quan trong tour này.</p>
                     <LocationPicker 
                         onLocationSelect={(lat, lng, addr) => {
                             setFormData({...formData, latitude: lat, longitude: lng, address: addr, locationName: addr});
+                            setErrors(prev => ({ ...prev, location: '' }));
                         }}
                     />
-                    <p style={{ fontWeight: '600', marginTop: '16px', fontSize: '0.875rem' }}>Tên địa danh (rút gọn nếu cần):</p>
-                    <input 
-                        type="text" 
-                        placeholder="Ví dụ: Phố cổ Hội An..." 
-                        value={formData.locationName}
-                        onChange={e => setFormData({...formData, locationName: e.target.value})}
-                        style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', width: '100%', marginTop: '4px' }}
-                    />
+                    <div style={{ marginTop: '20px' }}>
+                      <p style={{ fontWeight: '700', marginBottom: '8px' }}>Tên địa danh hiển thị:</p>
+                      <input 
+                          type="text" 
+                          placeholder="Ví dụ: Phố cổ Hội An..." 
+                          value={formData.locationName}
+                          onChange={e => setFormData({...formData, locationName: e.target.value})}
+                          style={{ padding: '16px', borderRadius: '16px', border: '2px solid var(--glass-border)', width: '100%', fontSize: '1rem' }}
+                      />
+                    </div>
                  </div>
 
-                 {/* Section 2: Meeting Point */}
-                 <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Navigation size={18} />
+                 <div className="glass-panel" style={{ padding: '32px', borderRadius: '24px', border: '2px solid var(--success-light)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--success)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Navigation size={22} />
                         </div>
-                        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>2. Điểm tập trung</h3>
+                        <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800' }}>2. Điểm tập trung gặp khách</h3>
                     </div>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>Chọn vị trí bạn sẽ gặp du khách để bắt đầu hành trình.</p>
                     <LocationPicker 
                         onLocationSelect={(lat, lng, addr) => {
                             setFormData({...formData, meetingLatitude: lat, meetingLongitude: lng, meetingAddress: addr, meetingLocationName: addr});
+                            setErrors(prev => ({ ...prev, meetingLocation: '' }));
                         }}
                     />
-                    <p style={{ fontWeight: '600', marginTop: '16px', fontSize: '0.875rem' }}>Tên điểm tập trung (ví dụ: Sảnh khách sạn, Cổng chính...):</p>
-                    <input 
-                        type="text" 
-                        placeholder="Ví dụ: Cổng chính SVĐ Mỹ Đình..." 
-                        value={formData.meetingLocationName}
-                        onChange={e => setFormData({...formData, meetingLocationName: e.target.value})}
-                        style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', width: '100%', marginTop: '4px' }}
-                    />
+                    <div style={{ marginTop: '20px' }}>
+                      <p style={{ fontWeight: '700', marginBottom: '8px' }}>Tên điểm hẹn (ví dụ: Sảnh khách sạn ABC):</p>
+                      <input 
+                          type="text" 
+                          placeholder="Ví dụ: Cổng chính SVĐ Mỹ Đình..." 
+                          value={formData.meetingLocationName}
+                          onChange={e => setFormData({...formData, meetingLocationName: e.target.value})}
+                          style={{ padding: '16px', borderRadius: '16px', border: '2px solid var(--glass-border)', width: '100%', fontSize: '1rem' }}
+                      />
+                    </div>
                  </div>
 
-                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
-                    <button className="btn-secondary" onClick={() => setStep(1)} style={{ padding: '12px 32px' }}>Quay lại</button>
-                    <button 
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px' }}>
+                    <button className="btn-secondary" onClick={() => setStep(1)} style={{ padding: '16px 40px', borderRadius: '16px', fontWeight: 700 }}>← Quay lại</button>
+                     <button 
                         className="btn-primary" 
-                        style={{ padding: '12px 48px' }} 
-                        onClick={handleSubmit}
-                        disabled={submitting || !formData.latitude || !formData.meetingLatitude}
+                        style={{ padding: '18px 60px', borderRadius: '18px', fontSize: '1.1rem', fontWeight: 800, boxShadow: '0 10px 15px -3px rgba(var(--primary-rgb), 0.3)' }} 
+                        onClick={(e) => {
+                          if (validateStep2()) handleSubmit(e as any);
+                          else alert("Vui lòng hoàn thiện các thông tin địa điểm.");
+                        }}
+                        disabled={submitting}
                     >
-                        {submitting ? 'Đang đăng tour...' : 'Hoàn tất và Đăng Tour'}
+                        {submitting ? 'Đang khởi tạo Tour...' : 'Hoàn tất & Đăng Tour'}
                     </button>
                  </div>
               </div>
@@ -445,15 +444,15 @@ const CreateTourPage: React.FC = () => {
 
            {step === 3 && (
                <div style={{ textAlign: 'center', padding: '60px 0' }}>
-                  <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--success-light)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-                     <CheckCircle2 size={48} />
+                  <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'var(--success-light)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 32px', boxShadow: '0 20px 25px -5px rgba(16, 185, 129, 0.2)' }}>
+                     <CheckCircle2 size={60} />
                   </div>
-                  <h3 style={{ fontSize: '1.75rem', fontWeight: '800', marginBottom: '16px' }}>Đăng Tour thành công!</h3>
-                  <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>Tour của bạn hiện đã được hiển thị trên TravelX và du khách có thể đặt tour ngay từ bây giờ.</p>
+                  <h3 style={{ fontSize: '2.5rem', fontWeight: '900', marginBottom: '16px', background: 'linear-gradient(to right, #059669, #10b981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Tuyệt vời!</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto 40px', lineHeight: 1.6 }}>Tour của bạn đã được đăng thành công. Chúng tôi sẽ phê duyệt trong giây lát để hiển thị công khai trên ứng dụng.</p>
                   <div style={{ display: 'flex', gap: '24px', justifyContent: 'center' }}>
                      <button 
                          onClick={() => navigate('/')}
-                         style={{ padding: '16px 32px', fontSize: '1.125rem', fontWeight: '700', background: '#ecfdf5', color: '#059669', border: '2px solid #a7f3d0', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }}
+                         style={{ padding: '20px 40px', fontSize: '1.1rem', fontWeight: '800', background: 'white', color: 'var(--text-primary)', border: '2px solid var(--glass-border)', borderRadius: '20px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
                      >
                          Về trang chủ
                      </button>
@@ -473,10 +472,10 @@ const CreateTourPage: React.FC = () => {
                             }); 
                             setErrors({});
                           }}
-                          style={{ padding: '16px 32px', fontSize: '1.125rem', fontWeight: '700', background: '#059669', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.3)' }}
+                          style={{ padding: '20px 48px', fontSize: '1.1rem', fontWeight: '800', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 10px 15px -3px rgba(var(--primary-rgb), 0.3)' }}
                       >
-                         Đăng tiếp tour khác
-                     </button>
+                         Đăng tour khác
+                      </button>
                   </div>
                </div>
            )}

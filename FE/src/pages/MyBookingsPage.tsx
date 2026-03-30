@@ -1,15 +1,61 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Calendar, CheckCircle2, Clock, MapPin, XCircle, AlertCircle, 
-  ChevronRight, Star, Wallet 
-} from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronRight, Clock, AlertCircle, MapPin, Wallet, XCircle } from 'lucide-react';
 import api from '../services/api';
-import type { Booking, ApiResponse } from '../types';
+import type { ApiResponse, Booking } from '../types';
 import { ENDPOINTS } from '../constants/endpoints';
 import { formatVND } from '../utils/format';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { useNotification } from '../context/NotificationContext';
 import ReviewModal from '../components/ReviewModal';
+
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+};
+
+const ReservationTimer: React.FC<{ createdAt: string }> = ({ createdAt }) => {
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const createdDate = new Date(createdAt);
+      const expiryDate = new Date(createdDate.getTime() + 10 * 60 * 1000);
+      const now = new Date();
+      const diff = Math.max(0, Math.floor((expiryDate.getTime() - now.getTime()) / 1000));
+      setTimeLeft(diff);
+    };
+
+    calculateTimeLeft();
+    const interval = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(interval);
+  }, [createdAt]);
+
+  if (timeLeft <= 0) return <span style={{ color: 'var(--danger)', fontWeight: 700 }}>Hết hạn giữ chỗ</span>;
+
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+
+  return (
+    <span style={{ 
+      color: '#b45309', 
+      fontWeight: 800, 
+      display: 'inline-flex', 
+      alignItems: 'center', 
+      gap: '6px',
+      padding: '4px 10px',
+      background: '#fff7ed',
+      borderRadius: '8px',
+      fontSize: '0.88rem',
+      border: '1px solid #ffedd5'
+    }}>
+      <Clock size={14} />
+      Cần thanh toán trong: {minutes}:{seconds.toString().padStart(2, '0')}
+    </span>
+  );
+};
 
 const MyBookingsPage: React.FC = () => {
   const { notifications } = useNotification();
@@ -19,6 +65,8 @@ const MyBookingsPage: React.FC = () => {
   const [payingBooking, setPayingBooking] = useState<Booking | null>(null);
   const [reviewingBooking, setReviewingBooking] = useState<Booking | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  /** '' = chọn phương thức trên cổng VNPAY; 'VNPAYQR' = quét mã QR */
+  const [vnpayBankCode, setVnpayBankCode] = useState<'' | 'VNPAYQR'>('');
 
   const fetchBookings = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -26,7 +74,7 @@ const MyBookingsPage: React.FC = () => {
       const response = await api.get<ApiResponse<Booking[]>>(ENDPOINTS.BOOKING.MY_BOOKINGS);
       setBookings(response.data.result);
     } catch (err) {
-      console.error("Failed to fetch bookings:", err);
+      console.error('Failed to fetch bookings:', err);
     } finally {
       if (!silent) setLoading(false);
     }
@@ -36,13 +84,18 @@ const MyBookingsPage: React.FC = () => {
     fetchBookings();
   }, []);
 
-  // Real-time update logic
+  useEffect(() => {
+    if (payingBooking) setVnpayBankCode('');
+  }, [payingBooking]);
+
   useEffect(() => {
     const latestNotif = notifications[0];
-    if (latestNotif?.type === 'BOOKING_STATUS_UPDATE' || 
-        latestNotif?.type === 'TOUR_REQUEST_MATCHED' ||
-        latestNotif?.type === 'TOUR_COMPLETED') {
-       fetchBookings(true); // Silent refresh
+    if (
+      latestNotif?.type === 'BOOKING_STATUS_UPDATE' ||
+      latestNotif?.type === 'TOUR_REQUEST_MATCHED' ||
+      latestNotif?.type === 'TOUR_COMPLETED'
+    ) {
+      fetchBookings(true);
     }
   }, [notifications]);
 
@@ -50,35 +103,32 @@ const MyBookingsPage: React.FC = () => {
     if (!payingBooking) return;
     setIsProcessingPayment(true);
     try {
-      if (payingBooking.status === 'AWAITING_DEPOSIT') {
-        await api.post(ENDPOINTS.BOOKING.PAY_DEPOSIT(payingBooking.id));
-        alert("Thanh toán cọc thành công! Tour của bạn đã được xác nhận.");
-      } else {
-        await api.post(ENDPOINTS.BOOKING.PAY_REMAINING(payingBooking.id));
-        alert("Thanh toán phần còn lại thành công! Bạn đã hoàn tất nghĩa vụ tài chính cho tour này.");
+      const type = payingBooking.status === 'AWAITING_DEPOSIT' ? 'DEPOSIT' : 'REMAINING';
+      const response = await api.get<ApiResponse<string>>(
+        ENDPOINTS.PAYMENT.CREATE_VNPAY(payingBooking.id, type, vnpayBankCode || undefined),
+      );
+      
+      if (response.data.result) {
+        window.location.href = response.data.result;
       }
-      setPayingBooking(null);
-      fetchBookings();
-    } catch (err: any) {
-      console.error("Lỗi khi thanh toán:", err);
-      alert(err.response?.data?.message || "Không thể thực hiện thanh toán lúc này.");
+    } catch (err) {
+      const apiError = err as ApiError;
+      alert(apiError.response?.data?.message || 'Không thể tạo liên kết thanh toán lúc này.');
     } finally {
       setIsProcessingPayment(false);
     }
   };
 
   const handleCancel = async (booking: Booking) => {
-    let message = "Bạn có chắc chắn muốn hủy tour này?";
-    
-    // Simple logic preview for UI
+    let message = 'Bạn có chắc chắn muốn hủy tour này?';
     const now = new Date();
     const startDateTime = new Date(`${booking.tourStartDate}T${booking.tourStartTime}`);
     const diffHours = (startDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
+
     if (booking.paidAmount > 0) {
-        if (diffHours > 48) message += `\n\nQuy định hoàn tiền: Được hoàn tiền 100% (${formatVND(booking.paidAmount)}) vì hủy trước 48h.`;
-        else if (diffHours > 24) message += `\n\nQuy định hoàn tiền: Được hoàn tiền 50% (${formatVND(booking.paidAmount * 0.5)}) vì hủy trước 24h-48h.`;
-        else message += `\n\nQuy định hoàn tiền: Bạn sẽ KHÔNG ĐƯỢC hoàn tiền cọc (hủy < 24h).`;
+      if (diffHours > 48) message += `\n\nĐược hoàn 100% (${formatVND(booking.paidAmount)}).`;
+      else if (diffHours > 24) message += `\n\nĐược hoàn 50% (${formatVND(booking.paidAmount * 0.5)}).`;
+      else message += '\n\nHủy dưới 24h sẽ không được hoàn cọc.';
     }
 
     if (!window.confirm(message)) return;
@@ -86,339 +136,239 @@ const MyBookingsPage: React.FC = () => {
     setCancellingId(booking.id);
     try {
       await api.post(ENDPOINTS.BOOKING.CANCEL(booking.id));
-      alert("Hủy tour thành công!");
+      alert('Hủy tour thành công.');
       fetchBookings();
-    } catch (err: any) {
-      console.error("Lỗi khi hủy tour:", err);
-      alert(err.response?.data?.message || "Không thể hủy tour lúc này.");
+    } catch (err) {
+      const apiError = err as ApiError;
+      alert(apiError.response?.data?.message || 'Không thể hủy tour lúc này.');
     } finally {
       setCancellingId(null);
     }
   };
 
-  const getStatusStyle = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'CONFIRMED':
-        return { bg: '#ecfdf5', text: '#065f46', border: '#a7f3d0', icon: <CheckCircle2 size={16} /> };
+        return { className: 'badge badge-secondary', label: 'Đã cọc - Chờ thanh toán phần còn lại', icon: <Clock size={14} /> };
       case 'PAID_FULL':
-        return { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', icon: <Wallet size={16} /> };
+        return { className: 'badge badge-success', label: 'Đã thanh toán 100%', icon: <Wallet size={14} /> };
       case 'CANCELLED':
-        return { bg: '#fef2f2', text: '#991b1b', border: '#fecaca', icon: <XCircle size={16} /> };
+        return { className: 'badge', label: 'Đã hủy', icon: <XCircle size={14} />, style: { background: 'var(--danger-soft)', color: 'var(--danger)' } };
       case 'AWAITING_DEPOSIT':
-        return { bg: '#fff7ed', text: '#ea580c', border: '#ffedd5', icon: <Clock size={16} /> };
+        return { className: 'badge badge-secondary', label: 'Chờ đặt cọc', icon: <Clock size={14} /> };
       case 'PENDING':
-        return { bg: '#fffbeb', text: '#92400e', border: '#fde68a', icon: <AlertCircle size={16} /> };
+        return { className: 'badge', label: 'Chờ xác nhận', icon: <AlertCircle size={14} />, style: { background: '#fff7ed', color: '#b45309' } };
       case 'COMPLETED':
-        return { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0', icon: <CheckCircle2 size={16} /> };
+        return { className: 'badge badge-success', label: 'Hoàn thành', icon: <CheckCircle2 size={14} /> };
       default:
-        return { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0', icon: <Clock size={16} /> };
+        return { className: 'badge', label: status, icon: <Clock size={14} />, style: { background: 'var(--surface-muted)', color: 'var(--text-secondary)' } };
     }
   };
 
   return (
     <DashboardLayout>
-      <div style={{ marginBottom: '32px', marginTop: '24px' }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: '800', color: 'var(--text-primary)' }}>Lịch sử đặt tour</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>Quản lý các đơn đặt tour và trạng thái chuyến đi của bạn</p>
-      </div>
+      <div className="page-stack">
+        <section className="section-heading">
+          <span className="eyebrow">Booking center</span>
+          <h1 className="page-title">Lịch sử đặt tour</h1>
+          <p className="page-subtitle">Theo dõi toàn bộ booking, khoản thanh toán và trạng thái chuyến đi của bạn trong một bảng nhìn dễ quét hơn.</p>
+        </section>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '100px 0' }}>
-          <p style={{ color: 'var(--text-secondary)' }}>Đang tải danh sách đặt tour...</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {bookings.length > 0 ? bookings.map((booking) => {
-            const statusStyle = getStatusStyle(booking.status);
-            return (
-              <div 
-                key={booking.id} 
-                className="glass-card" 
-                style={{ 
-                  padding: '24px', 
-                  display: 'grid', 
-                  gridTemplateColumns: 'auto 1.5fr 1fr 1fr auto',
-                  alignItems: 'center',
-                  gap: '32px'
-                }}
-              >
-                {/* Date Icon */}
-                <div style={{ 
-                  width: '64px', 
-                  height: '64px', 
-                  background: 'var(--surface-hover)', 
-                  borderRadius: '16px', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  border: '1px solid var(--glass-border)'
-                }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase' }}>
-                    {new Date(booking.bookingDate).toLocaleString('en-US', { month: 'short' })}
-                  </span>
-                  <span style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                    {new Date(booking.bookingDate).getDate()}
-                  </span>
-                </div>
-
-                {/* Tour Info */}
-                <div>
-                  <h3 style={{ fontSize: '1.125rem', fontWeight: '700', marginBottom: '4px', color: 'var(--text-primary)' }}>
-                    {booking.tourTitle}
-                  </h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                    <MapPin size={14} /> Hướng dẫn viên: {booking.guideName}
+        {loading ? (
+          <div className="glass-panel empty-state">
+            <p className="page-subtitle">Đang tải danh sách đặt tour...</p>
+          </div>
+        ) : bookings.length > 0 ? (
+          <div className="booking-list">
+            {bookings.map((booking) => {
+              const status = getStatusBadge(booking.status);
+              return (
+                <article key={booking.id} className="glass-card booking-history-card">
+                  <div className="booking-date-box">
+                    <span style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase' }}>
+                      {new Date(booking.bookingDate).toLocaleString('en-US', { month: 'short' })}
+                    </span>
+                    <span style={{ fontSize: '1.3rem', fontWeight: 800 }}>{new Date(booking.bookingDate).getDate()}</span>
                   </div>
-                </div>
 
-                {/* Status */}
-                <div>
-                  <span style={{ 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '6px', 
-                    padding: '6px 12px', 
-                    borderRadius: '20px', 
-                    fontSize: '0.8125rem', 
-                    fontWeight: '700',
-                    background: statusStyle.bg,
-                    color: statusStyle.text,
-                    border: `1px solid ${statusStyle.border}`
-                  }}>
-                    {statusStyle.icon} {
-                      booking.status === 'CONFIRMED' ? 'ĐÃ ĐẶT CỌC' :
-                      booking.status === 'PAID_FULL' ? 'ĐÃ THANH TOÁN ĐỦ' :
-                      booking.status === 'CANCELLED' ? 'ĐÃ HỦY' :
-                      booking.status === 'PENDING' ? 'CHỜ XÁC NHẬN' :
-                      booking.status === 'AWAITING_DEPOSIT' ? 'CHỜ ĐẶT CỌC' :
-                      booking.status === 'COMPLETED' ? 'HOÀN THÀNH' : booking.status
-                    }
-                  </span>
-                </div>
+                  <div>
+                    <h3 className="tour-title" style={{ fontSize: '1.15rem' }}>{booking.tourTitle}</h3>
+                    <div className="info-pair" style={{ marginTop: '8px' }}>
+                      <MapPin size={14} />
+                      Hướng dẫn viên: {booking.guideName}
+                    </div>
+                    <div className="info-pair" style={{ marginTop: '6px' }}>
+                      <Calendar size={14} />
+                      {new Date(booking.tourStartDate).toLocaleDateString('vi-VN')} - {booking.numberOfGuests} khách
+                    </div>
+                  </div>
 
-                {/* Price */}
-                <div>
-                   <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>Tổng thanh toán</p>
-                   <p style={{ fontSize: '1.125rem', fontWeight: '800', color: 'var(--text-primary)' }}>
-                      {formatVND(booking.totalPrice)}
-                   </p>
-                   {booking.status === 'AWAITING_DEPOSIT' && (
-                       <p style={{ fontSize: '0.75rem', color: '#ea580c', fontWeight: '700', marginTop: '4px' }}>
-                          Cần cọc: {formatVND(booking.depositAmount)}
-                       </p>
-                   )}
-                </div>
-
-                {/* Action */}
-                <div>
-                    {booking.status === 'AWAITING_DEPOSIT' ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <button 
-                                onClick={() => setPayingBooking(booking)}
-                                style={{ 
-                                    padding: '10px 20px', 
-                                    background: '#ea580c', 
-                                    color: 'white', 
-                                    borderRadius: '10px', 
-                                    fontSize: '0.875rem', 
-                                    fontWeight: '700', 
-                                    border: 'none', 
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                Thanh toán cọc ({booking.depositPercentage || 30}%)
-                            </button>
-                            <button 
-                                onClick={() => handleCancel(booking)}
-                                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
-                            >
-                                Hủy tour
-                            </button>
-                        </div>
-                    ) : booking.status === 'CONFIRMED' ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <button 
-                                onClick={() => setPayingBooking(booking)}
-                                style={{ 
-                                    padding: '10px 20px', 
-                                    background: 'var(--primary)', 
-                                    color: 'white', 
-                                    borderRadius: '10px', 
-                                    fontSize: '0.875rem', 
-                                    fontWeight: '700', 
-                                    border: 'none', 
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                Thanh toán nốt
-                            </button>
-                            <button 
-                                onClick={() => handleCancel(booking)}
-                                style={{ background: 'transparent', border: 'none', color: '#dc2626', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
-                            >
-                                Hủy tour
-                            </button>
-                        </div>
-                    ) : (booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' && booking.status !== 'PAID_FULL') ? (
-                        <button 
-                            className="btn-secondary"
-                            onClick={() => handleCancel(booking)}
-                            disabled={cancellingId === booking.id}
-                            style={{ 
-                                padding: '8px 16px', 
-                                color: 'var(--error)', 
-                                borderColor: 'var(--error)',
-                                fontSize: '0.8125rem',
-                                fontWeight: '700'
-                            }}
-                        >
-                            {cancellingId === booking.id ? 'Đang hủy...' : 'Hủy tour'}
-                        </button>
-                    ) : booking.status === 'COMPLETED' ? (
-                        booking.reviewed ? (
-                            <span style={{ 
-                                padding: '8px 16px', 
-                                background: '#ecfdf5',
-                                color: '#059669',
-                                borderRadius: '12px',
-                                fontSize: '0.8125rem',
-                                fontWeight: '700',
-                                border: '1px solid #a7f3d0'
-                            }}>
-                                Đã đánh giá
-                            </span>
-                        ) : (
-                            <button 
-                                className="btn-primary"
-                                onClick={() => setReviewingBooking(booking)}
-                                style={{ 
-                                    padding: '8px 16px', 
-                                    background: '#4f46e5',
-                                    fontSize: '0.8125rem',
-                                    fontWeight: '700',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                Viết đánh giá
-                            </button>
-                        )
-                    ) : (
-                        <button style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: 'var(--surface-hover)',
-                            border: '1px solid var(--glass-border)',
-                            color: 'var(--text-secondary)'
-                        }}>
-                            <ChevronRight size={20} />
-                        </button>
+                  <div>
+                    <span className={status.className} style={status.style}>
+                      {status.icon}
+                      {status.label}
+                    </span>
+                    {booking.status === 'AWAITING_DEPOSIT' && (
+                      <div style={{ marginTop: '8px' }}>
+                        <ReservationTimer createdAt={booking.createdAt} />
+                      </div>
                     )}
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                        <span className="muted-text">Giá tour:</span>
+                        <span style={{ fontWeight: 700 }}>{formatVND(booking.totalPrice)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                        <span className="muted-text">Đã trả:</span>
+                        <span style={{ fontWeight: 700, color: '#10b981' }}>{formatVND(booking.paidAmount)}</span>
+                      </div>
+                      {booking.totalPrice - booking.paidAmount > 0 ? (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                          <span className="muted-text">Còn lại:</span>
+                          <span style={{ fontWeight: 700, color: '#b45309' }}>{formatVND(booking.totalPrice - booking.paidAmount)}</span>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div style={{ height: '6px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden', marginTop: '10px' }}>
+                      <div
+                        style={{
+                          height: '100%',
+                          background: 'linear-gradient(90deg, var(--primary), #06b6d4)',
+                          width: `${Math.min(100, (booking.paidAmount / booking.totalPrice) * 100)}%`,
+                          transition: 'width 0.3s ease-out'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                    {booking.status === 'AWAITING_DEPOSIT' ? (
+                      <>
+                        <button type="button" className="btn-secondary" onClick={() => setPayingBooking(booking)} style={{ color: '#b45309' }}>
+                          Thanh toán cọc
+                        </button>
+                        <button type="button" className="btn-ghost" onClick={() => handleCancel(booking)}>
+                          Hủy tour
+                        </button>
+                      </>
+                    ) : booking.status === 'CONFIRMED' ? (
+                      <>
+                        <button type="button" className="btn-primary" onClick={() => setPayingBooking(booking)}>
+                          Thanh toán phần còn lại
+                        </button>
+                        <button type="button" className="btn-ghost" onClick={() => handleCancel(booking)} style={{ color: 'var(--danger)' }}>
+                          Hủy tour
+                        </button>
+                      </>
+                    ) : booking.status === 'COMPLETED' ? (
+                      booking.reviewed ? (
+                        <span className="badge badge-success">Đã đánh giá</span>
+                      ) : (
+                        <button type="button" className="btn-primary" onClick={() => setReviewingBooking(booking)}>
+                          Viết đánh giá
+                        </button>
+                      )
+                    ) : booking.status !== 'CANCELLED' && booking.status !== 'PAID_FULL' ? (
+                      <button
+                        type="button"
+                        className="btn-danger-outline"
+                        onClick={() => handleCancel(booking)}
+                        disabled={cancellingId === booking.id}
+                      >
+                        {cancellingId === booking.id ? 'Đang hủy...' : 'Hủy tour'}
+                      </button>
+                    ) : (
+                      <button type="button" className="icon-button" aria-label="Xem chi tiết">
+                        <ChevronRight size={18} />
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="glass-panel empty-state">
+            <Calendar size={42} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
+            <h2 className="section-title">Bạn chưa có đơn đặt tour nào</h2>
+            <button type="button" className="btn-primary" style={{ marginTop: '18px' }} onClick={() => (window.location.href = '/')}>
+              Khám phá tour
+            </button>
+          </div>
+        )}
+
+        {payingBooking ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(24, 24, 27, 0.65)',
+              backdropFilter: 'blur(8px)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: '20px',
+              zIndex: 1000,
+            }}
+          >
+            <div className="glass-panel" style={{ width: 'min(100%, 520px)', padding: '30px' }}>
+              <div className="section-heading">
+                <span className="badge badge-secondary">
+                  <Clock size={14} />
+                  Thanh toán thủ công
+                </span>
+                <h2 className="section-title" style={{ marginTop: '12px' }}>
+                  {payingBooking.status === 'AWAITING_DEPOSIT' ? 'Thanh toán đặt cọc' : 'Thanh toán phần còn lại'}
+                </h2>
+                <p className="page-subtitle">
+                  Sử dụng cổng thanh toán VNPay để hoàn tất đặt tour <strong>{payingBooking.tourTitle}</strong> một cách nhanh chóng và an toàn.
+                </p>
+              </div>
+
+              <div className="booking-box" style={{ marginTop: '18px' }}>
+                <div className="booking-row">
+                  <span className="muted-text">Số tiền thanh toán</span>
+                  <strong style={{ color: '#b45309', fontSize: '1.2rem' }}>
+                    {formatVND(
+                      payingBooking.status === 'AWAITING_DEPOSIT'
+                        ? payingBooking.depositAmount
+                        : payingBooking.totalPrice - payingBooking.paidAmount,
+                    )}
+                  </strong>
+                </div>
+                <div className="muted-text" style={{ marginTop: '14px', lineHeight: 1.8 }}>
+                  Cổng: <strong>VNPay (sandbox / production tùy cấu hình server)</strong><br />
+                  Trạng thái: <strong>Kết nối an toàn (SSL)</strong>
                 </div>
               </div>
-            );
-          }) : (
-            <div className="glass-panel" style={{ padding: '80px 0', textAlign: 'center' }}>
-               <Calendar size={48} color="var(--text-secondary)" style={{ opacity: 0.3, marginBottom: '16px' }} />
-               <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem' }}>Bạn chưa có đơn đặt tour nào.</p>
-               <button 
-                onClick={() => window.location.href = '/'} 
-                style={{ marginTop: '24px', padding: '12px 24px', background: 'var(--primary)', color: 'white', fontWeight: '700' }}
-               >
-                 Khám phá Tour
-               </button>
-            </div>
-          )}
-        </div>
-      )}
-      {/* Payment Modal Simulation */}
-      {payingBooking && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px'
-        }}>
-          <div className="glass-card" style={{ 
-            maxWidth: '500px', 
-            width: '100%', 
-            padding: '40px', 
-            textAlign: 'center',
-            background: 'var(--surface-primary)',
-            border: '2px solid #ea580c'
-          }}>
-            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-              <Clock size={40} color="#ea580c" />
-            </div>
-            
-            <h3 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '12px' }}>
-                {payingBooking.status === 'AWAITING_DEPOSIT' ? 'Thanh toán đặt cọc' : 'Thanh toán còn lại'}
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
-              Vui lòng chuyển khoản số tiền {payingBooking.status === 'AWAITING_DEPOSIT' ? 'cọc' : 'còn lại'} để xác nhận tour <strong>{payingBooking.tourTitle}</strong>.
-            </p>
 
-            <div style={{ background: 'var(--surface-hover)', padding: '24px', borderRadius: '16px', marginBottom: '32px', textAlign: 'left', border: '1px solid var(--glass-border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Số tiền thanh toán:</span>
-                <span style={{ fontWeight: '800', color: '#ea580c', fontSize: '1.25rem' }}>
-                    {formatVND(payingBooking.status === 'AWAITING_DEPOSIT' ? payingBooking.depositAmount : (payingBooking.totalPrice - payingBooking.paidAmount))}
-                </span>
-              </div>
-              <div style={{ height: '1px', background: 'var(--glass-border)', margin: '16px 0' }}></div>
-              <p style={{ fontSize: '0.875rem', fontWeight: '700', marginBottom: '8px' }}>Thông tin chuyển khoản (Demo):</p>
-              <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                <p>Ngân hàng: <strong>MB BANK</strong></p>
-                <p>Số tài khoản: <strong>99999999999</strong></p>
-                <p>Chủ tài khoản: <strong>TRẦN MINH TRÍ</strong></p>
-                <p>Nội dung: <strong>TP {payingBooking.id.substring(0,8)}</strong></p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <button 
-                  className="btn-primary" 
-                  style={{ width: '100%', padding: '16px', background: '#ea580c' }}
-                  onClick={handlePayment}
-                  disabled={isProcessingPayment}
-                >
-                  {isProcessingPayment ? 'Đang xác nhận...' : 'Tôi đã chuyển khoản'}
+              <div style={{ display: 'grid', gap: '10px', marginTop: '18px' }}>
+                <button type="button" className="btn-primary" onClick={handlePayment} disabled={isProcessingPayment}>
+                  {isProcessingPayment ? 'Đang chuyển hướng...' : 'Thanh toán qua VNPay'}
                 </button>
-                <button 
-                  style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontWeight: '600', cursor: 'pointer' }}
-                  onClick={() => setPayingBooking(null)}
-                >
+                <button type="button" className="btn-ghost" onClick={() => setPayingBooking(null)}>
                   Hủy bỏ
                 </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        ) : null}
 
-      {reviewingBooking && (
-        <ReviewModal 
-          booking={reviewingBooking} 
-          onClose={() => setReviewingBooking(null)}
-          onSuccess={() => {
-            alert("Cảm ơn bạn đã đánh giá!");
-            fetchBookings(true);
-          }}
-        />
-      )}
+        {reviewingBooking ? (
+          <ReviewModal
+            booking={reviewingBooking}
+            onClose={() => setReviewingBooking(null)}
+            onSuccess={() => {
+              alert('Cảm ơn bạn đã đánh giá.');
+              fetchBookings(true);
+            }}
+          />
+        ) : null}
+      </div>
     </DashboardLayout>
   );
 };

@@ -155,7 +155,7 @@ const AdminToursPage: React.FC = () => {
                   </td>
                   <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                      <button onClick={() => handleToggleStatus(tour.id, tour.active)} style={{ padding: '8px', color: tour.active ? '#dc2626' : '#059669', background: 'none' }} title={tour.active ? "Tạm ngưng" : "Kích hoạt"}>
+                      <button onClick={() => handleToggleStatus(tour.id, !!tour.active)} style={{ padding: '8px', color: tour.active ? '#dc2626' : '#059669', background: 'none' }} title={tour.active ? "Tạm ngưng" : "Kích hoạt"}>
                         {tour.active ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                       <button onClick={() => handleDelete(tour.id)} style={{ padding: '8px', color: 'var(--error)', background: 'none' }} title="Xóa">

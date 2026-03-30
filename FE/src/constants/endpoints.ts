@@ -8,13 +8,15 @@ export const ENDPOINTS = {
   },
   USER: {
     REGISTER: '/users/register',
-    GET_MY_INFO: '/users/my-info', 
+    GET_MY_INFO: '/users/my-info',
+    MY_INFO: '/users/my-info',
     GET_ALL: '/users',
     GET_BY_ID: (id: string) => `/users/${id}`,
     UPDATE: (id: string) => `/users/${id}`,
     DELETE: (id: string) => `/users/${id}`,
   },
   TOUR: {
+    BASE: '/tours',
     GET_ALL: '/tours',
     GET_ALL_ADMIN: '/tours/admin',
     CREATE: '/tours',
@@ -23,7 +25,7 @@ export const ENDPOINTS = {
     TOGGLE_STATUS: (id: string) => `/tours/${id}/toggle-status`,
     UPDATE: (id: string) => `/tours/${id}`,
     DELETE: (id: string) => `/tours/${id}`,
-    GET_NEARBY: (lat: number, lng: number, radius: number) => 
+    GET_NEARBY: (lat: number, lng: number, radius: number) =>
       `/tours/nearby?lat=${lat}&lng=${lng}&radius=${radius}`,
   },
   LOCATION: {
@@ -47,9 +49,30 @@ export const ENDPOINTS = {
     GET_ALL: '/tour-requests',
     GET_MY: '/tour-requests/me',
     GET_ACCEPTED: '/tour-requests/accepted',
-    GET_NEARBY: (lat: number, lng: number, radius: number) => 
+    GET_NEARBY: (lat: number, lng: number, radius: number) =>
       `/tour-requests/nearby?lat=${lat}&lng=${lng}&radius=${radius}`,
-    ACCEPT: (id: string) => `/tour-requests/${id}/accept`,
+    INTEREST: (id: string) => `/tour-requests/${id}/interest`,
+    SELECT_GUIDE: (id: string, guideId: string) => `/tour-requests/${id}/select-guide?guideId=${guideId}`,
+    CONFIRM_MATCH: (id: string) => `/tour-requests/${id}/confirm-match`,
+    DECLINE_MATCH: (id: string) => `/tour-requests/${id}/decline-match`,
+    CANCEL_MATCH: (id: string) => `/tour-requests/${id}/cancel-match`,
+    UPDATE: (id: string) => `/tour-requests/${id}`,
+    DELETE: (id: string) => `/tour-requests/${id}`,
+    BASE: '/tour-requests',
+    PAY_DEPOSIT: (id: string) => `/tour-requests/${id}/pay-deposit`,
+    PAY_REMAINING: (id: string) => `/tour-requests/${id}/pay-remaining`,
+    COMPLETE: (id: string) => `/tour-requests/${id}/complete-tour`,
+    AI_RECOMMENDATIONS: (id: string) => `/tour-requests/${id}/ai-recommendations`,
+    AI_INDEX_GUIDES: '/tour-requests/ai-index-guides',
+  },
+  PAYOUT: {
+    CREATE: '/payouts',
+    GET_MY: '/payouts/me',
+    GET_PENDING: '/payouts/pending',
+    PROCESS: (id: string) => `/payouts/${id}/process`,
+  },
+  REPORT: {
+    FINANCIAL: '/admin/reports/financial',
   },
   GUIDE_APPLICATION: {
     APPLY: '/guide-applications',
@@ -61,5 +84,22 @@ export const ENDPOINTS = {
   REVIEW: {
     CREATE: '/reviews',
     GET_BY_TOUR: (tourId: string) => `/reviews/tour/${tourId}`,
+  },
+  TRANSACTION: {
+    GET_MY: '/transactions/my',
+  },
+  PAYMENT: {
+    /** @param bankCode gợi ý: để trống | VNPAYQR | QR | VNBANK | INTCARD | NCB (sandbox) */
+    CREATE_VNPAY: (bookingId: string, type: string, bankCode?: string) => {
+      let q = `/payment/create-vnpay-payment?bookingId=${encodeURIComponent(bookingId)}&type=${encodeURIComponent(type)}`;
+      if (bankCode) q += `&bankCode=${encodeURIComponent(bankCode)}`;
+      return q;
+    },
+    VNPAY_CALLBACK: '/payment/vnpay-callback',
+    CREATE_VNPAY_REQUEST: (requestId: string, type: string, bankCode?: string) => {
+      let q = `/payment/create-tour-request-vnpay?requestId=${encodeURIComponent(requestId)}&type=${encodeURIComponent(type)}`;
+      if (bankCode) q += `&bankCode=${encodeURIComponent(bankCode)}`;
+      return q;
+    },
   }
 };

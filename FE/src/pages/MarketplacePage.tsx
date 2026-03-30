@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, Grid, List as ListIcon, Star, Filter } from 'lucide-react';
+import {
+  ArrowRight,
+  Filter,
+  Grid,
+  List as ListIcon,
+  MapPin,
+  Search,
+  Sparkles,
+  Star,
+} from 'lucide-react';
 import api from '../services/api';
-import type { Tour, ApiResponse } from '../types';
+import type { ApiResponse, Tour } from '../types';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { ENDPOINTS } from '../constants/endpoints';
 import { formatVND } from '../utils/format';
@@ -19,124 +28,169 @@ const MarketplacePage: React.FC = () => {
         const response = await api.get<ApiResponse<Tour[]>>(ENDPOINTS.TOUR.GET_ALL);
         setTours(response.data.result);
       } catch (err) {
-        console.error("Failed to fetch tours:", err);
+        console.error('Failed to fetch tours:', err);
       } finally {
         setLoading(false);
       }
     };
+
     fetchTours();
   }, []);
 
-  const filteredTours = tours.filter(tour => {
-    // 1. Text Search Filter
-    const matchesSearch = tour.title.toLowerCase().includes(search.toLowerCase()) || 
-                         tour.locationName.toLowerCase().includes(search.toLowerCase());
-    
-    if (!matchesSearch) return false;
+  const filteredTours = tours.filter((tour) => {
+    const matchesSearch =
+      (tour.title?.toLowerCase() || '').includes(search.toLowerCase()) ||
+      (tour.locationName?.toLowerCase() || '').includes(search.toLowerCase());
 
-    // 2. Expiry Filter (Safety net for FE)
-    const now = new Date();
-    // tour.startDate is YYYY-MM-DD, tour.startTime is HH:mm
-    const tourStartTime = new Date(`${tour.startDate}T${tour.startTime}`);
-    
-    return tourStartTime > now;
+    return matchesSearch;
   });
 
   return (
     <DashboardLayout>
-      {/* Hero / Filter Section */}
-      <div style={{ marginBottom: '32px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: '800', color: 'var(--text-primary)', marginTop: '24px' }}>
-          Khám phá hành trình tiếp theo của bạn
-        </h2>
-        
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <Search size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm theo tên tour hoặc địa điểm..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ paddingLeft: '48px', height: '52px' }}
-            />
+      <div className="page-stack">
+        <section className="glass-panel hero-banner">
+          <div className="hero-copy">
+            <span className="eyebrow">
+              <Sparkles size={14} />
+              Curated local journeys
+            </span>
+            <div className="section-heading">
+              <h1 className="hero-title">Khám phá hành trình tiếp theo thật đồng điệu.</h1>
+              <p className="page-subtitle">
+                Tìm tour theo địa điểm, chọn trải nghiệm phù hợp và đi từ cảm hứng đến đặt chỗ
+                chỉ trong một luồng giao diện gọn gàng hơn.
+              </p>
+            </div>
+            <div className="hero-actions">
+              <button type="button" className="btn-primary">
+                Gợi ý cho bạn
+                <ArrowRight size={18} />
+              </button>
+              <button type="button" className="btn-secondary">
+                <Filter size={18} />
+                Bộ lọc nhanh
+              </button>
+            </div>
           </div>
-          <button style={{ height: '52px', padding: '0 24px', background: 'var(--surface)', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', fontWeight: '600' }}>
-            <Filter size={18} /> Bộ lọc
-          </button>
-          <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--glass-border)', padding: '4px', borderRadius: '12px' }}>
-            <button style={{ padding: '8px', background: 'var(--primary)', color: 'white' }}><Grid size={18} /></button>
-            <button style={{ padding: '8px', background: 'none', color: 'var(--text-secondary)' }}><ListIcon size={18} /></button>
+
+          <div className="hero-stats">
+            <div className="stat-card">
+              <span className="stat-value">{filteredTours.length}</span>
+              <span className="stat-label">Tour đang mở</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-value">
+                {new Set(filteredTours.map((tour) => tour.locationName)).size}
+              </span>
+              <span className="stat-label">Điểm đến nổi bật</span>
+            </div>
+            <div className="stat-card">
+              <span className="stat-value">
+                {filteredTours.length > 0
+                  ? (
+                      filteredTours.reduce((sum, tour) => sum + (tour.rating || 5), 0) /
+                      filteredTours.length
+                    ).toFixed(1)
+                  : '0.0'}
+              </span>
+              <span className="stat-label">Điểm hài lòng trung bình</span>
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '100px 0' }}>
-          <p style={{ color: 'var(--text-secondary)' }}>Đang tải danh sách tour...</p>
-        </div>
-      ) : (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
-          gap: '24px' 
-        }}>
-          {filteredTours.length > 0 ? filteredTours.map((tour) => (
-            <div 
-              key={tour.id} 
-              className="glass-card" 
-              onClick={() => navigate(`/tours/${tour.id}`)}
-              style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
-            >
-              {/* Image */}
-              <div style={{ height: '220px', position: 'relative' }}>
-                <img 
-                  src={tour.imageUrl || 'https://images.unsplash.com/photo-1542332213-9b5a5a3fab35?auto=format&fit=crop&q=80&w=800'} 
-                  alt={tour.title}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-                <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(255,255,255,0.9)', padding: '4px 10px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.875rem', fontWeight: '700', color: 'var(--primary)' }}>
-                   <Star size={14} fill="currentColor" /> {tour.rating !== 0 ? tour.rating.toFixed(1) : '5.0'}
+        <section className="glass-panel" style={{ padding: '24px' }}>
+          <div className="toolbar">
+            <div className="input-shell">
+              <Search size={18} />
+              <input
+                className="input-field"
+                type="text"
+                placeholder="Tìm theo tên tour hoặc địa điểm..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            <button type="button" className="btn-secondary">
+              <Filter size={18} />
+              Bộ lọc
+            </button>
+
+            <div className="segmented-control" aria-label="Kiểu hiển thị">
+              <button type="button" className="segmented-button active" aria-label="Dạng lưới">
+                <Grid size={18} />
+              </button>
+              <button type="button" className="segmented-button" aria-label="Dạng danh sách">
+                <ListIcon size={18} />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {loading ? (
+          <div className="glass-panel empty-state">
+            <p className="page-subtitle">Đang tải danh sách tour...</p>
+          </div>
+        ) : filteredTours.length > 0 ? (
+          <section className="tour-grid">
+            {filteredTours.map((tour) => (
+              <article
+                key={tour.id}
+                className="glass-card tour-card"
+                onClick={() => navigate(`/tours/${tour.id}`)}
+              >
+                <div className="tour-card-media">
+                  <img
+                    src={
+                      tour.imageUrl ||
+                      'https://images.unsplash.com/photo-1542332213-9b5a5a3fab35?auto=format&fit=crop&q=80&w=800'
+                    }
+                    alt={tour.title}
+                  />
+                  <div className="media-overlay" />
+                  <span className="badge badge-secondary tour-rating">
+                    <Star size={14} fill="currentColor" />
+                    {tour.rating !== 0 ? tour.rating.toFixed(1) : '5.0'}
+                  </span>
                 </div>
-              </div>
 
-              {/* Content */}
-              <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '8px' }}>
-                   <MapPin size={14} style={{ marginTop: '3px', flexShrink: 0 }} /> 
-                   <span style={{ lineHeight: '1.4' }}>{tour.locationName}</span>
-                </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '12px', color: 'var(--text-primary)' }}>{tour.title}</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.6', marginBottom: '20px', flex: 1 }}>
-                  {tour.description.length > 120 ? tour.description.substring(0, 120) + '...' : tour.description}
-                </p>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '16px', borderTop: '1px solid var(--glass-border)' }}>
-                  <div>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>Giá mỗi người</p>
-                    <p style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary)' }}>
-                      {formatVND(tour.price)}
+                <div className="tour-card-content">
+                  <div className="tour-card-top">
+                    <span className="tour-location">
+                      <MapPin size={14} />
+                      {tour.locationName}
+                    </span>
+                    <h3 className="tour-title">{tour.title}</h3>
+                    <p className="tour-description">
+                      {tour.description.length > 120
+                        ? `${tour.description.substring(0, 120)}...`
+                        : tour.description}
                     </p>
                   </div>
-                  <button style={{ 
-                    padding: '10px 20px', 
-                    background: 'var(--primary)', 
-                    color: 'white', 
-                    fontSize: '0.875rem',
-                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)'
-                  }}>
-                    Đặt ngay
-                  </button>
+
+                  <div className="tour-card-footer">
+                    <div>
+                      <span className="price-label">Giá mỗi người</span>
+                      <span className="price-value">{formatVND(tour.price)}</span>
+                    </div>
+                    <button type="button" className="btn-primary">
+                      Đặt ngay
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )) : (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '80px 0' }}>
-               <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem' }}>Không tìm thấy tour nào phù hợp với tìm kiếm của bạn.</p>
-            </div>
-          )}
-        </div>
-      )}
+              </article>
+            ))}
+          </section>
+        ) : (
+          <div className="glass-panel empty-state">
+            <h2 className="section-title">Chưa có tour phù hợp với tìm kiếm này</h2>
+            <p className="page-subtitle" style={{ margin: '10px auto 0' }}>
+              Hãy thử một từ khóa ngắn hơn hoặc quay lại danh sách gợi ý mặc định để xem thêm điểm
+              đến thú vị.
+            </p>
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 };

@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { 
   PlusCircle, 
   MapPin, 
-  DollarSign, 
   Trash2,
   Clock,
   Eye,
@@ -113,18 +112,36 @@ const GuideToursPage: React.FC = () => {
                                 </div>
                             );
                         }
-                        if (!tour.active) {
+                        if (tour.status === 'PENDING_APPROVAL') {
                             return (
                                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}>
-                                    <div style={{ background: 'var(--error)', color: 'white', padding: '6px 16px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <div style={{ background: '#6366f1', color: 'white', padding: '10px 20px', borderRadius: '24px', fontWeight: '800', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Clock size={18} /> ĐANG CHỜ DUYỆT
+                                    </div>
+                                </div>
+                            );
+                        }
+                        if (tour.status === 'REJECTED') {
+                            return (
+                                <div style={{ position: 'absolute', inset: 0, background: 'rgba(239, 68, 68, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}>
+                                    <div style={{ background: '#ef4444', color: 'white', padding: '10px 20px', borderRadius: '24px', fontWeight: '800', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <AlertCircle size={18} /> BỊ TỪ CHỐI
+                                    </div>
+                                </div>
+                            );
+                        }
+                        if (tour.status === 'INACTIVE') {
+                            return (
+                                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}>
+                                    <div style={{ background: '#6b7280', color: 'white', padding: '6px 16px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <AlertCircle size={16} /> ĐÃ BỊ ẨN
                                     </div>
                                 </div>
                             );
                         }
                         return (
-                          <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.9)', padding: '6px 12px', borderRadius: '20px', fontSize: '0.875rem', fontWeight: 'bold', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px', backdropFilter: 'blur(10px)' }}>
-                            <DollarSign size={16} /> {formatVND(tour.price)}
+                          <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.9)', padding: '6px 14px', borderRadius: '24px', fontSize: '1rem', fontWeight: '900', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px', backdropFilter: 'blur(10px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                            <span style={{ fontSize: '1.1rem' }}>₫</span> {formatVND(tour.price).replace('₫', '').trim()}
                           </div>
                         );
                     })()}
@@ -142,29 +159,27 @@ const GuideToursPage: React.FC = () => {
                           <Clock size={16} /> {new Date(tour.createdAt).toLocaleDateString('vi-VN')}
                        </div>
                        
-                       <div style={{ display: 'flex', gap: '8px' }}>
+                       <div style={{ display: 'flex', gap: '10px' }}>
                            <button 
-                             className="btn-secondary"
                              onClick={(e) => { e.preventDefault(); navigate(`/guide/edit-tour/${tour.id}`); }}
-                             style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                             style={{ width: '42px', height: '42px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: '2px solid var(--primary)', color: 'var(--primary)', background: 'transparent', transition: 'all 0.2s', cursor: 'pointer' }}
                              title="Chỉnh sửa tour"
                            >
-                              <Edit2 size={18} />
+                              <Edit2 size={20} />
                            </button>
                           <button 
-                            className="btn-secondary"
                             onClick={(e) => { e.preventDefault(); navigate(`/tour/${tour.id}`); }}
-                            style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{ width: '42px', height: '42px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: '2px solid var(--primary)', color: 'var(--primary)', background: 'transparent', transition: 'all 0.2s', cursor: 'pointer' }}
                             title="Xem chi tiết"
                           >
-                             <Eye size={18} />
+                             <Eye size={20} />
                           </button>
                           <button 
                             onClick={(e) => handleDelete(tour.id, e)}
-                            style={{ padding: '8px', color: 'var(--error)', background: 'var(--surface-hover)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}
+                            style={{ width: '42px', height: '42px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: '2px solid var(--primary)', color: 'var(--primary)', background: 'transparent', transition: 'all 0.2s', cursor: 'pointer' }}
                             title="Xóa tour"
                           >
-                             <Trash2 size={18} />
+                             <Trash2 size={20} />
                           </button>
                        </div>
                     </div>

@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
-import { User, Lock, Mail, Phone, Calendar, UserPlus } from 'lucide-react';
+import { Calendar, Lock, Mail, Phone, User, UserPlus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { useNavigate } from 'react-router-dom';
 import { ENDPOINTS } from '../constants/endpoints';
+
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+};
 
 const RegisterPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -11,7 +19,7 @@ const RegisterPage: React.FC = () => {
     fullName: '',
     phone: '',
     dob: '',
-    gender: 'MALE'
+    gender: 'MALE',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,148 +33,178 @@ const RegisterPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       await api.post(ENDPOINTS.USER.REGISTER, formData);
       navigate('/login');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '40px 20px',
-      background: 'linear-gradient(135deg, #fdf2f8 0%, #eef2ff 100%)'
-    }}>
-      <div className="glass-panel" style={{
-        width: '100%',
-        maxWidth: '500px',
-        padding: '40px',
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.025em' }}>Tham gia TravelX</h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Bắt đầu hành trình của bạn ngay hôm nay</p>
-        </div>
+    <div className="auth-shell">
+      <div className="glass-panel auth-card">
+        <section className="auth-showcase">
+          <div className="auth-brand">
+            <span className="auth-brand-mark">
+              <UserPlus size={26} />
+            </span>
+            <span>TravelX</span>
+          </div>
 
-        <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div style={{ position: 'relative' }}>
-              <User size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-              <input
-                name="fullName"
-                placeholder="Họ và Tên"
-                value={formData.fullName}
-                onChange={handleChange}
-                style={{ paddingLeft: '40px' }}
-                required
-              />
+          <h1>Tạo tài khoản để bắt đầu hành trình đầu tiên.</h1>
+          <p>
+            Một tài khoản là đủ để đặt tour, gửi yêu cầu riêng và theo dõi toàn bộ trải nghiệm
+            du lịch trong cùng một giao diện thống nhất.
+          </p>
+
+          <div className="auth-feature-list">
+            <div className="auth-feature">
+              <User size={18} />
+              <span>Quản lý hồ sơ, lịch sử booking và trạng thái chuyến đi tại một nơi.</span>
             </div>
-            <div style={{ position: 'relative' }}>
-              <Phone size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-              <input
-                name="phone"
-                placeholder="Số điện thoại"
-                value={formData.phone}
-                onChange={handleChange}
-                style={{ paddingLeft: '40px' }}
-                required
-              />
+            <div className="auth-feature">
+              <Calendar size={18} />
+              <span>Gửi yêu cầu mới nhanh hơn với flow rõ ràng và dễ thao tác trên mobile.</span>
             </div>
           </div>
+        </section>
 
-          <div style={{ position: 'relative' }}>
-            <Mail size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-            <input
-              name="email"
-              type="email"
-              placeholder="Địa chỉ Email"
-              value={formData.email}
-              onChange={handleChange}
-              style={{ paddingLeft: '40px' }}
-              required
-            />
+        <section className="auth-form-wrap">
+          <div className="auth-form-head">
+            <h2>Đăng ký tài khoản</h2>
+            <p>Điền thông tin cơ bản để tham gia TravelX.</p>
           </div>
 
-          <div style={{ position: 'relative' }}>
-            <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-            <input
-              name="password"
-              type="password"
-              placeholder="Mật khẩu"
-              value={formData.password}
-              onChange={handleChange}
-              style={{ paddingLeft: '40px' }}
-              required
-            />
-          </div>
+          <form className="auth-form" onSubmit={handleRegister}>
+            <div className="split-fields">
+              <div>
+                <label className="field-label" htmlFor="fullName">
+                  Họ và tên
+                </label>
+                <div className="input-shell">
+                  <User size={18} />
+                  <input
+                    id="fullName"
+                    className="input-field"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div style={{ position: 'relative' }}>
-              <Calendar size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-              <input
-                name="dob"
-                type="date"
-                value={formData.dob}
-                onChange={handleChange}
-                style={{ paddingLeft: '40px' }}
-                required
-              />
+              <div>
+                <label className="field-label" htmlFor="phone">
+                  Số điện thoại
+                </label>
+                <div className="input-shell">
+                  <Phone size={18} />
+                  <input
+                    id="phone"
+                    className="input-field"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
             </div>
-            <select
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-              style={{
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '10px',
-                padding: '12px 16px',
-                color: 'var(--text-primary)',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="MALE">Nam</option>
-              <option value="FEMALE">Nữ</option>
-              <option value="OTHER">Khác</option>
-            </select>
-          </div>
 
-          {error && <p style={{ color: 'var(--error)', fontSize: '0.875rem', textAlign: 'center' }}>{error}</p>}
+            <div>
+              <label className="field-label" htmlFor="email">
+                Email
+              </label>
+              <div className="input-shell">
+                <Mail size={18} />
+                <input
+                  id="email"
+                  className="input-field"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            style={{
-              background: 'linear-gradient(to right, var(--primary), var(--accent))',
-              color: 'white',
-              padding: '14px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              fontSize: '1rem',
-              marginTop: '10px',
-              opacity: loading ? 0.7 : 1
-            }}
-          >
-            {loading ? 'Đang tạo tài khoản...' : (
-              <>
-                Đăng ký tài khoản <UserPlus size={18} />
-              </>
-            )}
-          </button>
-        </form>
+            <div>
+              <label className="field-label" htmlFor="password">
+                Mật khẩu
+              </label>
+              <div className="input-shell">
+                <Lock size={18} />
+                <input
+                  id="password"
+                  className="input-field"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
 
-        <p style={{ textAlign: 'center', marginTop: '24px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Đã có tài khoản? <a href="/login" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '600' }}>Đăng nhập</a>
-        </p>
+            <div className="split-fields">
+              <div>
+                <label className="field-label" htmlFor="dob">
+                  Ngày sinh
+                </label>
+                <div className="input-shell">
+                  <Calendar size={18} />
+                  <input
+                    id="dob"
+                    className="input-field"
+                    name="dob"
+                    type="date"
+                    value={formData.dob}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="field-label" htmlFor="gender">
+                  Giới tính
+                </label>
+                <select
+                  id="gender"
+                  className="select-field"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                >
+                  <option value="MALE">Nam</option>
+                  <option value="FEMALE">Nữ</option>
+                  <option value="OTHER">Khác</option>
+                </select>
+              </div>
+            </div>
+
+            {error ? <div className="status-message error">{error}</div> : null}
+
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? 'Đang tạo tài khoản...' : 'Đăng ký tài khoản'}
+              {!loading ? <UserPlus size={18} /> : null}
+            </button>
+          </form>
+
+          <p className="auth-footer">
+            Đã có tài khoản?{' '}
+            <Link to="/login" className="subtle-link">
+              Đăng nhập
+            </Link>
+          </p>
+        </section>
       </div>
     </div>
   );

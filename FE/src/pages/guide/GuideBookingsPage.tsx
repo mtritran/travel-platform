@@ -32,6 +32,8 @@ const GuideBookingsPage: React.FC = () => {
     }
   };
 
+
+
   useEffect(() => {
     fetchBookings();
   }, []);
@@ -110,14 +112,18 @@ const GuideBookingsPage: React.FC = () => {
   return (
     <DashboardLayout>
       <div style={{ padding: '40px 0' }}>
-        <div style={{ marginBottom: '40px' }}>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '12px' }}>
-            Quản lý Đơn đặt Tour
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem' }}>
-            Xem và phản hồi các đơn đặt chỗ từ du khách cho các tour của bạn.
-          </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
+          <div>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '12px' }}>
+                Quản lý Đơn đặt Tour
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem' }}>
+                Xem và phản hồi các đơn đặt chỗ từ du khách cho các tour của bạn.
+            </p>
+          </div>
         </div>
+
+
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '100px 0' }}>

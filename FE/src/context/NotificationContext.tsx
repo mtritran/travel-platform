@@ -17,6 +17,7 @@ interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
   clearNotifications: () => void;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -25,6 +26,19 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toasts, setToasts] = useState<Notification[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const newToast: Notification = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: type.toUpperCase(),
+      message,
+      createdAt: Date.now()
+    };
+    setToasts(prev => [...prev, newToast]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== newToast.id));
+    }, 5000);
+  };
 
   useEffect(() => {
     if (!user?.id) return;
@@ -38,7 +52,6 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
        setNotifications(prev => [newNotif, ...prev]);
        setToasts(prev => [...prev, newNotif]);
        
-       // Auto hide toast after 5s
        setTimeout(() => {
           setToasts(prev => prev.filter(t => t.id !== newNotif.id));
        }, 5000);
@@ -57,7 +70,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   };
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount: notifications.length, clearNotifications }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount: notifications.length, clearNotifications, showToast }}>
       {children}
       
       {/* Toast Overlay */}
@@ -87,17 +100,19 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                   width: '40px', 
                   height: '40px', 
                   borderRadius: '12px', 
-                  background: toast.type.includes('BOOKING') ? 'var(--primary-light)' : 'var(--success-light)',
-                  color: toast.type.includes('BOOKING') ? 'var(--primary)' : 'var(--success)',
+                  background: toast.type.includes('ERROR') ? 'var(--danger-soft)' : (toast.type.includes('INFO') ? 'var(--primary-soft)' : 'var(--success-soft)'),
+                  color: toast.type.includes('ERROR') ? 'var(--danger)' : (toast.type.includes('INFO') ? 'var(--primary)' : 'var(--success)'),
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0
               }}>
-                {toast.type.includes('BOOKING') ? <Bell size={20} /> : <CheckCircle size={20} />}
+                {toast.type.includes('ERROR') ? <X size={20} /> : (toast.type.includes('INFO') ? <Bell size={20} /> : <CheckCircle size={20} />)}
               </div>
               <div style={{ flex: 1 }}>
-                <p style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '4px' }}>Thông báo mới</p>
+                <p style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                  {toast.type.includes('ERROR') ? 'Lỗi hệ thống' : (toast.type.includes('INFO') ? 'Thông báo' : 'Thành công')}
+                </p>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{toast.message}</p>
               </div>
               <button 

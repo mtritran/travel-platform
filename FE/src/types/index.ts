@@ -4,6 +4,11 @@ export interface User {
   fullName: string;
   phone: string;
   roles: Role[];
+  balance: number;
+  biography?: string;
+  languages?: string;
+  yearsOfExperience?: number;
+  specialties?: string;
 }
 
 export interface Role {
@@ -45,6 +50,8 @@ export interface Location {
   imageUrl: string;
 }
 
+export type TourStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED' | 'INACTIVE';
+
 export interface Tour {
   id: string;
   guideName: string;
@@ -60,7 +67,8 @@ export interface Tour {
   description: string;
   price: number;
   imageUrl: string;
-  active: boolean;
+  status: TourStatus;
+  active?: boolean;
   startDate?: string;
   endDate?: string;
   startTime?: string;
@@ -111,3 +119,60 @@ export interface ReviewRequest {
   rating: number;
   comment: string;
 }
+
+export type TourRequestStatus = 'OPEN' | 'PENDING_CONFIRMATION' | 'WAITING_PAYMENT' | 'CONFIRMED' | 'COMPLETED' | 'MATCHED' | 'EXPIRED' | 'CANCELLED';
+
+export interface TourRequestInterest {
+  id: string;
+  guideId: string;
+  guideName: string;
+  guideEmail: string;
+  guidePhone: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface TourRequest {
+  id: string;
+  userName: string;
+  locationName?: string;
+  customLocationName?: string;
+  plannedDate: string;
+  budget: number;
+  numberOfGuests: number;
+  title: string;
+  description: string;
+  status: TourRequestStatus;
+  guideName?: string;
+  guideEmail?: string;
+  guidePhone?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  createdAt: string;
+  expiresAt: string;
+  
+  meetingLocationName?: string;
+  meetingLatitude?: number;
+  meetingLongitude?: number;
+  startTime?: string;
+  endTime?: string;
+  depositPercentage?: number;
+  depositAmount?: number;
+  paidAmount?: number;
+  paymentStatus?: string;
+  
+  interestedGuides: TourRequestInterest[];
+}
+
+export type TransactionType = 'REVENUE' | 'COMMISSION' | 'INCOME' | 'WITHDRAW' | 'REFUND';
+
+export interface Transaction {
+  id: string;
+  amount: number;
+  type: TransactionType;
+  note: string;
+  createdAt: string;
+  bookingId?: string;
+}
+

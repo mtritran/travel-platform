@@ -106,15 +106,16 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
       {/* Search Input */}
-      <form onSubmit={handeSearch} style={{ position: 'relative' }}>
-         <Search size={18} style={{ 
+      <form onSubmit={handeSearch} style={{ position: 'relative', height: '54px', width: '100%', marginBottom: '8px' }}>
+         <Search size={20} style={{ 
             position: 'absolute', 
-            left: '12px', 
+            left: '16px', 
             top: '50%', 
             transform: 'translateY(-50%)', 
-            color: 'var(--text-secondary)',
+            color: 'var(--primary)',
+            opacity: 0.7,
             zIndex: 10
          }} />
          <input 
@@ -123,12 +124,13 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ 
-                paddingLeft: '40px', 
-                paddingRight: '100px',
+                padding: '16px 100px 16px 48px',
                 width: '100%',
-                borderRadius: '12px',
-                border: '1px solid var(--glass-border)',
-                background: 'var(--surface)'
+                height: '100%',
+                borderRadius: '16px',
+                border: '2px solid var(--glass-border)',
+                background: 'var(--surface)',
+                fontSize: '1rem'
             }}
          />
          <button 
@@ -136,16 +138,22 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
             className="btn-primary"
             style={{ 
                 position: 'absolute', 
-                right: '4px', 
-                top: '4px', 
-                bottom: '4px', 
-                padding: '0 16px',
-                borderRadius: '8px',
-                fontSize: '0.8125rem'
+                right: '8px', 
+                top: '50%',
+                transform: 'translateY(-50%)',
+                height: '40px',
+                padding: '0 24px',
+                borderRadius: '12px',
+                fontSize: '0.9rem',
+                fontWeight: 700,
+                boxShadow: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
             }}
             disabled={loading}
          >
-            {loading ? 'đang...' : 'Tìm'}
+            {loading ? '...' : 'Tìm'}
          </button>
       </form>
 

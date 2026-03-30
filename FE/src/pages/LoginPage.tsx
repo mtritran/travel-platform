@@ -1,9 +1,17 @@
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight } from 'lucide-react';
+import { ArrowRight, Compass, Lock, Mail, MapPinned, ShieldCheck } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { useNavigate } from 'react-router-dom';
 import { ENDPOINTS } from '../constants/endpoints';
 import { useAuth } from '../context/AuthContext';
+
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+};
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -17,110 +25,114 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
-      console.log('Attempting login for:', email);
       const response = await api.post(ENDPOINTS.AUTH.LOGIN, { email, password });
-      console.log('Login success:', response.data);
       localStorage.setItem('token', response.data.result.token);
-      
-      // Fetch user info to know the role before navigating
+
       const userRes = await api.get(ENDPOINTS.USER.GET_MY_INFO);
       const user = userRes.data.result;
-      console.log('User roles check:', user.roles);
-      
-      const isAdmin = user.roles?.some((r: any) => r.name === 'ADMIN');
-      console.log('Is Admin?:', isAdmin);
-      
-      if (isAdmin) {
-        console.log('Navigating to /admin');
-        navigate('/admin');
-      } else {
-        console.log('Navigating to /');
-        navigate('/');
-      }
-      
-      // Update global context
+      const isAdmin = user.roles?.some((r: { name: string }) => r.name === 'ADMIN');
+
       await refreshUser();
-    } catch (err: any) {
-      console.error('Login error details:', err);
-      setError(err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+      navigate(isAdmin ? '/admin' : '/');
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(
+        apiError.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.',
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      background: 'linear-gradient(135deg, #e0e7ff 0%, #f1f5f9 100%)'
-    }}>
-      <div className="glass-panel" style={{
-        width: '100%',
-        maxWidth: '400px',
-        padding: '40px',
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.025em' }}>TravelX</h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Chào mừng bạn trở lại!</p>
-        </div>
-
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ position: 'relative' }}>
-            <Mail size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-            <input
-              type="email"
-              placeholder="Địa chỉ Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ paddingLeft: '40px' }}
-              required
-            />
+    <div className="auth-shell">
+      <div className="glass-panel auth-card">
+        <section className="auth-showcase">
+          <div className="auth-brand">
+            <span className="auth-brand-mark">
+              <Compass size={26} />
+            </span>
+            <span>TravelX</span>
           </div>
 
-          <div style={{ position: 'relative' }}>
-            <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-            <input
-              type="password"
-              placeholder="Mật khẩu"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ paddingLeft: '40px' }}
-              required
-            />
+          <h1>Khởi hành với một giao diện du lịch dễ dùng hơn.</h1>
+          <p>
+            Đăng nhập để quản lý booking, theo dõi tour đang mở và kết nối với những trải nghiệm
+            địa phương được tuyển chọn tốt hơn.
+          </p>
+
+          <div className="auth-feature-list">
+            <div className="auth-feature">
+              <MapPinned size={18} />
+              <span>Khám phá tour địa phương với bố cục gọn, rõ và tập trung hơn.</span>
+            </div>
+            <div className="auth-feature">
+              <ShieldCheck size={18} />
+              <span>Theo dõi trạng thái booking và tài khoản trong một không gian thống nhất.</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="auth-form-wrap">
+          <div className="auth-form-head">
+            <h2>Chào mừng quay lại</h2>
+            <p>Đăng nhập để tiếp tục hành trình của bạn.</p>
           </div>
 
-          {error && <p style={{ color: 'var(--error)', fontSize: '0.875rem', textAlign: 'center' }}>{error}</p>}
+          <form className="auth-form" onSubmit={handleLogin}>
+            <div>
+              <label className="field-label" htmlFor="email">
+                Địa chỉ email
+              </label>
+              <div className="input-shell">
+                <Mail size={18} />
+                <input
+                  id="email"
+                  className="input-field"
+                  type="email"
+                  placeholder="ban@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            style={{
-              background: 'linear-gradient(to right, var(--primary), var(--accent))',
-              color: 'white',
-              padding: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              opacity: loading ? 0.7 : 1
-            }}
-          >
-            {loading ? 'Đang xác thực...' : (
-              <>
-                Đăng nhập <ArrowRight size={18} />
-              </>
-            )}
-          </button>
-        </form>
+            <div>
+              <label className="field-label" htmlFor="password">
+                Mật khẩu
+              </label>
+              <div className="input-shell">
+                <Lock size={18} />
+                <input
+                  id="password"
+                  className="input-field"
+                  type="password"
+                  placeholder="Nhập mật khẩu của bạn"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-        <p style={{ textAlign: 'center', marginTop: '24px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Chưa có tài khoản? <a href="/register" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Đăng ký tại đây</a>
-        </p>
+            {error ? <div className="status-message error">{error}</div> : null}
+
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? 'Đang xác thực...' : 'Đăng nhập'}
+              {!loading ? <ArrowRight size={18} /> : null}
+            </button>
+          </form>
+
+          <p className="auth-footer">
+            Chưa có tài khoản?{' '}
+            <Link to="/register" className="subtle-link">
+              Đăng ký tại đây
+            </Link>
+          </p>
+        </section>
       </div>
     </div>
   );

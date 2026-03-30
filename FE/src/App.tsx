@@ -12,11 +12,18 @@ import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminToursPage from './pages/admin/AdminToursPage';
 import AdminLocationsPage from './pages/admin/AdminLocationsPage';
 import AdminGuideApplications from './pages/admin/AdminGuideApplications';
+import AdminTours from './pages/admin/AdminTours';
+import AdminPayouts from './pages/admin/AdminPayouts';
+import AdminReports from './pages/admin/AdminReports';
 import CreateTourPage from './pages/guide/CreateTourPage';
 import EditTourPage from './pages/guide/EditTourPage';
 import GuideToursPage from './pages/guide/GuideToursPage';
 import GuideBookingsPage from './pages/guide/GuideBookingsPage';
+import ProfilePage from './pages/ProfilePage';
+import WalletPage from './pages/WalletPage';
+import PaymentCallbackPage from './pages/PaymentCallbackPage';
 import CreateTourRequestPage from './pages/customer/CreateTourRequestPage';
+import PublicProfilePage from './pages/PublicProfilePage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -121,6 +128,24 @@ function App() {
               </ProtectedRoute>
             } />
 
+            <Route path="/admin/tours-approval" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminTours />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/payouts" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminPayouts />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/reports" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminReports />
+              </ProtectedRoute>
+            } />
+
             <Route path="/guide/create-tour" element={
               <ProtectedRoute role="GUIDE">
                 <CreateTourPage />
@@ -142,6 +167,30 @@ function App() {
             <Route path="/guide/edit-tour/:id" element={
               <ProtectedRoute role="GUIDE">
                 <EditTourPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/profile/:id" element={
+              <ProtectedRoute>
+                <PublicProfilePage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/wallet" element={
+              <ProtectedRoute>
+                <WalletPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/payment-callback" element={
+              <ProtectedRoute>
+                <PaymentCallbackPage />
               </ProtectedRoute>
             } />
 
