@@ -11,9 +11,9 @@ import java.util.List;
 
 @Repository
 public interface TourRequestRepository extends JpaRepository<TourRequest, String> {
-    List<TourRequest> findAllByStatus(TourRequestStatus status);
-    List<TourRequest> findAllByUser(com.mtritran.travelplatform.entity.User user);
-    List<TourRequest> findAllByGuide(com.mtritran.travelplatform.entity.User guide);
+    List<TourRequest> findAllByStatusOrderByCreatedAtDesc(TourRequestStatus status);
+    List<TourRequest> findAllByUserOrderByCreatedAtDesc(com.mtritran.travelplatform.entity.User user);
+    List<TourRequest> findAllByGuideOrderByCreatedAtDesc(com.mtritran.travelplatform.entity.User guide);
     
     @Query(value = "SELECT tr.* FROM tour_requests tr " +
             "LEFT JOIN locations l ON tr.location_id = l.id " +

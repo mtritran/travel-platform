@@ -6,7 +6,6 @@ import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -24,6 +23,24 @@ public class TourRequestResponse {
     String title;
     String description;
     TourRequestStatus status;
-    String guideName; // populated when matched
-    LocalDateTime createdAt;
+    String guideName; 
+    String guideEmail;
+    String guidePhone;
+    String customerPhone;
+    String customerEmail;
+    String customerName;
+    java.time.Instant createdAt;
+    java.time.Instant expiresAt;
+    
+    String meetingLocationName;
+    Double meetingLatitude;
+    Double meetingLongitude;
+    java.time.LocalTime startTime;
+    java.time.LocalTime endTime;
+    BigDecimal depositPercentage;
+    BigDecimal depositAmount;
+    BigDecimal paidAmount;
+    String paymentStatus;
+
+    java.util.List<TourRequestInterestResponse> interestedGuides;
 }

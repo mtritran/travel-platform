@@ -54,7 +54,7 @@ public class GuideApplicationController {
 
     @Operation(summary = "Get all guide applications", description = "Admin only. Can filter by status.")
     @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<GuideApplicationResponse>> getAll(@RequestParam(required = false) ApplicationStatus status) {
         return ApiResponse.<List<GuideApplicationResponse>>builder()
                 .result(applicationService.getApplications(status))
@@ -63,7 +63,7 @@ public class GuideApplicationController {
 
     @Operation(summary = "Process a guide application", description = "Admin only. Approve or reject an application.")
     @PostMapping("/{id}/process")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<GuideApplicationResponse> process(
             @PathVariable String id,
             @RequestParam ApplicationStatus status,

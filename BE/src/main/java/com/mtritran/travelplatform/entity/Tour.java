@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.mtritran.travelplatform.enums.TourStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -34,7 +35,7 @@ public class Tour {
     @JoinColumn(name = "meeting_location_id")
     Location meetingLocation;
 
-    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT", nullable = false)
     String title;
 
     @Column(columnDefinition = "TEXT")
@@ -43,10 +44,12 @@ public class Tour {
     @Column(nullable = false)
     BigDecimal price;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    boolean active = true;
+    TourStatus status = TourStatus.ACTIVE;
 
+    @Column(columnDefinition = "TEXT")
     String imageUrl;
 
     @Column

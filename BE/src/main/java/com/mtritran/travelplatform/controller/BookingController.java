@@ -32,6 +32,14 @@ public class BookingController {
                 .build();
     }
 
+    @Operation(summary = "Get booking by id", description = "User or guide views details of a specific booking.")
+    @GetMapping("/{id}")
+    public ApiResponse<BookingResponse> getBooking(@PathVariable String id) {
+        return ApiResponse.<BookingResponse>builder()
+                .result(bookingService.getBookingById(id))
+                .build();
+    }
+
     @Operation(summary = "Get my bookings", description = "User views their own tour bookings.")
     @GetMapping("/my-bookings")
     public ApiResponse<List<BookingResponse>> getMyBookings() {

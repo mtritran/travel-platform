@@ -8,7 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "bookings")
@@ -60,6 +60,9 @@ public class Booking {
     @Builder.Default
     BigDecimal refundAmount = BigDecimal.ZERO;
 
+    @Column
+    java.time.LocalTime startTime;
+
     @CreationTimestamp
-    LocalDateTime createdAt;
+    Instant createdAt;
 }

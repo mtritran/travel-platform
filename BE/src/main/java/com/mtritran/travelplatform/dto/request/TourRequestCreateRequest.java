@@ -25,4 +25,12 @@ public class TourRequestCreateRequest {
     Integer numberOfGuests;
     String title;
     String description;
+    Integer expiryHours;
+
+    String meetingLocationName;
+    Double meetingLatitude;
+    Double meetingLongitude;
+    java.time.LocalTime startTime;
+    java.time.LocalTime endTime;
+    BigDecimal depositPercentage;
 }

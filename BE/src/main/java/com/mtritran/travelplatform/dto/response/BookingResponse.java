@@ -6,7 +6,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @NoArgsConstructor
@@ -36,5 +36,5 @@ public class BookingResponse {
     java.time.LocalTime tourStartTime;
 
     boolean reviewed;
-    LocalDateTime createdAt;
+    Instant createdAt;
 }

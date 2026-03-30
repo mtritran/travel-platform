@@ -8,39 +8,28 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reviews")
+@Table(name = "tour_request_interests")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Review {
+public class TourRequestInterest {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     String id;
 
-    @OneToOne
-    @JoinColumn(name = "booking_id")
-    Booking booking;
-
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    User user; // The reviewer (Customer)
-
-    @ManyToOne
-    @JoinColumn(name = "tour_id")
-    Tour tour;
-
-    @OneToOne
-    @JoinColumn(name = "tour_request_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tour_request_id", nullable = false)
     TourRequest tourRequest;
 
-    @Column(nullable = false)
-    int rating; // 1 to 5
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "guide_id", nullable = false)
+    User guide;
 
     @Column(columnDefinition = "TEXT")
-    String comment;
+    String message;
 
     @CreationTimestamp
     LocalDateTime createdAt;

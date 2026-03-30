@@ -8,7 +8,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "tour_requests")
@@ -39,6 +40,8 @@ public class TourRequest {
     @Column(nullable = false)
     LocalDate plannedDate;
 
+    Instant expiresAt;
+
     @Column(nullable = false)
     String title;
 
@@ -59,6 +62,29 @@ public class TourRequest {
     @JoinColumn(name = "guide_id")
     User guide; // The guide who accepted the request
 
+    // Extended fields to match Tour flow
+    String meetingLocationName;
+    Double meetingLatitude;
+    Double meetingLongitude;
+
+    LocalTime startTime;
+    LocalTime endTime;
+
+    @Column(nullable = false)
+    @Builder.Default
+    BigDecimal depositPercentage = BigDecimal.valueOf(30);
+
+    @Builder.Default
+    BigDecimal depositAmount = BigDecimal.ZERO;
+
+    @Builder.Default
+    BigDecimal paidAmount = BigDecimal.ZERO;
+
+    @Builder.Default
+    BigDecimal refundAmount = BigDecimal.ZERO;
+
+    String paymentStatus; // PENDING, PAID_DEPOSIT, PAID_FULL, REFUNDED
+
     @CreationTimestamp
-    LocalDateTime createdAt;
+    Instant createdAt;
 }

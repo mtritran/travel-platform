@@ -26,7 +26,7 @@ public class TourResponse {
     String title;
     String description;
     BigDecimal price;
-    boolean active;
+    com.mtritran.travelplatform.enums.TourStatus status;
     String imageUrl;
 
     java.time.LocalDate startDate;

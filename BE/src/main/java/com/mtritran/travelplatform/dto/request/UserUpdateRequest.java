@@ -26,4 +26,8 @@ public class UserUpdateRequest {
     String password;
 
     List<String> roles;
+    String biography;
+    String languages;
+    Integer yearsOfExperience;
+    String specialties;
 }

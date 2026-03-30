@@ -10,13 +10,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ReviewResponse {
+public class TourRequestInterestResponse {
     String id;
-    String userName;
-    String userPhone;
-    String tourTitle;
-    int rating;
-    String comment;
-    String tourRequestId;
+    String guideId;
+    String guideName;
+    String guideEmail;
+    String guidePhone;
+    String message;
     LocalDateTime createdAt;
 }

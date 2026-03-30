@@ -17,4 +17,8 @@ public class UserResponse {
     Gender gender;
     LocalDate dob;
     java.util.Set<RoleResponse> roles;
+    String biography;
+    String languages;
+    Integer yearsOfExperience;
+    String specialties;
 }

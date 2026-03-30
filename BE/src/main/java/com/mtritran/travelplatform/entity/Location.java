@@ -17,9 +17,10 @@ public class Location {
     @GeneratedValue(strategy = GenerationType.UUID)
     String id;
 
-    @Column(nullable = false)
+    @Column(columnDefinition = "TEXT", nullable = false)
     String name;
 
+    @Column(columnDefinition = "TEXT")
     String address;
 
     @Column(nullable = false)
@@ -28,5 +29,6 @@ public class Location {
     @Column(nullable = false)
     Double longitude;
 
+    @Column(columnDefinition = "TEXT")
     String imageUrl;
 }

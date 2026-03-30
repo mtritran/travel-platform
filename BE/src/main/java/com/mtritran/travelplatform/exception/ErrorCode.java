@@ -39,6 +39,13 @@ public enum ErrorCode {
     INVALID_TOUR_DATE(1024, "Tour start date and time cannot be in the past", HttpStatus.BAD_REQUEST),
     INVALID_BOOKING_STATUS(1025, "Invalid booking status for this action", HttpStatus.BAD_REQUEST),
     ALREADY_REVIEWED(1026, "You have already reviewed this booking", HttpStatus.BAD_REQUEST),
+    INSUFFICIENT_BALANCE(1027, "Insufficient balance", HttpStatus.BAD_REQUEST),
+    PAYOUT_NOT_FOUND(1028, "Payout request not found", HttpStatus.NOT_FOUND),
+    TITLE_REQUIRED(1029, "Tour title is required", HttpStatus.BAD_REQUEST),
+    PRICE_REQUIRED(1030, "Price is required and must be valid", HttpStatus.BAD_REQUEST),
+    START_DATE_REQUIRED(1031, "Start date is required", HttpStatus.BAD_REQUEST),
+    START_TIME_REQUIRED(1032, "Start time is required", HttpStatus.BAD_REQUEST),
+    TOUR_NOT_STARTED_YET(1033, "Tour has not started yet", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

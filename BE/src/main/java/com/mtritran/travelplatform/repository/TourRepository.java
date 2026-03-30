@@ -14,19 +14,35 @@ import java.util.List;
 public interface TourRepository extends JpaRepository<Tour, String> {
     List<Tour> findAllByGuide(User guide);
     List<Tour> findAllByLocation(Location location);
-    List<Tour> findAllByActiveTrue();
+    List<Tour> findAllByStatus(com.mtritran.travelplatform.enums.TourStatus status);
+    
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query(value = "UPDATE tours SET status = 'ACTIVE' WHERE status IS NULL", nativeQuery = true)
+    void updateNullStatuses();
 
-    @Query("SELECT t FROM Tour t WHERE t.active = true " +
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM Tour t WHERE t.id = :id")
+    java.util.Optional<Tour> findByIdWithLock(@Param("id") String id);
+
+    @Query("SELECT t FROM Tour t WHERE t.status = 'ACTIVE' " +
            "AND (t.startDate > :date OR (t.startDate = :date AND t.startTime > :time)) " +
-           "AND (SELECT COALESCE(SUM(b.numberOfGuests), 0) FROM Booking b WHERE b.tour.id = t.id AND b.status != 'CANCELLED') < t.maxGuests")
+           "AND (SELECT COALESCE(SUM(b.numberOfGuests), 0) FROM Booking b WHERE b.tour.id = t.id " +
+           "AND (b.status IN ('CONFIRMED', 'PAID_FULL', 'COMPLETED') " +
+           "OR (b.status = 'AWAITING_DEPOSIT' AND b.createdAt > :expiryTime)) " +
+           "AND b.bookingDate = t.startDate AND b.startTime = t.startTime) < t.maxGuests")
     List<Tour> findAvailableTours(@Param("date") java.time.LocalDate date, 
-                                 @Param("time") java.time.LocalTime time);
+                                 @Param("time") java.time.LocalTime time,
+                                 @Param("expiryTime") java.time.Instant expiryTime);
 
     @Query(value = "SELECT t.* FROM tours t " +
             "JOIN locations l ON t.location_id = l.id " +
-            "WHERE t.active = true AND " +
+            "WHERE t.status = 'ACTIVE' AND " +
             "(t.start_date > :date OR (t.start_date = :date AND t.start_time > :time)) AND " +
-            "(SELECT COALESCE(SUM(b.number_of_guests), 0) FROM bookings b WHERE b.tour_id = t.id AND b.status != 'CANCELLED') < t.max_guests AND " +
+            "(SELECT COALESCE(SUM(b.number_of_guests), 0) FROM bookings b WHERE b.tour_id = t.id " +
+            "AND (b.status IN ('CONFIRMED', 'PAID_FULL', 'COMPLETED') " +
+            "OR (b.status = 'AWAITING_DEPOSIT' AND b.created_at > :expiryTime)) " +
+            "AND b.booking_date = t.start_date AND b.start_time = t.start_time) < t.max_guests AND " +
             "(6371 * acos(cos(radians(:lat)) * cos(radians(l.latitude)) * " +
             "cos(radians(l.longitude) - radians(:lng)) + " +
             "sin(radians(:lat)) * sin(radians(l.latitude)))) <= :radius " +
@@ -37,5 +53,6 @@ public interface TourRepository extends JpaRepository<Tour, String> {
                                @Param("lng") double lng, 
                                @Param("radius") double radius,
                                @Param("date") java.time.LocalDate date,
-                               @Param("time") java.time.LocalTime time);
+                               @Param("time") java.time.LocalTime time,
+                               @Param("expiryTime") java.time.Instant expiryTime);
 }

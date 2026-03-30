@@ -90,12 +90,20 @@ public class TourController {
                 .build();
     }
 
-    @Operation(summary = "Admin: Toggle tour active status")
-    @PreAuthorize("hasRole('ADMIN')")
-    @PatchMapping("/{id}/toggle-status")
-    public ApiResponse<TourResponse> toggleStatus(@PathVariable String id) {
+    @Operation(summary = "Admin/Guide: Update tour status", description = "Admin can set any status. Guide can toggle ACTIVE/INACTIVE if approved.")
+    @PatchMapping("/{id}/status")
+    public ApiResponse<TourResponse> updateStatus(@PathVariable String id, @RequestParam com.mtritran.travelplatform.enums.TourStatus status) {
         return ApiResponse.<TourResponse>builder()
-                .result(tourService.toggleTourStatus(id))
+                .result(tourService.updateTourStatus(id, status))
+                .build();
+    }
+
+    @Operation(summary = "Admin: Get pending approval tours")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/pending")
+    public ApiResponse<List<TourResponse>> getPending() {
+        return ApiResponse.<List<TourResponse>>builder()
+                .result(tourService.getPendingTours())
                 .build();
     }
 

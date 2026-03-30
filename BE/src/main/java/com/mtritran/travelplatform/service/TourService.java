@@ -1,5 +1,7 @@
 package com.mtritran.travelplatform.service;
 
+import com.mtritran.travelplatform.enums.TourStatus;
+
 import com.mtritran.travelplatform.dto.request.TourCreateRequest;
 import com.mtritran.travelplatform.dto.response.TourResponse;
 import com.mtritran.travelplatform.entity.Location;
@@ -21,6 +23,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Bean;
 
 @Service
 @RequiredArgsConstructor
@@ -62,10 +66,10 @@ public class TourService {
                 .orElseThrow(() -> new AppException(ErrorCode.LOCATION_NOT_FOUND));
 
         // Validate date and time
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDateTime nowWithBuffer = java.time.LocalDateTime.now().minusMinutes(10);
         java.time.LocalDateTime startDateTime = java.time.LocalDateTime.of(request.getStartDate(), request.getStartTime());
         
-        if (startDateTime.isBefore(now)) {
+        if (startDateTime.isBefore(nowWithBuffer)) {
             throw new AppException(ErrorCode.INVALID_TOUR_DATE);
         }
 
@@ -82,7 +86,7 @@ public class TourService {
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .maxGuests(request.getMaxGuests() != null ? request.getMaxGuests() : 1)
-                .active(true)
+                .status(TourStatus.ACTIVE)
                 .build();
 
         return mapWithRating(tourRepository.save(tour));
@@ -99,14 +103,16 @@ public class TourService {
 
     public List<TourResponse> getAllActiveTours() {
         java.time.ZoneId zoneId = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
-        return tourRepository.findAvailableTours(java.time.LocalDate.now(zoneId), java.time.LocalTime.now(zoneId)).stream()
+        java.time.Instant expiryTime = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
+        return tourRepository.findAvailableTours(java.time.LocalDate.now(zoneId), java.time.LocalTime.now(zoneId), expiryTime).stream()
                 .map(this::mapWithRating)
                 .toList();
     }
 
     public List<TourResponse> getNearbyTours(double lat, double lng, double radius) {
         java.time.ZoneId zoneId = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
-        return tourRepository.findNearbyTours(lat, lng, radius, java.time.LocalDate.now(zoneId), java.time.LocalTime.now(zoneId)).stream()
+        java.time.Instant expiryTime = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
+        return tourRepository.findNearbyTours(lat, lng, radius, java.time.LocalDate.now(zoneId), java.time.LocalTime.now(zoneId), expiryTime).stream()
                 .map(this::mapWithRating)
                 .toList();
     }
@@ -140,7 +146,7 @@ public class TourService {
         tour.setEndDate(request.getEndDate());
         tour.setStartTime(request.getStartTime());
         tour.setEndTime(request.getEndTime());
-        tour.setMaxGuests(request.getMaxGuests());
+        tour.setMaxGuests(request.getMaxGuests() != null ? request.getMaxGuests() : 1);
         tour.setDepositPercentage(request.getDepositPercentage());
         
         if (request.getLocationId() != null) {
@@ -158,11 +164,41 @@ public class TourService {
         return mapWithRating(tourRepository.save(tour));
     }
 
-    public TourResponse toggleTourStatus(String id) {
+    public TourResponse updateTourStatus(String id, TourStatus status) {
         Tour tour = tourRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
-        tour.setActive(!tour.isActive());
+        
+        // Ownership or admin check
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+        
+        boolean isAdmin = currentUser.getRoles().stream().anyMatch(r -> r.getName().equals("ADMIN"));
+        boolean isOwner = tour.getGuide().getId().equals(currentUser.getId());
+
+        if (isAdmin) {
+            tour.setStatus(status);
+        } else if (isOwner) {
+            // Guide can only toggle between ACTIVE and INACTIVE, and only if it was already approved
+            if (tour.getStatus() == TourStatus.PENDING_APPROVAL || tour.getStatus() == TourStatus.REJECTED) {
+                 throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+            if (status == TourStatus.ACTIVE || status == TourStatus.INACTIVE) {
+                tour.setStatus(status);
+            } else {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+        } else {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
         return mapWithRating(tourRepository.save(tour));
+    }
+
+    public List<TourResponse> getPendingTours() {
+        return tourRepository.findAllByStatus(TourStatus.PENDING_APPROVAL).stream()
+                .map(this::mapWithRating)
+                .toList();
     }
 
     public void deleteTour(String id) {
@@ -174,5 +210,17 @@ public class TourService {
         }
 
         tourRepository.delete(tour);
+    }
+
+    @Bean
+    public ApplicationRunner migrationRunner() {
+        return args -> {
+            try {
+                tourRepository.updateNullStatuses();
+                System.out.println("Tour status migration completed successfully.");
+            } catch (Exception e) {
+                System.err.println("Migration warning: " + e.getMessage());
+            }
+        };
     }
 }

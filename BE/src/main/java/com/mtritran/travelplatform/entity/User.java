@@ -40,14 +40,19 @@ public class User {
     String password;
 
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
+    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     @Builder.Default
     Set<Role> roles = new HashSet<>();
 
     @Builder.Default
     java.math.BigDecimal balance = java.math.BigDecimal.ZERO;
+
+    @Column(columnDefinition = "TEXT")
+    String biography;
+
+    String languages;
+
+    Integer yearsOfExperience;
+
+    String specialties;
 }

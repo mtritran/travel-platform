@@ -40,3 +40,18 @@ initial:
 
 storage:
   upload-dir: ${UPLOAD_DIR:uploads}
+
+vnpay:
+  tmn-code: ${VNP_TMN_CODE:3MGOF2YS}
+  hash-secret: ${VNP_HASH_SECRET:FIGWLAZQU9FJA04D1ROK537T0NOIR9BY}
+  url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  return-url: http://localhost:5173/payment-callback
+
+langchain4j:
+  google-ai-gemini:
+    chat-model:
+      api-key: ${GEMINI_API_KEY}
+      model-name: gemini-2.5-flash-lite
+    embedding-model:
+      api-key: ${GEMINI_API_KEY}
+      model-name: gemini-embedding-001

@@ -11,6 +11,11 @@ import java.util.Optional;
 @Repository
 public interface ReviewRepository extends JpaRepository<Review, String> {
     List<Review> findAllByTour(Tour tour);
+    List<Review> findAllByTour_Guide(com.mtritran.travelplatform.entity.User guide);
+
     Optional<Review> findByBookingId(String bookingId);
+
     boolean existsByBookingId(String bookingId);
+
+    boolean existsByTourRequestId(String tourRequestId);
 }

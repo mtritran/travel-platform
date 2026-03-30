@@ -30,6 +30,7 @@ public class ReviewService {
     ReviewRepository reviewRepository;
     BookingRepository bookingRepository;
     TourRepository tourRepository;
+    com.mtritran.travelplatform.repository.TourRequestRepository tourRequestRepository;
     UserRepository userRepository;
     ReviewMapper reviewMapper;
 
@@ -39,30 +40,50 @@ public class ReviewService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
-        Booking booking = bookingRepository.findById(request.getBookingId())
-                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
-
-        if (!booking.getUser().getId().equals(user.getId())) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-
-        if (booking.getStatus() != BookingStatus.COMPLETED) {
-            throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
-        }
-
-        if (reviewRepository.existsByBookingId(booking.getId())) {
-            throw new AppException(ErrorCode.ALREADY_REVIEWED);
-        }
-
-        Review review = Review.builder()
-                .booking(booking)
+        Review.ReviewBuilder reviewBuilder = Review.builder()
                 .user(user)
-                .tour(booking.getTour())
                 .rating(request.getRating())
-                .comment(request.getComment())
-                .build();
+                .comment(request.getComment());
 
-        return reviewMapper.toResponse(reviewRepository.save(review));
+        if (request.getBookingId() != null) {
+            Booking booking = bookingRepository.findById(request.getBookingId())
+                    .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+
+            if (!booking.getUser().getId().equals(user.getId())) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+
+            if (booking.getStatus() != BookingStatus.COMPLETED) {
+                throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
+            }
+
+            if (reviewRepository.existsByBookingId(booking.getId())) {
+                throw new AppException(ErrorCode.ALREADY_REVIEWED);
+            }
+
+            reviewBuilder.booking(booking).tour(booking.getTour());
+        } else if (request.getTourRequestId() != null) {
+            com.mtritran.travelplatform.entity.TourRequest tourRequest = tourRequestRepository.findById(request.getTourRequestId())
+                    .orElseThrow(() -> new AppException(ErrorCode.TOUR_REQUEST_NOT_FOUND));
+
+            if (!tourRequest.getUser().getId().equals(user.getId())) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+
+            if (tourRequest.getStatus() != com.mtritran.travelplatform.enums.TourRequestStatus.COMPLETED) {
+                throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
+            }
+
+            if (reviewRepository.existsByTourRequestId(tourRequest.getId())) {
+                throw new AppException(ErrorCode.ALREADY_REVIEWED);
+            }
+
+            reviewBuilder.tourRequest(tourRequest);
+        } else {
+             throw new AppException(ErrorCode.INVALID_KEY);
+        }
+
+        return reviewMapper.toResponse(reviewRepository.save(reviewBuilder.build()));
     }
 
     public List<ReviewResponse> getReviewsByTour(String tourId) {

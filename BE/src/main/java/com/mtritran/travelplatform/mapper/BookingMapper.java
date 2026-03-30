@@ -17,5 +17,6 @@ public interface BookingMapper {
     @Mapping(target = "depositPercentage", source = "tour.depositPercentage")
     @Mapping(target = "tourStartDate", source = "tour.startDate")
     @Mapping(target = "tourStartTime", source = "tour.startTime")
+    @Mapping(target = "reviewed", ignore = true)
     BookingResponse toResponse(Booking booking);
 }

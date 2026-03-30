@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfi
 import java.util.TimeZone;
 
 @SpringBootApplication(exclude = {SecurityAutoConfiguration.class})
+@org.springframework.scheduling.annotation.EnableScheduling
 public class TravelPlatformApplication {
 	public static void main(String[] args) {
 		Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
