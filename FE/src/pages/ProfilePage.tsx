@@ -182,11 +182,10 @@ const ProfilePage: React.FC = () => {
                   <hr className="divider" />
                   <div className="section-heading" style={{ gap: '6px' }}>
                     <h2 className="section-title">Thông tin hướng dẫn viên</h2>
-                    <p className="muted-text">Những thông tin này giúp khách hàng (và AI trợ lý) hiểu rõ hơn về năng lực của bạn.</p>
                   </div>
 
                   <div>
-                    <label className="field-label">Giới thiệu bản thân (Biography)</label>
+                    <label className="field-label">Giới thiệu bản thân</label>
                     <textarea
                       className="textarea-field"
                       name="biography"
@@ -198,25 +197,27 @@ const ProfilePage: React.FC = () => {
 
                   <div className="split-fields">
                     <div>
-                      <label className="field-label">Ngôn ngữ</label>
+                      <label className="field-label">Ngôn ngữ (Xác minh bởi Admin)</label>
                       <input
                         className="input-field"
                         type="text"
                         name="languages"
                         value={formData.languages}
-                        onChange={handleChange}
-                        placeholder="Ví dụ: Tiếng Việt, Tiếng Anh"
+                        readOnly
+                        style={{ background: 'var(--surface-muted)', cursor: 'not-allowed' }}
+                        placeholder="Chưa xác minh"
                       />
                     </div>
                     <div>
-                      <label className="field-label">Số năm kinh nghiệm</label>
+                      <label className="field-label">Số năm kinh nghiệm (Xác minh bởi Admin)</label>
                       <input
                         className="input-field"
                         type="number"
                         name="yearsOfExperience"
                         value={formData.yearsOfExperience}
-                        onChange={handleChange}
-                        placeholder="Ví dụ: 3"
+                        readOnly
+                        style={{ background: 'var(--surface-muted)', cursor: 'not-allowed' }}
+                        placeholder="0"
                       />
                     </div>
                   </div>

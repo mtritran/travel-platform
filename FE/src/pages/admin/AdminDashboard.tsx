@@ -1,12 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Users, 
-  MapPin, 
   ShieldCheck, 
   TrendingUp, 
-  ExternalLink,
-  MapPinned,
-  Wallet
+  ExternalLink
 } from 'lucide-react';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
@@ -68,27 +65,6 @@ const AdminDashboard: React.FC = () => {
       icon: <ShieldCheck size={32} />, 
       color: '#f59e0b', 
       link: '/admin/applications' 
-    },
-    { 
-      label: 'Phê duyệt Tour', 
-      desc: 'Duyệt các tour mới đăng tải',
-      icon: <MapPin size={32} />, 
-      color: '#10b981', 
-      link: '/admin/tours-approval' 
-    },
-    { 
-      label: 'Duyệt Rút tiền', 
-      desc: 'Xử lý yêu cầu giải ngân cho Guide',
-      icon: <Wallet size={32} />, 
-      color: '#6366f1', 
-      link: '/admin/payouts' 
-    },
-    { 
-      label: 'Quản lý Địa điểm', 
-      desc: 'Quản lý các danh thắng, thành phố',
-      icon: <MapPinned size={32} />, 
-      color: '#f43f5e', 
-      link: '/admin/locations' 
     },
     { 
       label: 'Báo cáo doanh thu', 
