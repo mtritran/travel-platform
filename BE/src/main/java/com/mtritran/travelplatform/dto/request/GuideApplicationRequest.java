@@ -13,4 +13,6 @@ public class GuideApplicationRequest {
     MultipartFile idCardFile;
     MultipartFile guideCardFile;
     MultipartFile certificateFile;
+    String languages;
+    Integer yearsOfExperience;
 }

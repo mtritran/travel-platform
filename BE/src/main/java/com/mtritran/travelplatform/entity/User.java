@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
@@ -45,7 +46,7 @@ public class User {
     Set<Role> roles = new HashSet<>();
 
     @Builder.Default
-    java.math.BigDecimal balance = java.math.BigDecimal.ZERO;
+    BigDecimal balance = BigDecimal.ZERO;
 
     @Column(columnDefinition = "TEXT")
     String biography;

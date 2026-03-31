@@ -55,6 +55,8 @@ public class GuideApplicationService {
                 .idCardUrl(idCardUrl)
                 .guideCardUrl(guideCardUrl)
                 .certificateUrl(certificateUrl)
+                .languages(request.getLanguages())
+                .yearsOfExperience(request.getYearsOfExperience())
                 .status(ApplicationStatus.PENDING)
                 .build();
 
@@ -113,6 +115,14 @@ public class GuideApplicationService {
             application.setCertificateUrl(storageService.saveFile(request.getCertificateFile(), userFolder));
         }
 
+        if (request.getLanguages() != null) {
+            application.setLanguages(request.getLanguages());
+        }
+
+        if (request.getYearsOfExperience() != null) {
+            application.setYearsOfExperience(request.getYearsOfExperience());
+        }
+
         application.setStatus(ApplicationStatus.PENDING);
         application.setRejectionReason(null);
 
@@ -120,7 +130,7 @@ public class GuideApplicationService {
     }
 
     @Transactional
-    public GuideApplicationResponse processApplication(String applicationId, ApplicationStatus status, String reason) {
+    public GuideApplicationResponse processApplication(String applicationId, ApplicationStatus status, String reason, String languages, Integer yearsOfExperience) {
         String adminEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User admin = userRepository.findByEmail(adminEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
@@ -136,12 +146,26 @@ public class GuideApplicationService {
             application.setStatus(ApplicationStatus.APPROVED);
             application.setProcessedBy(admin);
 
+            // Use verified values if provided, otherwise fallback to user's input in application
+            String finalLanguages = (languages != null) ? languages : application.getLanguages();
+            Integer finalYears = (yearsOfExperience != null) ? yearsOfExperience : application.getYearsOfExperience();
+            
+            // Save verified values to entity for history
+            application.setLanguages(finalLanguages);
+            application.setYearsOfExperience(finalYears);
+
             // Upgrade user role to GUIDE
             User user = application.getUser();
             Role guideRole = roleRepository.findByName(RoleName.GUIDE)
                     .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
 
-            user.getRoles().add(guideRole);
+            if (!user.getRoles().contains(guideRole)) {
+                user.getRoles().add(guideRole);
+            }
+            
+            user.setLanguages(finalLanguages);
+            user.setYearsOfExperience(finalYears);
+            
             userRepository.save(user);
 
         } else if (status == ApplicationStatus.REJECTED) {

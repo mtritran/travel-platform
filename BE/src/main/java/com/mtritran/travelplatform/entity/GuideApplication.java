@@ -35,6 +35,10 @@ public class GuideApplication {
     @Column(nullable = false)
     String certificateUrl;
 
+    String languages;
+
+    Integer yearsOfExperience;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

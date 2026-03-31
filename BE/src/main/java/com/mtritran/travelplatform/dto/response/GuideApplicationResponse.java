@@ -18,6 +18,8 @@ public class GuideApplicationResponse {
     String idCardUrl;
     String guideCardUrl;
     String certificateUrl;
+    String languages;
+    Integer yearsOfExperience;
     ApplicationStatus status;
     String rejectionReason;
     LocalDateTime createdAt;

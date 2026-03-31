@@ -67,15 +67,17 @@ public class GuideApplicationController {
     public ApiResponse<GuideApplicationResponse> process(
             @PathVariable String id,
             @RequestParam ApplicationStatus status,
-            @RequestParam(required = false) String reason) {
+            @RequestParam(required = false) String reason,
+            @RequestParam(required = false) String languages,
+            @RequestParam(required = false) Integer yearsOfExperience) {
         return ApiResponse.<GuideApplicationResponse>builder()
-                .result(applicationService.processApplication(id, status, reason))
+                .result(applicationService.processApplication(id, status, reason, languages, yearsOfExperience))
                 .build();
     }
 
     @Operation(summary = "Get document file", description = "Serve physical file using relative path.")
     @GetMapping("/documents")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'CUSTOMER', 'GUIDE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER', 'GUIDE')")
     public ResponseEntity<byte[]> getDocument(@RequestParam String path) {
         // In a real app, you should add more checks here to ensure 
         // the user has permission to view this specific file
