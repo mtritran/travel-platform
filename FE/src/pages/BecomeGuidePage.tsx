@@ -131,12 +131,11 @@ const BecomeGuidePage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div style={{ maxWidth: '800px', margin: '40px auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '12px' }}>
-            Trở thành Hướng dẫn viên
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.125rem' }}>
+      <div style={{ maxWidth: '800px', margin: 'auto' }}>
+        <div className="section-heading" style={{ marginBottom: '40px', textAlign: 'center' }}>
+          <span className="eyebrow" style={{ margin: '0 auto' }}>Guide Center</span>
+          <h1 className="page-title">Trở thành Hướng dẫn viên</h1>
+          <p className="page-subtitle" style={{ margin: '0 auto' }}>
             Chia sẻ kiến thức, dẫn dắt những hành trình và kiếm thêm thu nhập cùng TravelX.
           </p>
         </div>
@@ -165,7 +164,7 @@ const BecomeGuidePage: React.FC = () => {
                 transition: 'all 0.2s'
               }}
             >
-              Quay lại cửa hàng
+              Quay lại trang chủ
             </button>
           </div>
         ) : (
@@ -194,9 +193,9 @@ const BecomeGuidePage: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
                 <div>
                   <label className="field-label">Ngôn ngữ thông thạo</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ví dụ: Tiếng Anh, Tiếng Pháp..." 
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: Tiếng Anh, Tiếng Pháp..."
                     value={langs}
                     onChange={(e) => setLangs(e.target.value)}
                     required
@@ -206,9 +205,9 @@ const BecomeGuidePage: React.FC = () => {
                 </div>
                 <div>
                   <label className="field-label">Số năm kinh nghiệm</label>
-                  <input 
-                    type="number" 
-                    placeholder="Ví dụ: 3" 
+                  <input
+                    type="number"
+                    placeholder="Ví dụ: 3"
                     value={exp}
                     onChange={(e) => setExp(e.target.value)}
                     required

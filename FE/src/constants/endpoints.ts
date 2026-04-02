@@ -27,6 +27,7 @@ export const ENDPOINTS = {
     DELETE: (id: string) => `/tours/${id}`,
     GET_NEARBY: (lat: number, lng: number, radius: number) =>
       `/tours/nearby?lat=${lat}&lng=${lng}&radius=${radius}`,
+    CHAT: '/tours/chat',
   },
   LOCATION: {
     GET_ALL: '/locations',

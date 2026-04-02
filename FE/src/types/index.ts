@@ -77,6 +77,7 @@ export interface Tour {
   depositPercentage?: number;
   rating: number;
   reviewCount: number;
+  occupiedGuests?: number;
   createdAt: string;
 }
 
@@ -176,3 +177,7 @@ export interface Transaction {
   bookingId?: string;
 }
 
+export interface TourChatResponse {
+  answer: string;
+  recommendedTours: Tour[];
+}

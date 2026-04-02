@@ -146,7 +146,7 @@ const TourDetailPage: React.FC = () => {
         <div className="glass-panel empty-state">
           <h2 className="section-title">Không tìm thấy tour</h2>
           <button type="button" className="btn-primary" style={{ marginTop: '18px' }} onClick={() => navigate('/')}>
-            Quay lại cửa hàng
+            Quay lại trang chủ
           </button>
         </div>
       </DashboardLayout>
@@ -158,17 +158,19 @@ const TourDetailPage: React.FC = () => {
       ? (reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length).toFixed(1)
       : '5.0';
 
+  const remainingSlots = (tour.maxGuests || 0) - (tour.occupiedGuests || 0);
+
   const durationLabel =
     tour.startTime && tour.endTime
       ? (() => {
-          const [h1, m1] = tour.startTime.split(':').map(Number);
-          const [h2, m2] = tour.endTime.split(':').map(Number);
-          let diff = h2 * 60 + (m2 || 0) - (h1 * 60 + (m1 || 0));
-          if (diff < 0) diff += 24 * 60;
-          const hours = Math.floor(diff / 60);
-          const minutes = diff % 60;
-          return minutes > 0 ? `${hours} giờ ${minutes} phút` : `${hours} giờ`;
-        })()
+        const [h1, m1] = tour.startTime.split(':').map(Number);
+        const [h2, m2] = tour.endTime.split(':').map(Number);
+        let diff = h2 * 60 + (m2 || 0) - (h1 * 60 + (m1 || 0));
+        if (diff < 0) diff += 24 * 60;
+        const hours = Math.floor(diff / 60);
+        const minutes = diff % 60;
+        return minutes > 0 ? `${hours} giờ ${minutes} phút` : `${hours} giờ`;
+      })()
       : 'Linh hoạt';
 
   const scheduleLabel =
@@ -176,12 +178,12 @@ const TourDetailPage: React.FC = () => {
       ? tour.startDate === tour.endDate
         ? new Date(tour.startDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
         : `${new Date(tour.startDate).toLocaleDateString('vi-VN', {
-            day: '2-digit',
-            month: '2-digit',
-          })} - ${new Date(tour.endDate).toLocaleDateString('vi-VN', {
-            day: '2-digit',
-            month: '2-digit',
-          })}`
+          day: '2-digit',
+          month: '2-digit',
+        })} - ${new Date(tour.endDate).toLocaleDateString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+        })}`
       : 'Hàng ngày';
 
   return (
@@ -238,8 +240,20 @@ const TourDetailPage: React.FC = () => {
                 </div>
                 <div className="feature-card">
                   <Users size={20} />
-                  <div className="feature-label">Số lượng khách</div>
-                  <div className="feature-value">Tối đa {tour.maxGuests || 1} người</div>
+                  <div className="feature-label">Quy mô</div>
+                  <div className="feature-value">
+                    Tối đa {tour.maxGuests || 1} khách
+                    {remainingSlots <= 5 && remainingSlots > 0 && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '4px', fontWeight: 600 }}>
+                        Chỉ còn {remainingSlots} chỗ!
+                      </div>
+                    )}
+                    {remainingSlots <= 0 && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '4px', fontWeight: 800 }}>
+                        ĐÃ HẾT CHỖ
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="feature-card">
                   <Calendar size={20} />
@@ -322,10 +336,10 @@ const TourDetailPage: React.FC = () => {
                     <div className="booking-value">
                       {tour.startDate
                         ? new Date(tour.startDate).toLocaleDateString('vi-VN', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                          })
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })
                         : 'Linh hoạt'}
                     </div>
                   </div>
@@ -349,6 +363,7 @@ const TourDetailPage: React.FC = () => {
                     <button
                       type="button"
                       className="counter-action"
+                      disabled={numberOfGuests <= 1}
                       onClick={() => setNumberOfGuests((prev) => Math.max(1, prev - 1))}
                     >
                       <Minus size={14} />
@@ -357,8 +372,9 @@ const TourDetailPage: React.FC = () => {
                       className="counter-input"
                       type="number"
                       value={numberOfGuests}
+                      disabled={remainingSlots <= 0}
                       min="1"
-                      max={tour.maxGuests || undefined}
+                      max={remainingSlots}
                       onChange={(e) => {
                         const value = parseInt(e.target.value, 10);
                         if (!Number.isNaN(value)) setNumberOfGuests(value);
@@ -366,14 +382,15 @@ const TourDetailPage: React.FC = () => {
                       }}
                       onBlur={() => {
                         if (numberOfGuests < 1) setNumberOfGuests(1);
-                        if (tour.maxGuests && numberOfGuests > tour.maxGuests) setNumberOfGuests(tour.maxGuests);
+                        if (numberOfGuests > remainingSlots) setNumberOfGuests(remainingSlots);
                       }}
                     />
                     <button
                       type="button"
                       className="counter-action"
+                      disabled={numberOfGuests >= remainingSlots}
                       onClick={() =>
-                        setNumberOfGuests((prev) => (tour.maxGuests ? Math.min(tour.maxGuests, prev + 1) : prev + 1))
+                        setNumberOfGuests((prev) => Math.min(remainingSlots, prev + 1))
                       }
                     >
                       <Plus size={14} />
@@ -437,8 +454,14 @@ const TourDetailPage: React.FC = () => {
 
               {message.text ? <div className={`status-message ${message.type}`}>{message.text}</div> : null}
 
-              <button type="button" className="btn-primary" disabled={bookingLoading} onClick={handleBook}>
-                {bookingLoading ? 'Đang xử lý...' : 'Đặt ngay tour này'}
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={bookingLoading || remainingSlots <= 0}
+                onClick={handleBook}
+                style={remainingSlots <= 0 ? { background: '#94a3b8', cursor: 'not-allowed' } : {}}
+              >
+                {remainingSlots <= 0 ? 'Hiện đã hết chỗ' : bookingLoading ? 'Đang xử lý...' : 'Đặt ngay tour này'}
               </button>
 
               <p className="muted-text" style={{ textAlign: 'center', fontSize: '0.82rem' }}>

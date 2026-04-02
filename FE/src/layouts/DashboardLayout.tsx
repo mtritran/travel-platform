@@ -13,6 +13,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import Footer from '../components/Footer';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -160,7 +161,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           </header>
         </div>
 
-        <main style={{ padding: '24px 0 40px' }}>{children}</main>
+        <main style={{ padding: '53px 0 40px', flex: 1 }}>{children}</main>
+        <Footer />
       </div>
     </div>
   );

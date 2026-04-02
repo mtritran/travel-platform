@@ -3,8 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   AlertCircle,
   Calendar,
+  CheckCircle2,
   Clock,
   Edit,
+  Info,
   MapPin,
   Plus,
   ShieldCheck,
@@ -53,6 +55,14 @@ const TripRequestsPage: React.FC = () => {
   const [aiRecommendation, setAiRecommendation] = useState<{ id: string, text: string } | null>(null);
   const [isAiLoading, setIsAiLoading] = useState<string | null>(null);
 
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    type: 'confirm' | 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+  } | null>(null);
+
   const { showToast } = useNotification();
 
   const isGuide = user?.roles?.some((role: Role) => role.name === 'GUIDE');
@@ -99,33 +109,47 @@ const TripRequestsPage: React.FC = () => {
     return apiError.response?.data?.message || fallback;
   };
 
-  const handleInterested = async (requestId: string) => {
-    if (!window.confirm('Bạn xác nhận có thể đi tour này? Khách hàng sẽ thấy thông tin của bạn để lựa chọn.')) return;
-
-    setInterestLoading(requestId);
-    try {
-      await api.post(
-        ENDPOINTS.TOUR_REQUEST.INTEREST(requestId) + `?message=`,
-      );
-      showToast('Đã gửi sự quan tâm thành công!', 'success');
-      fetchRequests(true);
-    } catch (err) {
-      showToast(withApiError(err, 'Lỗi khi gửi yêu cầu.'), 'error');
-    } finally {
-      setInterestLoading(null);
-    }
+  const handleInterested = (requestId: string) => {
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Xác nhận đi tour',
+      message: 'Bạn xác nhận có thể đi tour này? Khách hàng sẽ thấy thông tin của bạn để lựa chọn.',
+      onConfirm: async () => {
+        setModal(null);
+        setInterestLoading(requestId);
+        try {
+          await api.post(
+            ENDPOINTS.TOUR_REQUEST.INTEREST(requestId) + `?message=`,
+          );
+          showToast('Đã gửi sự quan tâm thành công!', 'success');
+          fetchRequests(true);
+        } catch (err) {
+          showToast(withApiError(err, 'Lỗi khi gửi yêu cầu.'), 'error');
+        } finally {
+          setInterestLoading(null);
+        }
+      }
+    });
   };
 
-  const handleSelectGuide = async (requestId: string, guideId: string, guideName: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn chọn HDV ${guideName} cho chuyến đi này không?`)) return;
-
-    try {
-      await api.post(ENDPOINTS.TOUR_REQUEST.SELECT_GUIDE(requestId, guideId));
-      showToast('Đã gửi yêu cầu tới hướng dẫn viên.', 'success');
-      fetchRequests();
-    } catch (err) {
-      showToast(withApiError(err, 'Lỗi khi chọn HDV.'), 'error');
-    }
+  const handleSelectGuide = (requestId: string, guideId: string, guideName: string) => {
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Xác nhận Chọn Hướng Dẫn Viên',
+      message: `Bạn có chắc chắn muốn chọn HDV ${guideName} cho chuyến đi này không?`,
+      onConfirm: async () => {
+        setModal(null);
+        try {
+          await api.post(ENDPOINTS.TOUR_REQUEST.SELECT_GUIDE(requestId, guideId));
+          showToast('Đã gửi yêu cầu tới hướng dẫn viên.', 'success');
+          fetchRequests();
+        } catch (err) {
+          showToast(withApiError(err, 'Lỗi khi chọn HDV.'), 'error');
+        }
+      }
+    });
   };
 
   const handleConfirmMatch = async (requestId: string) => {
@@ -138,37 +162,61 @@ const TripRequestsPage: React.FC = () => {
     }
   };
 
-  const handleDeclineMatch = async (requestId: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn từ chối yêu cầu này không?')) return;
-    try {
-      await api.post(ENDPOINTS.TOUR_REQUEST.DECLINE_MATCH(requestId));
-      showToast('Đã từ chối yêu cầu.', 'success');
-      fetchRequests();
-    } catch (err) {
-      showToast(withApiError(err, 'Lỗi khi từ chối.'), 'error');
-    }
+  const handleDeclineMatch = (requestId: string) => {
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Từ Chối Yêu Cầu',
+      message: 'Bạn có chắc chắn muốn từ chối yêu cầu này không?',
+      onConfirm: async () => {
+        setModal(null);
+        try {
+          await api.post(ENDPOINTS.TOUR_REQUEST.DECLINE_MATCH(requestId));
+          showToast('Đã từ chối yêu cầu.', 'success');
+          fetchRequests();
+        } catch (err) {
+          showToast(withApiError(err, 'Lỗi khi từ chối.'), 'error');
+        }
+      }
+    });
   };
 
-  const handleCancelMatch = async (requestId: string) => {
-    if (!window.confirm('Bạn có chắc muốn hủy lựa chọn này và cho phép các HDV khác ứng tuyển lại không?')) return;
-    try {
-      await api.post(ENDPOINTS.TOUR_REQUEST.CANCEL_MATCH(requestId));
-      fetchRequests();
-      showToast('Đã hủy lựa chọn HDV.', 'info');
-    } catch (err) {
-      showToast(withApiError(err, 'Lỗi khi hủy lựa chọn.'), 'error');
-    }
+  const handleCancelMatch = (requestId: string) => {
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Hủy Lựa Chọn',
+      message: 'Bạn có chắc muốn hủy lựa chọn này và cho phép các HDV khác ứng tuyển lại không?',
+      onConfirm: async () => {
+        setModal(null);
+        try {
+          await api.post(ENDPOINTS.TOUR_REQUEST.CANCEL_MATCH(requestId));
+          fetchRequests();
+          showToast('Đã hủy lựa chọn HDV.', 'info');
+        } catch (err) {
+          showToast(withApiError(err, 'Lỗi khi hủy lựa chọn.'), 'error');
+        }
+      }
+    });
   };
 
-  const handleDeleteRequest = async (requestId: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa yêu cầu này không?')) return;
-    try {
-      await api.delete(ENDPOINTS.TOUR_REQUEST.DELETE(requestId));
-      showToast('Xóa yêu cầu thành công.', 'success');
-      fetchRequests();
-    } catch (err) {
-      showToast(withApiError(err, 'Lỗi khi xóa yêu cầu.'), 'error');
-    }
+  const handleDeleteRequest = (requestId: string) => {
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Xóa Yêu Cầu',
+      message: 'Bạn có chắc chắn muốn xóa yêu cầu này không?',
+      onConfirm: async () => {
+        setModal(null);
+        try {
+          await api.delete(ENDPOINTS.TOUR_REQUEST.DELETE(requestId));
+          showToast('Xóa yêu cầu thành công.', 'success');
+          fetchRequests();
+        } catch (err) {
+          showToast(withApiError(err, 'Lỗi khi xóa yêu cầu.'), 'error');
+        }
+      }
+    });
   };
 
   const handleEditRequest = (req: TourRequest) => {
@@ -212,15 +260,23 @@ const TripRequestsPage: React.FC = () => {
     setVnpayBankCode('');
   };
 
-  const handleCompleteTour = async (id: string) => {
-    if (!window.confirm('Bạn xác nhận hành trình này đã kết thúc tốt đẹp?')) return;
-    try {
-      await api.post(ENDPOINTS.TOUR_REQUEST.COMPLETE(id));
-      showToast('Chuyến đi đã được hoàn tất.', 'success');
-      fetchRequests();
-    } catch (err) {
-      showToast(withApiError(err, 'Không thể hoàn tất tour.'), 'error');
-    }
+  const handleCompleteTour = (id: string) => {
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Xác Nhận Hoàn Tất',
+      message: 'Bạn xác nhận hành trình này đã kết thúc tốt đẹp?',
+      onConfirm: async () => {
+        setModal(null);
+        try {
+          await api.post(ENDPOINTS.TOUR_REQUEST.COMPLETE(id));
+          showToast('Chuyến đi đã được hoàn tất.', 'success');
+          fetchRequests();
+        } catch (err) {
+          showToast(withApiError(err, 'Không thể hoàn tất tour.'), 'error');
+        }
+      }
+    });
   };
 
   const handleFetchAiRecommendation = async (requestId: string) => {
@@ -294,6 +350,11 @@ const TripRequestsPage: React.FC = () => {
               Đăng yêu cầu mới
             </button>
           ) : null}
+          {user?.roles?.some((r: Role) => r.name === 'ADMIN') ? (
+            <button type="button" className="btn-secondary" onClick={handleIndexGuides} style={{ fontSize: '0.8rem' }}>
+              Sync AI
+            </button>
+          ) : null}
         </section>
 
         <div className="tab-strip">
@@ -317,7 +378,8 @@ const TripRequestsPage: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="glass-panel empty-state">
+          <div className="glass-panel empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 24px', textAlign: 'center' }}>
+            <Loader2 size={40} className="animate-spin" style={{ color: 'var(--primary)', marginBottom: '16px', opacity: 0.5 }} />
             <p className="page-subtitle">Đang tải danh sách yêu cầu...</p>
           </div>
         ) : requests.length > 0 ? (
@@ -696,9 +758,9 @@ const TripRequestsPage: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="glass-panel empty-state">
-            <AlertCircle size={44} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
-            <p className="page-subtitle">
+          <div className="glass-panel empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
+            <AlertCircle size={48} style={{ opacity: 0.2, marginBottom: '20px' }} />
+            <p className="page-subtitle" style={{ margin: '0 auto' }}>
               {activeTab === 'OPEN'
                 ? 'Hiện tại không có yêu cầu tour nào đang mở.'
                 : activeTab === 'MY'
@@ -780,79 +842,216 @@ const TripRequestsPage: React.FC = () => {
           </div>
         ) : null}
 
-        {aiRecommendation ? (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(24, 24, 27, 0.65)',
-              backdropFilter: 'blur(12px)',
-              display: 'grid',
-              placeItems: 'center',
-              padding: '20px',
-              zIndex: 1100,
-            }}
-          >
-            <div 
-              className="glass-panel" 
-              style={{ 
-                width: 'min(100%, 640px)', 
-                padding: '32px', 
-                borderRadius: '28px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+        {aiRecommendation ? (() => {
+          const currentRequestForAi = requests.find(r => r.id === aiRecommendation.id);
+          const aiRecommendedGuides = currentRequestForAi?.interestedGuides.filter(g => 
+            aiRecommendation.text.toLowerCase().includes(g.guideName.toLowerCase())
+          ) || [];
+
+          return (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(24, 24, 27, 0.65)',
+                backdropFilter: 'blur(12px)',
+                display: 'grid',
+                placeItems: 'center',
+                padding: '20px',
+                zIndex: 1100,
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ 
-                    background: 'linear-gradient(135deg, var(--primary), #a21caf)', 
-                    padding: '10px', 
-                    borderRadius: '14px',
-                    color: 'white'
-                  }}>
-                    <Sparkles size={24} />
-                  </div>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-primary)' }}>Trình tư vấn AI</h2>
-                </div>
-                <button type="button" className="icon-button" onClick={() => setAiRecommendation(null)}>
-                  <X size={20} />
-                </button>
-              </div>
-
               <div 
-                className="booking-box" 
+                className="glass-panel" 
                 style={{ 
-                  maxHeight: '60vh', 
-                  overflowY: 'auto', 
-                  padding: '24px', 
-                  lineHeight: 1.8, 
-                  color: 'var(--text-primary)',
-                  whiteSpace: 'pre-wrap',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  fontSize: '1.05rem'
+                  width: 'min(100%, 640px)', 
+                  padding: '32px', 
+                  borderRadius: '28px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
                 }}
               >
-                {aiRecommendation.text}
-              </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ 
+                      background: 'linear-gradient(135deg, var(--primary), #a21caf)', 
+                      padding: '10px', 
+                      borderRadius: '14px',
+                      color: 'white'
+                    }}>
+                      <Sparkles size={24} />
+                    </div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-primary)' }}>Trình tư vấn AI</h2>
+                  </div>
+                  <button type="button" className="icon-button" onClick={() => setAiRecommendation(null)}>
+                    <X size={20} />
+                  </button>
+                </div>
 
-              <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                <p className="muted-text" style={{ fontSize: '0.82rem' }}>
-                  Gợi ý này được tạo bởi AI (Gemini 1.5 Flash) dựa trên hồ sơ và đánh giá thực tế của Hướng dẫn viên.
-                </p>
-                <button 
-                  type="button" 
-                  className="btn-primary" 
-                  style={{ marginTop: '20px', width: '100%', height: '52px', borderRadius: '16px' }}
-                  onClick={() => setAiRecommendation(null)}
+                <div 
+                  className="booking-box" 
+                  style={{ 
+                    maxHeight: '40vh', 
+                    overflowY: 'auto', 
+                    padding: '24px', 
+                    lineHeight: 1.8, 
+                    color: 'var(--text-primary)',
+                    whiteSpace: 'pre-wrap',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    fontSize: '1.05rem',
+                    marginBottom: '20px'
+                  }}
                 >
-                  Đã hiểu, cảm ơn!
-                </button>
+                  {aiRecommendation.text}
+                </div>
+
+                {aiRecommendedGuides.length > 0 && (
+                  <div className="booking-box" style={{ padding: '20px', background: 'rgba(15, 118, 110, 0.05)', border: '1px solid rgba(15, 118, 110, 0.2)' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '12px', color: 'var(--primary)' }}>
+                      Hướng dẫn viên được AI đề xuất cho bạn:
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {aiRecommendedGuides.map((guide, index) => (
+                        <div key={guide.id} className="info-strip" style={{ justifyContent: 'space-between', background: 'var(--surface)' }}>
+                          <Link 
+                            to={`/profile/${guide.guideId}`} 
+                            style={{ fontWeight: 800, color: 'var(--text-primary)', textDecoration: 'none' }}
+                            target="_blank"
+                          >
+                            <span style={{ color: 'var(--primary)' }}>#{index + 1}</span> {guide.guideName}
+                          </Link>
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            style={{ minHeight: '40px', padding: '0 24px' }}
+                            onClick={() => {
+                              setAiRecommendation(null);
+                              handleSelectGuide(aiRecommendation.id, guide.guideId, guide.guideName);
+                            }}
+                          >
+                            Chọn
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                  <p className="muted-text" style={{ fontSize: '0.82rem' }}>
+                    Gợi ý này được tạo bởi AI (Gemini 1.5 Flash) dựa trên hồ sơ và đánh giá thực tế của Hướng dẫn viên.
+                  </p>
+                  <button 
+                    type="button" 
+                    className="btn-primary" 
+                    style={{ marginTop: '20px', width: '100%', height: '52px', borderRadius: '16px' }}
+                    onClick={() => setAiRecommendation(null)}
+                  >
+                    Đã hiểu, cảm ơn!
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })() : null}
+
+        {/* Modern Premium Modal */}
+        {modal?.isOpen && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            background: 'rgba(15, 23, 42, 0.4)',
+            backdropFilter: 'blur(8px)',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            <div className="glass-panel" style={{
+              maxWidth: '500px',
+              width: '100%',
+              padding: '32px',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.4)',
+              animation: 'slideUp 0.3s ease-out'
+            }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '20px',
+                margin: '0 auto 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: modal.type === 'success' ? 'var(--success-soft)' : 
+                           modal.type === 'error' ? 'var(--error-soft)' :
+                           modal.type === 'confirm' ? 'rgba(79, 70, 229, 0.1)' : 'var(--surface-hover)',
+                color: modal.type === 'success' ? 'var(--success)' :
+                       modal.type === 'error' ? 'var(--error)' :
+                       modal.type === 'confirm' ? '#4f46e5' : 'var(--text-secondary)'
+              }}>
+                {modal.type === 'success' ? <CheckCircle2 size={32} /> :
+                 modal.type === 'error' ? <AlertCircle size={32} /> :
+                 modal.type === 'confirm' ? <Info size={32} /> : <Info size={32} />}
+              </div>
+              
+              <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '12px' }}>
+                {modal.title}
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '32px', fontSize: '1.1rem' }}>
+                {modal.message}
+              </p>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                {modal.type === 'confirm' ? (
+                  <>
+                    <button 
+                      className="btn-secondary" 
+                      onClick={() => setModal(null)}
+                      style={{ padding: '12px 24px', minWidth: '120px' }}
+                    >
+                      Bỏ qua
+                    </button>
+                    <button 
+                      className="btn-primary" 
+                      onClick={modal.onConfirm}
+                      style={{ 
+                        padding: '12px 24px', 
+                        minWidth: '120px',
+                        background: modal.title.includes('Hủy') ? 'var(--error)' : 'var(--primary)'
+                      }}
+                    >
+                      Xác nhận
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    className="btn-primary" 
+                    onClick={() => setModal(null)}
+                    style={{ padding: '12px 32px', minWidth: '150px' }}
+                  >
+                    Đóng
+                  </button>
+                )}
               </div>
             </div>
           </div>
-        ) : null}
+        )}
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}} />
     </DashboardLayout>
   );
 };

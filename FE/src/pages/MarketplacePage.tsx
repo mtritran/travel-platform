@@ -1,13 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowRight,
-  Filter,
-  Grid,
-  List as ListIcon,
   MapPin,
   Search,
-  Sparkles,
+  Bot,
   Star,
 } from 'lucide-react';
 import api from '../services/api';
@@ -15,6 +11,7 @@ import type { ApiResponse, Tour } from '../types';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { ENDPOINTS } from '../constants/endpoints';
 import { formatVND } from '../utils/format';
+import TourChatWidget from '../components/TourChatWidget';
 
 const MarketplacePage: React.FC = () => {
   const [tours, setTours] = useState<Tour[]>([]);
@@ -45,55 +42,19 @@ const MarketplacePage: React.FC = () => {
     return matchesSearch;
   });
 
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
   return (
     <DashboardLayout>
       <div className="page-stack">
         <section className="glass-panel hero-banner">
           <div className="hero-copy">
-            <span className="eyebrow">
-              <Sparkles size={14} />
-              Curated local journeys
-            </span>
             <div className="section-heading">
               <h1 className="hero-title">Khám phá hành trình tiếp theo thật đồng điệu.</h1>
               <p className="page-subtitle">
                 Tìm tour theo địa điểm, chọn trải nghiệm phù hợp và đi từ cảm hứng đến đặt chỗ
                 chỉ trong một luồng giao diện gọn gàng hơn.
               </p>
-            </div>
-            <div className="hero-actions">
-              <button type="button" className="btn-primary">
-                Gợi ý cho bạn
-                <ArrowRight size={18} />
-              </button>
-              <button type="button" className="btn-secondary">
-                <Filter size={18} />
-                Bộ lọc nhanh
-              </button>
-            </div>
-          </div>
-
-          <div className="hero-stats">
-            <div className="stat-card">
-              <span className="stat-value">{filteredTours.length}</span>
-              <span className="stat-label">Tour đang mở</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-value">
-                {new Set(filteredTours.map((tour) => tour.locationName)).size}
-              </span>
-              <span className="stat-label">Điểm đến nổi bật</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-value">
-                {filteredTours.length > 0
-                  ? (
-                      filteredTours.reduce((sum, tour) => sum + (tour.rating || 5), 0) /
-                      filteredTours.length
-                    ).toFixed(1)
-                  : '0.0'}
-              </span>
-              <span className="stat-label">Điểm hài lòng trung bình</span>
             </div>
           </div>
         </section>
@@ -111,19 +72,14 @@ const MarketplacePage: React.FC = () => {
               />
             </div>
 
-            <button type="button" className="btn-secondary">
-              <Filter size={18} />
-              Bộ lọc
+            <button
+              type="button"
+              className="btn-ai-trigger"
+              onClick={() => setIsChatOpen(true)}
+            >
+              <Bot size={18} />
+              <span>Hỏi trợ lý AI</span>
             </button>
-
-            <div className="segmented-control" aria-label="Kiểu hiển thị">
-              <button type="button" className="segmented-button active" aria-label="Dạng lưới">
-                <Grid size={18} />
-              </button>
-              <button type="button" className="segmented-button" aria-label="Dạng danh sách">
-                <ListIcon size={18} />
-              </button>
-            </div>
           </div>
         </section>
 
@@ -191,6 +147,9 @@ const MarketplacePage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* AI Chat Widget - fixed bottom-right */}
+      <TourChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </DashboardLayout>
   );
 };

@@ -131,27 +131,27 @@ const EditTourPage: React.FC = () => {
   };
 
   const validateStep2 = () => {
-    const newErrors: Record<string, string> = {};
+    const errs: Record<string, string> = {};
     let isValid = true;
 
     if (!formData.latitude) {
-      newErrors.location = 'Vui lòng chọn địa điểm tham quan trên bản đồ';
+      errs.location = 'Vui lòng chọn địa điểm tham quan trên bản đồ';
       isValid = false;
     }
     if (!formData.meetingLatitude) {
-      newErrors.meetingLocation = 'Vui lòng chọn điểm tập trung trên bản đồ';
+      errs.meetingLocation = 'Vui lòng chọn điểm tập trung trên bản đồ';
       isValid = false;
     }
     if (!formData.locationName.trim()) {
-      newErrors.locationName = 'Vui lòng nhập tên địa danh';
+      errs.locationName = 'Vui lòng nhập tên địa danh';
       isValid = false;
     }
     if (!formData.meetingLocationName.trim()) {
-      newErrors.meetingLocationName = 'Vui lòng nhập tên điểm hẹn';
+      errs.meetingLocationName = 'Vui lòng nhập tên điểm hẹn';
       isValid = false;
     }
 
-    setErrors(prev => ({ ...prev, ...newErrors }));
+    setErrors(prev => ({ ...prev, ...errs }));
     return isValid;
   };
 
@@ -269,7 +269,7 @@ const EditTourPage: React.FC = () => {
                       }}
                     />
                   </div>
-                  {errors.title && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '6px', fontWeight: 600 }}>{errors.title}</p>}
+                  {errors.title && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px', fontWeight: 600 }}>{errors.title}</p>}
                 </div>
                 <div className="input-group">
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giá tour (VND)</label>
@@ -287,7 +287,7 @@ const EditTourPage: React.FC = () => {
                       }}
                     />
                   </div>
-                  {errors.price && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '6px', fontWeight: 600 }}>{errors.price}</p>}
+                  {errors.price && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px', fontWeight: 600 }}>{errors.price}</p>}
                 </div>
               </div>
 
@@ -304,7 +304,7 @@ const EditTourPage: React.FC = () => {
                       validateField('startDate', e.target.value);
                     }}
                   />
-                  {errors.startDate && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.startDate}</p>}
+                  {errors.startDate && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.startDate}</p>}
                 </div>
                 <div className="input-group">
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Số khách tối đa</label>
@@ -321,6 +321,7 @@ const EditTourPage: React.FC = () => {
                       validateField('maxGuests', val);
                     }}
                   />
+                  {errors.maxGuests && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.maxGuests}</p>}
                 </div>
               </div>
 
@@ -337,6 +338,7 @@ const EditTourPage: React.FC = () => {
                      validateField('startTime', e.target.value);
                     }}
                   />
+                  {errors.startTime && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.startTime}</p>}
                 </div>
                 <div className="input-group">
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giờ kết thúc</label>
@@ -350,6 +352,7 @@ const EditTourPage: React.FC = () => {
                       validateField('endTime', e.target.value);
                     }}
                   />
+                  {errors.endTime && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.endTime}</p>}
                 </div>
               </div>
 
@@ -369,6 +372,7 @@ const EditTourPage: React.FC = () => {
                     }}
                   />
                 </div>
+                {errors.description && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.description}</p>}
               </div>
 
               <div className="input-group">
@@ -380,9 +384,13 @@ const EditTourPage: React.FC = () => {
                     placeholder="Dán link ảnh tại đây..." 
                     style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
                     value={formData.imageUrl}
-                    onChange={e => setFormData({...formData, imageUrl: e.target.value})}
+                    onChange={e => {
+                      setFormData({...formData, imageUrl: e.target.value});
+                      validateField('imageUrl', e.target.value);
+                    }}
                   />
                 </div>
+                {errors.imageUrl && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.imageUrl}</p>}
                 {formData.imageUrl && (
                   <div style={{ marginTop: '20px', width: '100%', height: '240px', borderRadius: '20px', overflow: 'hidden', border: '4px solid white', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
                     <img src={formData.imageUrl} alt="Tour Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -397,7 +405,6 @@ const EditTourPage: React.FC = () => {
                   style={{ padding: '18px 60px', borderRadius: '18px', fontSize: '1.1rem', fontWeight: 800, boxShadow: '0 10px 15px -3px rgba(var(--primary-rgb), 0.3)' }}
                   onClick={() => {
                     if (validateStep1()) setStep(2);
-                    else alert("Vui lòng hoàn thiện các trường còn thiếu.");
                   }}
                 >
                   Tiếp tục: Chọn bản đồ ➜
@@ -416,7 +423,8 @@ const EditTourPage: React.FC = () => {
                   <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800' }}>1. Địa điểm tham quan chính</h3>
                 </div>
                 <LocationPicker 
-                  initialLocation={formData.latitude ? { lat: formData.latitude, lng: formData.longitude } : undefined}
+                  initialLat={formData.latitude || undefined}
+                  initialLng={formData.longitude || undefined}
                   onLocationSelect={(lat, lng, addr) => {
                     setFormData({...formData, latitude: lat, longitude: lng, address: addr, locationName: addr});
                     setErrors(prev => ({ ...prev, location: '' }));
@@ -442,7 +450,8 @@ const EditTourPage: React.FC = () => {
                   <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800' }}>2. Điểm tập trung gặp khách</h3>
                 </div>
                 <LocationPicker 
-                  initialLocation={formData.meetingLatitude ? { lat: formData.meetingLatitude, lng: formData.meetingLongitude } : undefined}
+                  initialLat={formData.meetingLatitude || undefined}
+                  initialLng={formData.meetingLongitude || undefined}
                   onLocationSelect={(lat, lng, addr) => {
                     setFormData({...formData, meetingLatitude: lat, meetingLongitude: lng, meetingAddress: addr, meetingLocationName: addr});
                     setErrors(prev => ({ ...prev, meetingLocation: '' }));
@@ -465,7 +474,10 @@ const EditTourPage: React.FC = () => {
                 <button 
                   className="btn-primary" 
                   style={{ padding: '18px 60px', borderRadius: '18px', fontSize: '1.1rem', fontWeight: 800, boxShadow: '0 10px 15px -3px rgba(var(--primary-rgb), 0.3)' }} 
-                  onClick={handleSubmit}
+                  onClick={(e) => {
+                    if (validateStep2()) handleSubmit(e as any);
+                    else alert('Vui lòng chọn địa điểm trên bản đồ.');
+                  }}
                   disabled={submitting}
                 >
                   {submitting ? 'Đang cập nhật...' : 'Lưu & Cập nhật Tour'}
