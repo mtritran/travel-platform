@@ -182,7 +182,7 @@ public class TourRequestService {
         }
 
         if (tourRequestInterestRepository.existsByTourRequestIdAndGuideId(requestId, guide.getId())) {
-             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION); // Already interested
+             throw new AppException(ErrorCode.ALREADY_EXPRESSED_INTEREST); // Already interested
         }
 
         com.mtritran.travelplatform.entity.TourRequestInterest interest = com.mtritran.travelplatform.entity.TourRequestInterest.builder()

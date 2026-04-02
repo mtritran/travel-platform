@@ -41,5 +41,6 @@ public class TourResponse {
     BigDecimal depositPercentage;
     double rating;
     int reviewCount;
+    Integer occupiedGuests;
     LocalDateTime createdAt;
 }

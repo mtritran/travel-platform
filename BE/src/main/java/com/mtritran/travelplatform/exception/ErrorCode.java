@@ -31,13 +31,13 @@ public enum ErrorCode {
     TOUR_NOT_FOUND(1016, "Tour not found", HttpStatus.NOT_FOUND),
     TOUR_REQUEST_NOT_FOUND(1017, "Tour request not found", HttpStatus.NOT_FOUND),
     BOOKING_NOT_FOUND(1018, "Booking not found", HttpStatus.NOT_FOUND),
-    CANNOT_BOOK_OWN_TOUR(1019, "You cannot book your own tour", HttpStatus.BAD_REQUEST),
-    CANNOT_ACCEPT_OWN_REQUEST(1020, "You cannot accept your own tour request", HttpStatus.BAD_REQUEST),
+    CANNOT_BOOK_OWN_TOUR(1019, "Bạn không thể tự đặt tour của chính mình", HttpStatus.BAD_REQUEST),
+    CANNOT_ACCEPT_OWN_REQUEST(1020, "Bạn không thể tự nhận yêu cầu tìm HDV của chính mình", HttpStatus.BAD_REQUEST),
     DATE_REQUIRED(1021, "Planned date is required", HttpStatus.BAD_REQUEST),
     TOUR_HAS_BOOKINGS(1022, "Cannot delete tour as it has bookings", HttpStatus.BAD_REQUEST),
     EXCEED_MAX_GUESTS(1023, "Number of guests exceeds tour limit", HttpStatus.BAD_REQUEST),
     INVALID_TOUR_DATE(1024, "Tour start date and time cannot be in the past", HttpStatus.BAD_REQUEST),
-    INVALID_BOOKING_STATUS(1025, "Invalid booking status for this action", HttpStatus.BAD_REQUEST),
+    INVALID_BOOKING_STATUS(1025, "Trạng thái không hợp lệ để thực hiện thao tác này", HttpStatus.BAD_REQUEST),
     ALREADY_REVIEWED(1026, "You have already reviewed this booking", HttpStatus.BAD_REQUEST),
     INSUFFICIENT_BALANCE(1027, "Insufficient balance", HttpStatus.BAD_REQUEST),
     PAYOUT_NOT_FOUND(1028, "Payout request not found", HttpStatus.NOT_FOUND),
@@ -45,7 +45,9 @@ public enum ErrorCode {
     PRICE_REQUIRED(1030, "Price is required and must be valid", HttpStatus.BAD_REQUEST),
     START_DATE_REQUIRED(1031, "Start date is required", HttpStatus.BAD_REQUEST),
     START_TIME_REQUIRED(1032, "Start time is required", HttpStatus.BAD_REQUEST),
-    TOUR_NOT_STARTED_YET(1033, "Tour has not started yet", HttpStatus.BAD_REQUEST),
+    TOUR_NOT_STARTED_YET(1033, "Chưa thể hoàn thành vì thời gian Tour chưa bắt đầu/kết thúc", HttpStatus.BAD_REQUEST),
+    ALREADY_HAS_ACTIVE_BOOKING(1034, "You already have an active booking for this tour", HttpStatus.CONFLICT),
+    ALREADY_EXPRESSED_INTEREST(1035, "Bạn đã gửi yêu cầu nhận chuyến đi này rồi", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

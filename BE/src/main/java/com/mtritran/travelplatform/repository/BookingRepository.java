@@ -25,11 +25,23 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
                                      @org.springframework.data.repository.query.Param("time") java.time.LocalTime time);
 
     @org.springframework.data.jpa.repository.Query("SELECT SUM(b.numberOfGuests) FROM Booking b WHERE b.tour.id = :tourId " +
-           "AND (b.status IN ('CONFIRMED', 'PAID_FULL', 'COMPLETED') " +
+           "AND (b.status IN ('CONFIRMED', 'PAID_FULL') " +
            "OR (b.status = 'AWAITING_DEPOSIT' AND b.createdAt > :expiryTime)) " +
            "AND b.bookingDate = :date AND b.startTime = :time")
     Integer sumOccupiedSlots(@org.springframework.data.repository.query.Param("tourId") String tourId, 
                            @org.springframework.data.repository.query.Param("date") java.time.LocalDate date,
                            @org.springframework.data.repository.query.Param("time") java.time.LocalTime time,
                            @org.springframework.data.repository.query.Param("expiryTime") java.time.Instant expiryTime);
+
+    /**
+     * Trả về true nếu customer đã có booking active (chưa huỷ, chưa hoàn thành)
+     * trên cùng một tour này — dùng để chặn đặt lại khi đang trong tour.
+     */
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT COUNT(b) > 0 FROM Booking b " +
+        "WHERE b.user = :user AND b.tour.id = :tourId " +
+        "AND b.status IN ('AWAITING_DEPOSIT', 'CONFIRMED', 'PAID_FULL')")
+    boolean hasActiveBookingForTour(
+        @org.springframework.data.repository.query.Param("user") User user,
+        @org.springframework.data.repository.query.Param("tourId") String tourId);
 }

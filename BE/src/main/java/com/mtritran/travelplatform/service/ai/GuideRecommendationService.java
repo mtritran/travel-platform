@@ -14,16 +14,17 @@ import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.store.embedding.EmbeddingMatch;
-import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
-import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import com.mtritran.travelplatform.entity.TourRequestInterest;
+import com.mtritran.travelplatform.repository.TourRequestInterestRepository;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,6 +38,7 @@ public class GuideRecommendationService {
     UserRepository userRepository;
     TourRequestRepository tourRequestRepository;
     ReviewRepository reviewRepository;
+    TourRequestInterestRepository tourRequestInterestRepository;
 
     EmbeddingModel embeddingModel;
     EmbeddingStore<TextSegment> embeddingStore;
@@ -67,10 +69,11 @@ public class GuideRecommendationService {
         return sb.toString();
     }
 
-    // Đồng bộ hóa (Index) toàn bộ Guide vào Vector Database
+    // Đồng bộ hóa (Index) toàn bộ Guide vào Vector Database mỗi ngày lúc 2h sáng
     @Async
+    @Scheduled(cron = "0 0 2 * * ?")
     public void indexAllGuides() {
-        log.info("Bắt đầu đồng bộ hóa tất cả Guide vào Vector Database...");
+        log.info("Bắt đầu đồng bộ hóa tự động tất cả Guide vào Vector Database (Cron Job)...");
         List<User> guides = userRepository.findAll().stream()
                 .filter(u -> u.getRoles().stream()
                         .anyMatch(r -> r.getName() == RoleName.GUIDE))
@@ -95,10 +98,15 @@ public class GuideRecommendationService {
         log.info("Đã index Guide: {}", guide.getFullName());
     }
 
-    // Tìm kiếm và đề xuất Guide dựa trên Tour Request của khách hàng
     public String getRecommendation(String requestId) {
         TourRequest request = tourRequestRepository.findById(requestId)
                 .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
+
+        List<TourRequestInterest> interests = tourRequestInterestRepository.findByTourRequestIdOrderByCreatedAtAsc(requestId);
+
+        if (interests.isEmpty()) {
+            return "Hiện tại chưa có hướng dẫn viên nào gửi yêu cầu quan tâm đến mục này. Bạn vui lòng đợi thêm chút thời gian nhé!";
+        }
 
         // 1. Tạo câu truy vấn từ yêu cầu của khách
         String query = String.format("Yêu cầu tour: %s. Địa điểm: %s. Mô tả: %s. Số khách: %d.",
@@ -107,34 +115,20 @@ public class GuideRecommendationService {
                 request.getDescription(),
                 request.getNumberOfGuests());
 
-        // 2. Tìm kiếm các Guide có profile tương đồng nhất (Top 3)
-        Embedding queryEmbedding = embeddingModel.embed(query).content();
-        EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
-                .queryEmbedding(queryEmbedding)
-                .maxResults(3)
-                .minScore(0.0)
-                .build();
-
-        EmbeddingSearchResult<TextSegment> searchResult = embeddingStore.search(searchRequest);
-        List<EmbeddingMatch<TextSegment>> matches = searchResult.matches();
-
-        if (matches.isEmpty()) {
-            return "Hiện tại không tìm thấy hướng dẫn viên nào phù hợp với yêu cầu của bạn.";
-        }
-
-        // 3. Chuẩn bị ngữ cảnh cho LLM (Gemini)
-        String context = matches.stream()
-                .map(match -> match.embedded().text())
+        // 2. Lấy trực tiếp thông tin profiles của các HDV CÓ TRONG DANH SÁCH QUAN TÂM
+        String context = interests.stream()
+                .map(interest -> buildGuideProfileText(interest.getGuide()))
                 .collect(Collectors.joining("\n---\n"));
 
+        // 3. Chuẩn bị Prompt cho Gemini
         String prompt = String.format(
-                "Bạn là một trợ lý du lịch thông minh. Dưới đây là danh sách các hướng dẫn viên tiềm năng và thông tin chi tiết của họ:\n\n%s\n\n"
+                "Bạn là một trợ lý du lịch thông minh. Dưới đây là danh sách các hướng dẫn viên ĐÃ QUAN TÂM và sẵn sàng nhận tour này cùng thông tin chi tiết của họ:\n\n%s\n\n"
                         +
-                        "Dựa trên thông tin này, hãy phân tích và đề xuất hướng dẫn viên tốt nhất cho yêu cầu sau của khách hàng:\n\"%s\"\n\n"
+                        "Dựa trên thông tin này, hãy phân tích và đề xuất người phù hợp nhất cho yêu cầu cụ thể sau của khách hàng:\n\"%s\"\n\n"
                         +
-                        "Hãy trả lời bằng tiếng Việt một cách lịch sự, nêu rõ lý do tại sao các hướng dẫn viên này phù hợp (ví dụ: kinh nghiệm, ngôn ngữ, hoặc đánh giá tốt về địa điểm tương tự). "
+                        "Hãy trả lời bằng tiếng Việt một cách lịch sự, nêu rõ lý do tại sao các hướng dẫn viên này phù hợp với yêu cầu (dựa trên kinh nghiệm, đánh giá cũ, hoặc mô tả). "
                         +
-                        "Chỉ đề xuất tối đa 3 người.",
+                        "Nếu có nhiều người quan tâm, hãy so sánh ngắn gọn và xếp hạng độ phù hợp để khách hàng dễ chọn.",
                 context, query);
 
         // 4. Gọi Gemini để tạo câu trả lời

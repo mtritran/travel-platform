@@ -4,6 +4,7 @@ import com.mtritran.travelplatform.dto.request.TourCreateRequest;
 import com.mtritran.travelplatform.dto.response.ApiResponse;
 import com.mtritran.travelplatform.dto.response.TourResponse;
 import com.mtritran.travelplatform.service.TourService;
+import com.mtritran.travelplatform.service.ai.TourChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,6 +23,7 @@ import java.util.List;
 @Tag(name = "Tour", description = "APIs for tours management")
 public class TourController {
     TourService tourService;
+    TourChatService tourChatService;
 
     @Operation(summary = "Create new tour", description = "Guide only. Connect tour with a predefined location.")
     @PreAuthorize("hasRole('GUIDE')")
@@ -113,5 +115,14 @@ public class TourController {
     public ApiResponse<Void> deleteTour(@PathVariable String id) {
         tourService.deleteTour(id);
         return ApiResponse.<Void>builder().build();
+    }
+
+    @Operation(summary = "AI Chat about available tours",
+            description = "Free-form question answering about currently active tours using Gemini AI.")
+    @PostMapping("/chat")
+    public ApiResponse<com.mtritran.travelplatform.dto.response.TourChatResponse> chat(@RequestBody String question) {
+        return ApiResponse.<com.mtritran.travelplatform.dto.response.TourChatResponse>builder()
+                .result(tourChatService.chat(question))
+                .build();
     }
 }

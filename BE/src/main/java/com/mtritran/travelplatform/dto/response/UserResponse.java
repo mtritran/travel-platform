@@ -17,6 +17,7 @@ public class UserResponse {
     Gender gender;
     LocalDate dob;
     java.util.Set<RoleResponse> roles;
+    java.math.BigDecimal balance;
     String biography;
     String languages;
     Integer yearsOfExperience;

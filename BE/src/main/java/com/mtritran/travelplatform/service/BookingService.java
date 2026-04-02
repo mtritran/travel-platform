@@ -52,7 +52,7 @@ public class BookingService {
         // Check ownership: only user who booked OR the guide of the tour OR admin
         boolean isOwner = booking.getUser().getId().equals(currentUser.getId());
         boolean isGuide = booking.getTour().getGuide().getId().equals(currentUser.getId());
-        boolean isAdmin = currentUser.getRoles().stream().anyMatch(r -> r.getName().equals("ADMIN"));
+        boolean isAdmin = currentUser.getRoles().stream().anyMatch(r -> r.getName() == com.mtritran.travelplatform.enums.RoleName.ADMIN);
 
         if (!isOwner && !isGuide && !isAdmin) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -79,6 +79,11 @@ public class BookingService {
 
         if (tour.getGuide().getId().equals(user.getId())) {
             throw new AppException(ErrorCode.CANNOT_BOOK_OWN_TOUR);
+        }
+
+        // Duplicate booking check: customer cannot rebook if already has active booking on this tour
+        if (bookingRepository.hasActiveBookingForTour(user, tour.getId())) {
+            throw new AppException(ErrorCode.ALREADY_HAS_ACTIVE_BOOKING);
         }
 
         // Capacity check: count confirmed AND active reservations (within 10 mins)
@@ -306,6 +311,7 @@ public class BookingService {
         booking.setPaidAmount(booking.getTotalPrice());
         booking.setStatus(BookingStatus.PAID_FULL);
         Booking saved = bookingRepository.save(booking);
+        // Log REVENUE: money received by platform, held until tour completion
         transactionRepository.save(Transaction.builder()
                 .booking(saved)
                 .user(booking.getUser())
@@ -339,7 +345,7 @@ public class BookingService {
         booking.setStatus(BookingStatus.PAID_FULL);
         Booking saved = bookingRepository.save(booking);
 
-        // Log Revenue Transaction (Remaining)
+        // Log REVENUE: money received by platform, held until tour completion
         transactionRepository.save(Transaction.builder()
                 .booking(saved)
                 .user(booking.getUser())
@@ -349,14 +355,64 @@ public class BookingService {
                 .build());
 
         // Notify Guide real-time
-        notificationService.sendNotification(booking.getTour().getGuide().getId(), 
+        notificationService.sendNotification(booking.getTour().getGuide().getId(),
             java.util.Map.of(
-                "type", "PAYMENT_COMPLETED", 
+                "type", "PAYMENT_COMPLETED",
                 "message", "Khách hàng đã thanh toán đủ 100% cho tour: " + booking.getTour().getTitle(),
                 "bookingId", saved.getId()
             ));
-        
+
         return mapToResponse(saved);
+    }
+
+    /**
+     * Phân chia 80% tiền thực nhận vào ví guide,
+     * ghi nhận 20% commission cho admin và log transactions.
+     */
+    private void distributePayment(Booking booking, BigDecimal totalAmount) {
+        BigDecimal platformFee = totalAmount
+                .multiply(new BigDecimal("0.20"))
+                .setScale(0, java.math.RoundingMode.HALF_UP);
+        BigDecimal guideEarnings = totalAmount.subtract(platformFee);
+
+        // Credit guide wallet safely (handle null balance for existing users)
+        User guide = booking.getTour().getGuide();
+        BigDecimal currentGuideBalance = guide.getBalance() != null ? guide.getBalance() : BigDecimal.ZERO;
+        guide.setBalance(currentGuideBalance.add(guideEarnings));
+        userRepository.save(guide);
+
+        // Credit admin wallet (first ADMIN found)
+        List<User> admins = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN);
+        if (!admins.isEmpty()) {
+            User admin = admins.get(0);
+            BigDecimal currentAdminBalance = admin.getBalance() != null ? admin.getBalance() : BigDecimal.ZERO;
+            admin.setBalance(currentAdminBalance.add(platformFee));
+            userRepository.save(admin);
+            notificationService.sendNotification(admin.getId(),
+                java.util.Map.of(
+                    "type", "COMMISSION_EARNED",
+                    "message", "Thu phí 20% từ tour: " + booking.getTour().getTitle() + " — " + platformFee + " VND",
+                    "bookingId", booking.getId()
+                ));
+        }
+
+        // Log Commission transaction (Admin)
+        transactionRepository.save(Transaction.builder()
+                .booking(booking)
+                .user(admins.isEmpty() ? null : admins.get(0))
+                .amount(platformFee)
+                .type(TransactionType.COMMISSION)
+                .note("Phí dịch vụ sàn (20%) từ tour: " + booking.getTour().getTitle())
+                .build());
+
+        // Log Income transaction (Guide)
+        transactionRepository.save(Transaction.builder()
+                .booking(booking)
+                .user(guide)
+                .amount(guideEarnings)
+                .type(TransactionType.INCOME)
+                .note("Tiền thực nhận từ tour: " + booking.getTour().getTitle() + " (sau khi trừ phí 20%)")
+                .build());
     }
 
     @Transactional
@@ -373,51 +429,35 @@ public class BookingService {
             throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
         }
 
-        // Logic check: only allow completion after the tour has started
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        java.time.LocalDateTime tourStart = java.time.LocalDateTime.of(booking.getBookingDate(), booking.getStartTime());
-        if (now.isBefore(tourStart)) {
-            throw new AppException(ErrorCode.TOUR_NOT_STARTED_YET);
+        // Use Vietnam timezone to avoid UTC mismatch on cloud servers
+        java.time.ZoneId vnZone = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
+        java.time.LocalDateTime now = java.time.LocalDateTime.now(vnZone);
+
+        // Determine the end time of the tour
+        java.time.LocalTime timeToCheck = booking.getTour().getEndTime() != null 
+                ? booking.getTour().getEndTime() 
+                : (booking.getStartTime() != null ? booking.getStartTime() : java.time.LocalTime.of(23, 59));
+        
+        java.time.LocalDateTime tourEnd = java.time.LocalDateTime.of(booking.getBookingDate(), timeToCheck);
+
+        if (now.isBefore(tourEnd)) {
+            throw new AppException(ErrorCode.TOUR_NOT_STARTED_YET); // The message correctly translates to "Chưa bắt đầu/kết thúc"
         }
 
         booking.setStatus(BookingStatus.COMPLETED);
         Booking saved = bookingRepository.save(booking);
 
-        // 20% commission logic
-        java.math.BigDecimal total = booking.getTotalPrice();
-        java.math.BigDecimal platformFee = total.multiply(new java.math.BigDecimal("0.20"));
-        java.math.BigDecimal guideEarnings = total.subtract(platformFee);
-
-        User guide = booking.getTour().getGuide();
-        guide.setBalance(guide.getBalance().add(guideEarnings));
-        userRepository.save(guide);
-
-        // Log Internal Transactions
-        // 1. Log Commission (Admin Profit)
-        transactionRepository.save(Transaction.builder()
-                .booking(saved)
-                .amount(platformFee)
-                .type(TransactionType.COMMISSION)
-                .note("Phí dịch vụ sàn (20%) từ tour: " + booking.getTour().getTitle())
-                .build());
-
-        // 2. Log Guide Income (Wallet credit)
-        transactionRepository.save(Transaction.builder()
-                .booking(saved)
-                .user(guide)
-                .amount(guideEarnings)
-                .type(TransactionType.INCOME)
-                .note("Tiền thực nhận từ tour: " + booking.getTour().getTitle() + " (sau khi trừ phí 20%)")
-                .build());
+        // Distribute 80% to guide wallet, 20% commission to admin
+        distributePayment(saved, booking.getTotalPrice());
 
         // Notify Customer real-time
-        notificationService.sendNotification(booking.getUser().getId(), 
+        notificationService.sendNotification(booking.getUser().getId(),
             java.util.Map.of(
-                "type", "TOUR_COMPLETED", 
+                "type", "TOUR_COMPLETED",
                 "message", "Tour " + booking.getTour().getTitle() + " đã hoàn thành. Cảm ơn bạn!",
                 "bookingId", saved.getId()
             ));
-        
+
         return mapToResponse(saved);
     }
 }

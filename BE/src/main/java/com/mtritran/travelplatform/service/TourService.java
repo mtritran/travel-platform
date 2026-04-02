@@ -51,6 +51,12 @@ public class TourService {
             response.setRating(5.0); // Default for new tours
             response.setReviewCount(0);
         }
+
+        // Calculate occupied guests for the specific tour slot
+        java.time.Instant expiryTime = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
+        Integer occupied = bookingRepository.sumOccupiedSlots(tour.getId(), tour.getStartDate(), tour.getStartTime(), expiryTime);
+        response.setOccupiedGuests(occupied != null ? occupied : 0);
+
         return response;
     }
 
@@ -173,7 +179,7 @@ public class TourService {
         User currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
         
-        boolean isAdmin = currentUser.getRoles().stream().anyMatch(r -> r.getName().equals("ADMIN"));
+        boolean isAdmin = currentUser.getRoles().stream().anyMatch(r -> r.getName() == com.mtritran.travelplatform.enums.RoleName.ADMIN);
         boolean isOwner = tour.getGuide().getId().equals(currentUser.getId());
 
         if (isAdmin) {
