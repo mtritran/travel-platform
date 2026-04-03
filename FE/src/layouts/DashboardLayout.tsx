@@ -54,7 +54,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       })
       .join(', ') || 'Thành viên';
 
-  const adminLinks: NavItem[] = [];
+  const adminLinks: NavItem[] = [
+    { to: '/admin', label: 'Quản trị viên', icon: <ShieldCheck size={16} /> },
+    { to: '/admin/users', label: 'Người dùng', icon: <User size={16} /> },
+    { to: '/admin/tours', label: 'Tours', icon: <Compass size={16} /> },
+    { to: '/admin/locations', label: 'Địa điểm', icon: <MapPin size={16} /> },
+    { to: '/admin/payouts', label: 'Rút tiền', icon: <Wallet size={16} /> },
+  ];
 
   const customerLinks: NavItem[] = [
     { to: '/requests', label: 'Yêu cầu chuyến đi', icon: <MapPin size={16} /> },

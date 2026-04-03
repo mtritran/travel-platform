@@ -39,11 +39,11 @@ const ReservationTimer: React.FC<{ createdAt: string }> = ({ createdAt }) => {
   const seconds = timeLeft % 60;
 
   return (
-    <span style={{ 
-      color: '#b45309', 
-      fontWeight: 800, 
-      display: 'inline-flex', 
-      alignItems: 'center', 
+    <span style={{
+      color: '#b45309',
+      fontWeight: 800,
+      display: 'inline-flex',
+      alignItems: 'center',
       gap: '6px',
       padding: '4px 10px',
       background: '#fff7ed',
@@ -64,6 +64,7 @@ const MyBookingsPage: React.FC = () => {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [payingBooking, setPayingBooking] = useState<Booking | null>(null);
   const [reviewingBooking, setReviewingBooking] = useState<Booking | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState<Booking | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   /** '' = chọn phương thức trên cổng VNPAY; 'VNPAYQR' = quét mã QR */
   const [vnpayBankCode, setVnpayBankCode] = useState<'' | 'VNPAYQR'>('');
@@ -107,7 +108,7 @@ const MyBookingsPage: React.FC = () => {
       const response = await api.get<ApiResponse<string>>(
         ENDPOINTS.PAYMENT.CREATE_VNPAY(payingBooking.id, type, vnpayBankCode || undefined),
       );
-      
+
       if (response.data.result) {
         window.location.href = response.data.result;
       }
@@ -119,24 +120,11 @@ const MyBookingsPage: React.FC = () => {
     }
   };
 
-  const handleCancel = async (booking: Booking) => {
-    let message = 'Bạn có chắc chắn muốn hủy tour này?';
-    const now = new Date();
-    const startDateTime = new Date(`${booking.tourStartDate}T${booking.tourStartTime}`);
-    const diffHours = (startDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-
-    if (booking.paidAmount > 0) {
-      if (diffHours > 48) message += `\n\nĐược hoàn 100% (${formatVND(booking.paidAmount)}).`;
-      else if (diffHours > 24) message += `\n\nĐược hoàn 50% (${formatVND(booking.paidAmount * 0.5)}).`;
-      else message += '\n\nHủy dưới 24h sẽ không được hoàn cọc.';
-    }
-
-    if (!window.confirm(message)) return;
-
+  const executeCancel = async (booking: Booking) => {
     setCancellingId(booking.id);
     try {
       await api.post(ENDPOINTS.BOOKING.CANCEL(booking.id));
-      alert('Hủy tour thành công.');
+      setShowCancelModal(null);
       fetchBookings();
     } catch (err) {
       const apiError = err as ApiError;
@@ -144,6 +132,10 @@ const MyBookingsPage: React.FC = () => {
     } finally {
       setCancellingId(null);
     }
+  };
+
+  const handleCancelClick = (booking: Booking) => {
+    setShowCancelModal(booking);
   };
 
   const getStatusBadge = (status: string) => {
@@ -252,7 +244,7 @@ const MyBookingsPage: React.FC = () => {
                         <button type="button" className="btn-secondary" onClick={() => setPayingBooking(booking)} style={{ color: '#b45309' }}>
                           Thanh toán cọc
                         </button>
-                        <button type="button" className="btn-ghost" onClick={() => handleCancel(booking)}>
+                        <button type="button" className="btn-ghost" onClick={() => handleCancelClick(booking)}>
                           Hủy tour
                         </button>
                       </>
@@ -261,7 +253,7 @@ const MyBookingsPage: React.FC = () => {
                         <button type="button" className="btn-primary" onClick={() => setPayingBooking(booking)}>
                           Thanh toán phần còn lại
                         </button>
-                        <button type="button" className="btn-ghost" onClick={() => handleCancel(booking)} style={{ color: 'var(--danger)' }}>
+                        <button type="button" className="btn-ghost" onClick={() => handleCancelClick(booking)} style={{ color: 'var(--danger)' }}>
                           Hủy tour
                         </button>
                       </>
@@ -273,11 +265,11 @@ const MyBookingsPage: React.FC = () => {
                           Viết đánh giá
                         </button>
                       )
-                    ) : booking.status !== 'CANCELLED' && booking.status !== 'PAID_FULL' ? (
+                    ) : (booking.status !== 'CANCELLED' && booking.status !== 'PAID_FULL') ? (
                       <button
                         type="button"
                         className="btn-danger-outline"
-                        onClick={() => handleCancel(booking)}
+                        onClick={() => handleCancelClick(booking)}
                         disabled={cancellingId === booking.id}
                       >
                         {cancellingId === booking.id ? 'Đang hủy...' : 'Hủy tour'}
@@ -315,24 +307,59 @@ const MyBookingsPage: React.FC = () => {
               zIndex: 1000,
             }}
           >
-            <div className="glass-panel" style={{ width: 'min(100%, 520px)', padding: '30px' }}>
-              <div className="section-heading">
-                <span className="badge badge-secondary">
-                  <Clock size={14} />
-                  Thanh toán thủ công
-                </span>
-                <h2 className="section-title" style={{ marginTop: '12px' }}>
-                  {payingBooking.status === 'AWAITING_DEPOSIT' ? 'Thanh toán đặt cọc' : 'Thanh toán phần còn lại'}
-                </h2>
-                <p className="page-subtitle">
-                  Sử dụng cổng thanh toán VNPay để hoàn tất đặt tour <strong>{payingBooking.tourTitle}</strong> một cách nhanh chóng và an toàn.
-                </p>
-              </div>
+            <div className="glass-panel" style={{ width: 'min(100%, 540px)', padding: '32px', borderRadius: '28px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: '16px',
+                  padding: '18px',
+                  borderRadius: '22px',
+                  background: 'linear-gradient(135deg, rgba(255,247,237,0.96), rgba(255,255,255,0.92))',
+                  border: '1px solid #fed7aa',
+                }}
+              >
+                <div>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '7px 14px',
+                      borderRadius: '999px',
+                      background: '#ffffff',
+                      color: '#c2410c',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      border: '1px solid #fdba74',
+                    }}
+                  >
+                    <Wallet size={14} />
+                    Xác nhận thanh toán
+                  </span>
+                  <h2 className="section-title" style={{ marginTop: '14px', marginBottom: '8px', fontSize: '1.55rem' }}>
+                    {payingBooking.status === 'AWAITING_DEPOSIT'
+                      ? 'Hoàn tất khoản đặt cọc'
+                      : 'Thanh toán phần còn lại'}
+                  </h2>
+                  <p className="page-subtitle" style={{ margin: 0, lineHeight: 1.7 }}>
+                    Thanh toán cho tour <strong>{payingBooking.tourTitle}</strong> qua VNPay để giữ chỗ nhanh chóng và an toàn.
+                  </p>
+                </div>
 
-              <div className="booking-box" style={{ marginTop: '18px' }}>
-                <div className="booking-row">
-                  <span className="muted-text">Số tiền thanh toán</span>
-                  <strong style={{ color: '#b45309', fontSize: '1.2rem' }}>
+                <div
+                  style={{
+                    minWidth: '110px',
+                    padding: '12px 14px',
+                    borderRadius: '18px',
+                    background: 'rgba(255,255,255,0.88)',
+                    border: '1px solid #ffedd5',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div className="muted-text" style={{ fontSize: '0.75rem', marginBottom: '6px' }}>Cần thanh toán</div>
+                  <strong style={{ color: '#b45309', fontSize: '1.15rem', lineHeight: 1.3 }}>
                     {formatVND(
                       payingBooking.status === 'AWAITING_DEPOSIT'
                         ? payingBooking.depositAmount
@@ -340,18 +367,148 @@ const MyBookingsPage: React.FC = () => {
                     )}
                   </strong>
                 </div>
-                <div className="muted-text" style={{ marginTop: '14px', lineHeight: 1.8 }}>
-                  Cổng: <strong>VNPay (sandbox / production tùy cấu hình server)</strong><br />
-                  Trạng thái: <strong>Kết nối an toàn (SSL)</strong>
+              </div>
+
+              <div className="booking-box" style={{ marginTop: '18px', padding: '20px', borderRadius: '22px' }}>
+                <div className="booking-row">
+                  <span className="muted-text">Hạng mục</span>
+                  <strong>{payingBooking.status === 'AWAITING_DEPOSIT' ? 'Khoản đặt cọc' : 'Khoản thanh toán còn lại'}</strong>
+                </div>
+                <div className="booking-row">
+                  <span className="muted-text">Cổng thanh toán</span>
+                  <strong>VNPay</strong>
+                </div>
+                <div className="booking-row">
+                  <span className="muted-text">Bảo mật</span>
+                  <strong>Kết nối SSL an toàn</strong>
+                </div>
+                <div
+                  style={{
+                    marginTop: '16px',
+                    padding: '14px 16px',
+                    borderRadius: '16px',
+                    background: '#fff7ed',
+                    border: '1px solid #ffedd5',
+                    color: '#9a3412',
+                    fontSize: '0.92rem',
+                    lineHeight: 1.7,
+                  }}
+                >
+                  Sau khi hoàn tất, hệ thống sẽ tự động cập nhật trạng thái đơn đặt tour của bạn.
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gap: '10px', marginTop: '18px' }}>
-                <button type="button" className="btn-primary" onClick={handlePayment} disabled={isProcessingPayment}>
-                  {isProcessingPayment ? 'Đang chuyển hướng...' : 'Thanh toán qua VNPay'}
+              <div style={{ display: 'grid', gap: '12px', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ minHeight: '52px', borderRadius: '16px', fontWeight: 800 }}
+                  onClick={handlePayment}
+                  disabled={isProcessingPayment}
+                >
+                  {isProcessingPayment ? 'Đang chuyển hướng...' : 'Tiếp tục với VNPay'}
                 </button>
-                <button type="button" className="btn-ghost" onClick={() => setPayingBooking(null)}>
-                  Hủy bỏ
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ minHeight: '48px', borderRadius: '16px' }}
+                  onClick={() => setPayingBooking(null)}
+                >
+                  Để sau
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showCancelModal ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(24, 24, 27, 0.65)',
+              backdropFilter: 'blur(8px)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: '20px',
+              zIndex: 1000,
+            }}
+          >
+            <div className="glass-panel" style={{ width: 'min(100%, 480px)', padding: '32px', borderRadius: '28px' }}>
+              <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '20px',
+                  background: 'var(--danger-soft)',
+                  color: 'var(--danger)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '16px'
+                }}>
+                  <AlertCircle size={32} />
+                </div>
+                <h2 className="section-title" style={{ fontSize: '1.4rem' }}>Xác nhận hủy tour</h2>
+                <p className="page-subtitle" style={{ marginTop: '8px' }}>
+                  Bạn có chắc chắn muốn hủy tour <strong>{showCancelModal.tourTitle}</strong>?
+                </p>
+              </div>
+
+              {showCancelModal.paidAmount > 0 && (() => {
+                const now = new Date();
+                const startDateTime = new Date(`${showCancelModal.tourStartDate}T${showCancelModal.tourStartTime}`);
+                const diffHours = (startDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+                let refundInfo = '';
+                let refundNote = '';
+
+                if (diffHours > 48) {
+                  refundInfo = `Hoàn 100%: ${formatVND(showCancelModal.paidAmount)}`;
+                  refundNote = 'Chính sách: Hủy trước 48h được hoàn cọc đầy đủ.';
+                } else if (diffHours > 24) {
+                  refundInfo = `Hoàn 50%: ${formatVND(showCancelModal.paidAmount * 0.5)}`;
+                  refundNote = 'Chính sách: Hủy trước 24h được hoàn 50% cọc.';
+                } else {
+                  refundInfo = 'Không được hoàn cọc';
+                  refundNote = 'Chính sách: Hủy dưới 24h không hỗ trợ hoàn cọc.';
+                }
+
+                return (
+                  <div style={{
+                    padding: '20px',
+                    borderRadius: '18px',
+                    background: '#fff1f1',
+                    border: '1px solid #fecaca',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{ color: '#991b1b', fontWeight: 800, fontSize: '1.1rem', marginBottom: '4px' }}>
+                      {refundInfo}
+                    </div>
+                    <div style={{ color: '#dc2626', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                      {refundNote}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowCancelModal(null)}
+                  style={{ minHeight: '48px' }}
+                >
+                  Giữ lại
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ background: 'var(--danger)', boxShadow: '0 10px 20px rgba(220, 38, 38, 0.2)', minHeight: '48px' }}
+                  onClick={() => executeCancel(showCancelModal)}
+                  disabled={cancellingId === showCancelModal.id}
+                >
+                  {cancellingId === showCancelModal.id ? 'Đang xử lý...' : 'Xác nhận hủy'}
                 </button>
               </div>
             </div>
@@ -363,7 +520,6 @@ const MyBookingsPage: React.FC = () => {
             booking={reviewingBooking}
             onClose={() => setReviewingBooking(null)}
             onSuccess={() => {
-              alert('Cảm ơn bạn đã đánh giá.');
               fetchBookings(true);
             }}
           />

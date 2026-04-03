@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FileText, Image as ImageIcon, 
-  MapPin, CheckCircle2, Navigation 
+  MapPin, CheckCircle2, Navigation, Calendar, Clock, Clock3
 } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import { format, parse } from 'date-fns';
+import 'react-datepicker/dist/react-datepicker.css';
 import api from '../../services/api';
 import { ENDPOINTS } from '../../constants/endpoints';
 import DashboardLayout from '../../layouts/DashboardLayout';
@@ -39,7 +42,8 @@ const CreateTourPage: React.FC = () => {
       startTime: formatTime(startHour),
       endTime: formatTime(endHour),
       maxGuests: '4',
-      depositPercentage: '30'
+      depositPercentage: '30',
+      bookingCutoffMinutes: '60'
     };
   });
 
@@ -73,7 +77,12 @@ const CreateTourPage: React.FC = () => {
             error = 'Vui lòng chọn giờ bắt đầu';
         } else if (formData.startDate) {
             const selectedDateTime = new Date(formData.startDate + 'T' + value);
-            if (selectedDateTime < now) error = 'Giờ bắt đầu phải sau thời gian hiện tại';
+            const cutoff = Number(formData.bookingCutoffMinutes) || 60;
+            const cutoffTime = new Date(selectedDateTime.getTime() - (cutoff * 60000));
+            
+            if (cutoffTime < now) {
+                error = `Thời gian quá gần (cần chừa ít nhất ${cutoff} phút để khách chuẩn bị/đặt)`;
+            }
         }
         break;
       case 'endTime':
@@ -183,7 +192,8 @@ const CreateTourPage: React.FC = () => {
         startTime: formData.startTime,
         endTime: formData.endTime,
         maxGuests: Number(formData.maxGuests),
-        depositPercentage: 30
+        depositPercentage: 30,
+        bookingCutoffMinutes: Number(formData.bookingCutoffMinutes)
       });
 
       setStep(3); // Success step
@@ -261,16 +271,21 @@ const CreateTourPage: React.FC = () => {
                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
                   <div className="input-group">
                     <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Ngày diễn ra Tour</label>
-                    <input 
-                      type="date" 
-                      className={errors.startDate ? 'error' : ''}
-                      style={{ padding: '16px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
-                      value={formData.startDate}
-                      onChange={e => {
-                        setFormData({...formData, startDate: e.target.value});
-                        validateField('startDate', e.target.value);
-                      }}
-                    />
+                    <div className="input-shell tour-request-picker-shell">
+                      <Calendar size={18} />
+                      <DatePicker
+                        selected={formData.startDate ? parse(formData.startDate, 'yyyy-MM-dd', new Date()) : null}
+                        onChange={(date: Date | null) => {
+                          const val = date ? format(date, 'yyyy-MM-dd') : '';
+                          setFormData({ ...formData, startDate: val });
+                          validateField('startDate', val);
+                        }}
+                        dateFormat="dd-MM-yyyy"
+                        minDate={new Date()}
+                        placeholderText="Chọn ngày"
+                        className={`tour-request-picker-input ${errors.startDate ? 'error' : ''}`}
+                      />
+                    </div>
                     {errors.startDate && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.startDate}</p>}
                   </div>
                   <div className="input-group">
@@ -294,29 +309,67 @@ const CreateTourPage: React.FC = () => {
                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
                   <div className="input-group">
                     <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giờ bắt đầu</label>
-                    <input 
-                      type="time" 
-                      className={errors.startTime ? 'error' : ''}
-                      style={{ padding: '16px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
-                      value={formData.startTime}
-                      onChange={e => {
-                       setFormData({...formData, startTime: e.target.value});
-                       validateField('startTime', e.target.value);
-                      }}
-                    />
+                    <div className="input-shell tour-request-picker-shell">
+                      <Clock3 size={18} />
+                      <DatePicker
+                        selected={formData.startTime ? parse(formData.startTime, 'HH:mm', new Date()) : null}
+                        onChange={(date: Date | null) => {
+                          const val = date ? format(date, 'HH:mm') : '';
+                          setFormData({ ...formData, startTime: val });
+                          validateField('startTime', val);
+                        }}
+                        showTimeSelect
+                        showTimeSelectOnly
+                        timeIntervals={15}
+                        timeCaption="Giờ"
+                        dateFormat="HH:mm"
+                        className={`tour-request-picker-input ${errors.startTime ? 'error' : ''}`}
+                      />
+                    </div>
                   </div>
                   <div className="input-group">
                     <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giờ kết thúc</label>
+                    <div className="input-shell tour-request-picker-shell">
+                      <Clock size={18} />
+                      <DatePicker
+                        selected={formData.endTime ? parse(formData.endTime, 'HH:mm', new Date()) : null}
+                        onChange={(date: Date | null) => {
+                          const val = date ? format(date, 'HH:mm') : '';
+                          setFormData({ ...formData, endTime: val });
+                          validateField('endTime', val);
+                        }}
+                        showTimeSelect
+                        showTimeSelectOnly
+                        timeIntervals={15}
+                        timeCaption="Giờ"
+                        dateFormat="HH:mm"
+                        className={`tour-request-picker-input ${errors.endTime ? 'error' : ''}`}
+                      />
+                    </div>
+                  </div>
+                 </div>
+ 
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+                  <div className="input-group">
+                    <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Thời gian chuẩn bị tối thiểu (phút)</label>
                     <input 
-                      type="time" 
-                      className={errors.endTime ? 'error' : ''}
+                      type="number" 
+                      min="0"
+                      placeholder="60" 
                       style={{ padding: '16px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
-                      value={formData.endTime}
+                      value={formData.bookingCutoffMinutes}
                       onChange={e => {
-                        setFormData({...formData, endTime: e.target.value});
-                        validateField('endTime', e.target.value);
+                        setFormData({...formData, bookingCutoffMinutes: e.target.value});
                       }}
                     />
+                    <p style={{ color: 'var(--text-soft)', fontSize: '0.8rem', marginTop: '6px' }}>Hệ thống sẽ đóng đặt chỗ trước giờ khởi hành X phút.</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', paddingTop: '20px' }}>
+                    <div style={{ padding: '16px', background: 'rgba(var(--primary-rgb), 0.1)', borderRadius: '16px', border: '1px dashed var(--primary)', width: '100%' }}>
+                      <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 600 }}>
+                        Khuyên dùng: 60 - 120 phút để đảm bảo bạn có đủ thời gian di chuyển.
+                      </p>
+                    </div>
                   </div>
                  </div>
 
@@ -468,7 +521,8 @@ const CreateTourPage: React.FC = () => {
                                 endDate: '', 
                                 startTime: '08:00', endTime: '14:00', 
                                 maxGuests: '4',
-                                depositPercentage: '30'
+                                depositPercentage: '30',
+                                bookingCutoffMinutes: '60'
                             }); 
                             setErrors({});
                           }}

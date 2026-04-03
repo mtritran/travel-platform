@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Calendar, Lock, Mail, Phone, User, UserPlus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import api from '../services/api';
 import { ENDPOINTS } from '../constants/endpoints';
 
@@ -158,15 +160,21 @@ const RegisterPage: React.FC = () => {
                 <label className="field-label" htmlFor="dob">
                   Ngày sinh
                 </label>
-                <div className="input-shell">
+                <div className="input-shell tour-request-picker-shell">
                   <Calendar size={18} />
-                  <input
+                  <DatePicker
                     id="dob"
+                    selected={formData.dob ? new Date(formData.dob) : null}
+                    onChange={(date: Date | null) => {
+                      const val = date ? date.toISOString().split('T')[0] : '';
+                      setFormData({ ...formData, dob: val });
+                    }}
+                    dateFormat="dd-MM-yyyy"
+                    showMonthDropdown
+                    showYearDropdown
+                    dropdownMode="select"
+                    placeholderText="Chọn ngày sinh"
                     className="input-field"
-                    name="dob"
-                    type="date"
-                    value={formData.dob}
-                    onChange={handleChange}
                     required
                   />
                 </div>

@@ -85,6 +85,7 @@ export const ENDPOINTS = {
   REVIEW: {
     CREATE: '/reviews',
     GET_BY_TOUR: (tourId: string) => `/reviews/tour/${tourId}`,
+    GET_BY_GUIDE: (guideId: string) => `/reviews/guide/${guideId}`,
   },
   TRANSACTION: {
     GET_MY: '/transactions/my',

@@ -1,33 +1,44 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Mail, Phone, User, Globe, Award, Briefcase } from 'lucide-react';
+import { Mail, Phone, User, Globe, Award, Briefcase, Star } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import api from '../services/api';
-import type { User as UserType } from '../types';
+import { ENDPOINTS } from '../constants/endpoints';
+import type { User as UserType, ApiResponse, Review } from '../types';
 
 const PublicProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [profile, setProfile] = useState<UserType | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.get(`/users/profile/${id}`);
-        setProfile(response.data.result);
+        const [profileRes, reviewsRes] = await Promise.all([
+            api.get<ApiResponse<UserType>>(`/users/profile/${id}`),
+            api.get<ApiResponse<Review[]>>(ENDPOINTS.REVIEW.GET_BY_GUIDE(id!))
+        ]);
+        
+        setProfile(profileRes.data.result);
+        setReviews(reviewsRes.data.result);
       } catch (err) {
-        console.error('Failed to fetch profile:', err);
+        console.error('Failed to fetch profile data:', err);
       } finally {
         setLoading(false);
       }
     };
-    if (id) fetchProfile();
+    if (id) fetchData();
   }, [id]);
 
   if (loading) return <DashboardLayout><div className="glass-panel empty-state">Đang tải hồ sơ...</div></DashboardLayout>;
   if (!profile) return <DashboardLayout><div className="glass-panel empty-state">Không tìm thấy hồ sơ hướng dẫn viên.</div></DashboardLayout>;
 
   const isGuide = profile.roles?.some(r => r.name === 'GUIDE');
+  
+  const averageRating = reviews.length > 0 
+    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
+    : '5.0';
 
   return (
     <DashboardLayout>
@@ -45,12 +56,18 @@ const PublicProfilePage: React.FC = () => {
               </span>
               <div>
                 <h2 className="section-title">{profile.fullName}</h2>
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                   {profile.roles?.map(role => (
                     <span key={role.name} className="badge badge-primary">
                       {role.name === 'GUIDE' ? 'Hướng dẫn viên' : 'Thành viên'}
                     </span>
                   ))}
+                  {isGuide && (
+                    <span className="badge badge-secondary">
+                        <Star size={14} fill="currentColor" />
+                        {averageRating} ({reviews.length})
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -112,6 +129,63 @@ const PublicProfilePage: React.FC = () => {
                           <p style={{ fontWeight: 800, marginTop: '8px', fontSize: '1.1rem' }}>{profile.specialties || 'Lịch sử, Văn hóa'}</p>
                        </div>
                     </div>
+
+                    <section className="glass-panel" style={{ padding: '32px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center' }}>
+                        <div>
+                          <h2 className="section-title">Đánh giá từ khách hàng</h2>
+                          <p className="muted-text" style={{ marginTop: '6px' }}>Cảm nhận từ những người đã từng đồng hành.</p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{averageRating}</div>
+                            <div style={{ display: 'flex', gap: '2px', justifyContent: 'flex-end' }}>
+                                {[1, 2, 3, 4, 5].map(s => (
+                                    <Star key={s} size={12} fill={s <= Math.round(Number(averageRating)) ? 'var(--secondary)' : 'transparent'} color="var(--secondary)" />
+                                ))}
+                            </div>
+                        </div>
+                      </div>
+
+                      {reviews.length === 0 ? (
+                        <div className="empty-state" style={{ paddingBottom: 0 }}>
+                          <p className="muted-text">Chưa có đánh giá nào cho hướng dẫn viên này.</p>
+                        </div>
+                      ) : (
+                        <div className="review-list" style={{ marginTop: '24px' }}>
+                          {reviews.map((review) => (
+                            <article key={review.id} className="review-card">
+                              <div className="review-head">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <span className="avatar-review">{review.userName.charAt(0)}</span>
+                                  <div>
+                                    <div style={{ fontWeight: 800 }}>{review.userName}</div>
+                                    <div className="muted-text" style={{ fontSize: '0.8rem' }}>
+                                      {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '2px' }}>
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star
+                                      key={star}
+                                      size={14}
+                                      fill={star <= review.rating ? '#d97706' : 'transparent'}
+                                      color={star <= review.rating ? '#d97706' : '#d6d3d1'}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                              <p style={{ lineHeight: 1.7, fontStyle: 'italic' }}>"{review.comment}"</p>
+                              {review.tourTitle && (
+                                <div style={{ marginTop: '12px', fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600 }}>
+                                    Tour: {review.tourTitle}
+                                </div>
+                              )}
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </section>
                  </>
               ) : (
                 <section className="glass-panel" style={{ padding: '32px' }}>

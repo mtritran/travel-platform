@@ -35,6 +35,7 @@ const BecomeGuidePage: React.FC = () => {
   }>({ idCard: null, guideCard: null, certificate: null });
   const [langs, setLangs] = useState('');
   const [exp, setExp] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const isAlreadyGuide = user?.roles?.some(r => r.name === 'GUIDE');
 
@@ -103,14 +104,13 @@ const BecomeGuidePage: React.FC = () => {
         await api.put(ENDPOINTS.GUIDE_APPLICATION.MY_APPLICATION, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        alert("Đã cập nhật thông tin ứng tuyển!");
       } else {
         // Initial application
         await api.post(ENDPOINTS.GUIDE_APPLICATION.APPLY, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        alert("Đã gửi đơn ứng tuyển! Vui lòng chờ quản trị viên phê duyệt.");
       }
+      setShowSuccessModal(true);
       setFiles({ idCard: null, guideCard: null, certificate: null });
       fetchApplicationStatus();
     } catch (err: any) {
@@ -129,9 +129,102 @@ const BecomeGuidePage: React.FC = () => {
     </DashboardLayout>
   );
 
+  const SuccessModal = () => (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0, 0, 0, 0.4)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '20px'
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: '420px',
+        background: '#e8e8e6',
+        borderRadius: '32px',
+        padding: '40px 32px',
+        textAlign: 'center',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        animation: 'modalFadeUp 0.4s ease-out'
+      }}>
+        {/* Icon Box */}
+        <div style={{
+          width: '72px',
+          height: '72px',
+          borderRadius: '20px',
+          background: '#10b981',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 28px',
+          boxShadow: '0 8px 16px -4px rgba(16, 185, 129, 0.3)'
+        }}>
+          <ShieldCheck size={36} color="white" />
+        </div>
+
+        {/* Title */}
+        <h3 style={{ 
+          fontSize: '1.5rem', 
+          fontWeight: '900', 
+          marginBottom: '16px', 
+          color: '#1e293b',
+          letterSpacing: '-0.02em'
+        }}>
+          {application ? 'Đã cập nhật hồ sơ!' : 'Gửi đơn thành công!'}
+        </h3>
+
+        {/* Description */}
+        <p style={{ 
+          color: '#64748b', 
+          lineHeight: '1.6', 
+          marginBottom: '32px',
+          fontSize: '0.95rem',
+          maxWidth: '85%',
+          margin: '0 auto 32px'
+        }}>
+          {application 
+            ? 'Thông tin ứng tuyển của bạn đã được cập nhật thành công hệ thống.' 
+            : 'Đơn ứng tuyển của bạn đã được gửi đi. Vui lòng chờ quản trị viên phê duyệt trong thời gian sớm nhất.'}
+        </p>
+
+        {/* Action Button */}
+        <button
+          onClick={() => setShowSuccessModal(false)}
+          style={{
+            width: '100%',
+            padding: '16px',
+            background: '#0f766e',
+            color: 'white',
+            borderRadius: '16px',
+            fontWeight: '700',
+            fontSize: '1rem',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'transform 0.2s, background 0.2s',
+          }}
+          onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+          onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          Tôi đã hiểu
+        </button>
+      </div>
+      <style>{`
+        @keyframes modalFadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+
   return (
     <DashboardLayout>
       <div style={{ maxWidth: '800px', margin: 'auto' }}>
+        {showSuccessModal && <SuccessModal />}
         <div className="section-heading" style={{ marginBottom: '40px', textAlign: 'center' }}>
           <span className="eyebrow" style={{ margin: '0 auto' }}>Guide Center</span>
           <h1 className="page-title">Trở thành Hướng dẫn viên</h1>

@@ -78,6 +78,7 @@ export interface Tour {
   rating: number;
   reviewCount: number;
   occupiedGuests?: number;
+  bookingCutoffMinutes?: number;
   createdAt: string;
 }
 

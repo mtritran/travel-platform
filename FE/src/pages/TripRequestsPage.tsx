@@ -794,48 +794,118 @@ const TripRequestsPage: React.FC = () => {
               zIndex: 1000,
             }}
           >
-            <div className="glass-panel" style={{ width: 'min(100%, 520px)', padding: '32px', borderRadius: '24px' }}>
-              <div className="section-heading">
-                <span className="badge badge-primary">
-                  <Wallet size={14} />
-                  Thanh toán VNPay
-                </span>
-                <h2 className="section-title" style={{ marginTop: '12px', fontSize: '1.4rem' }}>
-                  {payingRequest.type === 'DEPOSIT' ? 'Thanh toán đặt cọc' : 'Thanh toán phần còn lại'}
-                </h2>
-                <p className="muted-text" style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>
-                  Bạn đang thanh toán cho yêu cầu <strong>{payingRequest.title}</strong> qua cổng VNPay một cách an toàn.
-                </p>
-              </div>
+            <div className="glass-panel" style={{ width: 'min(100%, 540px)', padding: '32px', borderRadius: '28px' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.5fr 1fr',
+                  gap: '16px',
+                  alignItems: 'stretch',
+                }}
+              >
+                <div
+                  style={{
+                    padding: '20px',
+                    borderRadius: '22px',
+                    background: 'linear-gradient(135deg, rgba(239,246,255,0.98), rgba(255,255,255,0.92))',
+                    border: '1px solid #bfdbfe',
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '7px 14px',
+                      borderRadius: '999px',
+                      background: '#ffffff',
+                      color: '#1d4ed8',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      border: '1px solid #bfdbfe',
+                    }}
+                  >
+                    <Wallet size={14} />
+                    VNPay secure checkout
+                  </span>
+                  <h2 className="section-title" style={{ marginTop: '14px', marginBottom: '8px', fontSize: '1.55rem' }}>
+                    {payingRequest.type === 'DEPOSIT'
+                      ? 'X\u00E1c nh\u1EADn kho\u1EA3n \u0111\u1EB7t c\u1ECDc'
+                      : 'Thanh to\u00E1n ph\u1EA7n c\u00F2n l\u1EA1i'}
+                  </h2>
+                  <p className="muted-text" style={{ margin: 0, fontSize: '0.96rem', lineHeight: 1.7 }}>
+                    {'Ho\u00E0n t\u1EA5t thanh to\u00E1n cho y\u00EAu c\u1EA7u '}
+                    <strong>{payingRequest.title}</strong>
+                    {' \u0111\u1EC3 ti\u1EBFp t\u1EE5c quy tr\u00ECnh \u0111\u1EB7t tour.'}
+                  </p>
+                </div>
 
-              <div className="booking-box" style={{ marginTop: '20px', padding: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="muted-text">Số tiền thanh toán:</span>
-                  <strong style={{ color: 'var(--primary)', fontSize: '1.25rem', fontWeight: 900 }}>
+                <div
+                  style={{
+                    padding: '20px',
+                    borderRadius: '22px',
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(239,246,255,0.84))',
+                    border: '1px solid #dbeafe',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div className="muted-text" style={{ fontSize: '0.8rem' }}>{'S\u1ED1 ti\u1EC1n c\u1EA7n thanh to\u00E1n'}</div>
+                  <strong style={{ color: 'var(--primary)', fontSize: '1.45rem', fontWeight: 900, lineHeight: 1.35 }}>
                     {formatVND(payingRequest.amount)}
                   </strong>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '14px',
+                      background: '#eff6ff',
+                      color: '#1d4ed8',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <ShieldCheck size={16} />
+                    {'B\u1EA3o m\u1EADt SSL'}
+                  </div>
                 </div>
-                
-                <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px dashed #e2e8f0' }} />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '24px' }}>
-                <button 
-                  type="button" 
-                  className="btn-primary" 
-                  style={{ height: '52px', borderRadius: '16px', fontWeight: 800 }} 
-                  onClick={handlePayment} 
+              <div className="booking-box" style={{ marginTop: '18px', padding: '20px', borderRadius: '22px' }}>
+                <div className="booking-row">
+                  <span className="muted-text">{'Lo\u1EA1i thanh to\u00E1n'}</span>
+                  <strong>{payingRequest.type === 'DEPOSIT' ? '\u0110\u1EB7t c\u1ECDc gi\u1EEF ch\u1ED7' : 'Thanh to\u00E1n ho\u00E0n t\u1EA5t'}</strong>
+                </div>
+                <div className="booking-row">
+                  <span className="muted-text">{'Ph\u01B0\u01A1ng th\u1EE9c'}</span>
+                  <strong>VNPay</strong>
+                </div>
+                <div className="booking-row">
+                  <span className="muted-text">{'C\u1EADp nh\u1EADt tr\u1EA1ng th\u00E1i'}</span>
+                  <strong>{'T\u1EF1 \u0111\u1ED9ng sau khi giao d\u1ECBch th\u00E0nh c\u00F4ng'}</strong>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '22px' }}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ height: '52px', borderRadius: '16px', fontWeight: 800 }}
+                  onClick={handlePayment}
                   disabled={isProcessingPayment}
                 >
-                  {isProcessingPayment ? 'Đang chuyển...' : 'Thanh toán ngay'}
+                  {isProcessingPayment ? '\u0110ang chuy\u1EC3n...' : 'Ti\u1EBFp t\u1EE5c thanh to\u00E1n'}
                 </button>
-                <button 
-                  type="button" 
-                  className="btn-outline" 
-                  style={{ height: '52px', borderRadius: '16px' }} 
+                <button
+                  type="button"
+                  className="btn-outline"
+                  style={{ height: '52px', borderRadius: '16px' }}
                   onClick={() => setPayingRequest(null)}
                 >
-                  Hủy bỏ
+                  {'\u0110\u00F3ng l\u1EA1i'}
                 </button>
               </div>
             </div>

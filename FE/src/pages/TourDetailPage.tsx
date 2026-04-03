@@ -43,6 +43,13 @@ const TourDetailPage: React.FC = () => {
     null,
   );
 
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     if (tour?.startDate) {
       setBookingDate(tour.startDate);
@@ -160,6 +167,37 @@ const TourDetailPage: React.FC = () => {
 
   const remainingSlots = (tour.maxGuests || 0) - (tour.occupiedGuests || 0);
 
+  // Calculate cutoff time (StartTime - CutoffMinutes)
+  const cutoffDateTime = (() => {
+    if (!tour?.startDate || !tour?.startTime) return null;
+    try {
+      const [year, month, day] = tour.startDate.split('-').map(Number);
+      const [hours, minutes] = tour.startTime.split(':').map(Number);
+      if (isNaN(year) || isNaN(hours)) return null;
+      const date = new Date(year, month - 1, day, hours, minutes);
+      date.setMinutes(date.getMinutes() - (tour.bookingCutoffMinutes || 60));
+      return date;
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const isExpired = cutoffDateTime ? cutoffDateTime < currentTime : false;
+
+  const timeLeftLabel = (() => {
+    if (!cutoffDateTime || isExpired) return null;
+    const diff = cutoffDateTime.getTime() - currentTime.getTime();
+    if (diff <= 0) return null;
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours >= 72) return null; // Show up to 3 days
+    if (hours >= 24) return `Hạn đặt tour còn lại: ${Math.floor(hours / 24)} ngày ${hours % 24} tiếng`;
+    if (hours > 0) return `Hạn đặt tour còn lại: ${hours} tiếng ${minutes} phút`;
+    return `Chỉ còn ${minutes} phút để đặt tour này!`;
+  })();
+
   const durationLabel =
     tour.startTime && tour.endTime
       ? (() => {
@@ -176,14 +214,16 @@ const TourDetailPage: React.FC = () => {
   const scheduleLabel =
     tour.startDate && tour.endDate
       ? tour.startDate === tour.endDate
-        ? new Date(tour.startDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+        ? new Date(tour.startDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-')
         : `${new Date(tour.startDate).toLocaleDateString('vi-VN', {
           day: '2-digit',
           month: '2-digit',
-        })} - ${new Date(tour.endDate).toLocaleDateString('vi-VN', {
+          year: 'numeric'
+        }).replace(/\//g, '-')} - ${new Date(tour.endDate).toLocaleDateString('vi-VN', {
           day: '2-digit',
           month: '2-digit',
-        })}`
+          year: 'numeric'
+        }).replace(/\//g, '-')}`
       : 'Hàng ngày';
 
   return (
@@ -222,6 +262,12 @@ const TourDetailPage: React.FC = () => {
                     <ShieldCheck size={14} />
                     Hướng dẫn viên đã xác minh
                   </span>
+                  {isExpired && (
+                    <span className="badge badge-danger">
+                      <Clock size={14} />
+                      Đã hết hạn
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -291,7 +337,7 @@ const TourDetailPage: React.FC = () => {
                           <div>
                             <div style={{ fontWeight: 800 }}>{review.userName}</div>
                             <div className="muted-text" style={{ fontSize: '0.8rem' }}>
-                              {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+                              {new Date(review.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - {new Date(review.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                             </div>
                           </div>
                         </div>
@@ -344,8 +390,10 @@ const TourDetailPage: React.FC = () => {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div className="booking-label">Giờ tập trung</div>
-                    <div className="booking-value">{tour.startTime || '08:00'}</div>
+                    <div className="booking-label">Khung giờ</div>
+                    <div className="booking-value">
+                      {tour.startTime || '08:00'} - {tour.endTime || '--:--'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -454,14 +502,37 @@ const TourDetailPage: React.FC = () => {
 
               {message.text ? <div className={`status-message ${message.type}`}>{message.text}</div> : null}
 
+              {timeLeftLabel && !isExpired && (
+                <div style={{ 
+                  background: 'rgba(245, 158, 11, 0.1)', 
+                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  color: '#b45309',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  marginBottom: '16px',
+                  textAlign: 'center',
+                  fontSize: '0.9rem',
+                  fontWeight: '700'
+                }}>
+                  <Clock size={16} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+                  {timeLeftLabel}
+                </div>
+              )}
+
               <button
                 type="button"
                 className="btn-primary"
-                disabled={bookingLoading || remainingSlots <= 0}
+                disabled={bookingLoading || remainingSlots <= 0 || isExpired}
                 onClick={handleBook}
-                style={remainingSlots <= 0 ? { background: '#94a3b8', cursor: 'not-allowed' } : {}}
+                style={(remainingSlots <= 0 || isExpired) ? { background: '#94a3b8', cursor: 'not-allowed' } : {}}
               >
-                {remainingSlots <= 0 ? 'Hiện đã hết chỗ' : bookingLoading ? 'Đang xử lý...' : 'Đặt ngay tour này'}
+                {isExpired 
+                  ? 'Tour đã kết thúc/hết hạn' 
+                  : remainingSlots <= 0 
+                    ? 'Hiện đã hết chỗ' 
+                    : bookingLoading 
+                      ? 'Đang xử lý...' 
+                      : 'Đặt ngay tour này'}
               </button>
 
               <p className="muted-text" style={{ textAlign: 'center', fontSize: '0.82rem' }}>

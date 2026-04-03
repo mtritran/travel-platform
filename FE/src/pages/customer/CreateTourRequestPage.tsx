@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Banknote, CalendarDays, CheckCircle2, Clock, Clock3, FileText, MapPin, Navigation, Users } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import { format, parse } from 'date-fns';
+import 'react-datepicker/dist/react-datepicker.css';
 import api from '../../services/api';
 import { ENDPOINTS } from '../../constants/endpoints';
 import DashboardLayout from '../../layouts/DashboardLayout';
@@ -133,6 +136,26 @@ const CreateTourRequestPage: React.FC = () => {
           error = 'Giờ kết thúc phải sau giờ bắt đầu';
         }
         break;
+      case 'expiryHours': {
+        const num = Number(value);
+        if (!value || num <= 0) {
+          error = 'Thời hạn bài đăng phải lớn hơn 0';
+        } else if (formData.plannedDate && formData.startTime) {
+          try {
+            const startDateTime = new Date(`${formData.plannedDate}T${formData.startTime}`);
+            const now = new Date();
+            const diffInHours = (startDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+            if (num > diffInHours) {
+              const maxAllowed = Math.max(0, Math.floor(diffInHours));
+              error = `Bài đăng phải hết hạn trước khi tour bắt đầu (Tối đa ${maxAllowed} giờ)`;
+            }
+          } catch (e) {
+            // handle date parse error
+          }
+        }
+        break;
+      }
       default:
         break;
     }
@@ -174,6 +197,7 @@ const CreateTourRequestPage: React.FC = () => {
       'startTime',
       'endTime',
       'numberOfGuests',
+      'expiryHours',
       'description',
     ];
 
@@ -370,14 +394,17 @@ const CreateTourRequestPage: React.FC = () => {
                     <label className="field-label">Ngày dự kiến</label>
                     <div className="input-shell tour-request-picker-shell">
                       <CalendarDays size={18} />
-                      <input
-                        type="date"
-                        className="input-field tour-request-picker-input"
-                        value={formData.plannedDate}
-                        onChange={(e) => {
-                          setFormData({ ...formData, plannedDate: e.target.value });
-                          validateField('plannedDate', e.target.value);
+                      <DatePicker
+                        selected={formData.plannedDate ? parse(formData.plannedDate, 'yyyy-MM-dd', new Date()) : null}
+                        onChange={(date: Date | null) => {
+                          const val = date ? format(date, 'yyyy-MM-dd') : '';
+                          setFormData({ ...formData, plannedDate: val });
+                          validateField('plannedDate', val);
                         }}
+                        dateFormat="dd-MM-yyyy"
+                        minDate={new Date()}
+                        placeholderText="Chọn ngày"
+                        className="input-field tour-request-picker-input"
                       />
                     </div>
                     {errors.plannedDate ? <p className="tour-request-error">{errors.plannedDate}</p> : null}
@@ -387,14 +414,20 @@ const CreateTourRequestPage: React.FC = () => {
                     <label className="field-label">Giờ bắt đầu</label>
                     <div className="input-shell tour-request-picker-shell">
                       <Clock3 size={18} />
-                      <input
-                        type="time"
-                        className="input-field tour-request-picker-input"
-                        value={formData.startTime}
-                        onChange={(e) => {
-                          setFormData({ ...formData, startTime: e.target.value });
-                          validateField('startTime', e.target.value);
+                      <DatePicker
+                        selected={formData.startTime ? parse(formData.startTime, 'HH:mm', new Date()) : null}
+                        onChange={(date: Date | null) => {
+                          const val = date ? format(date, 'HH:mm') : '';
+                          setFormData({ ...formData, startTime: val });
+                          validateField('startTime', val);
                         }}
+                        showTimeSelect
+                        showTimeSelectOnly
+                        timeIntervals={15}
+                        timeCaption="Giờ"
+                        dateFormat="HH:mm"
+                        placeholderText="08:00"
+                        className="input-field tour-request-picker-input"
                       />
                     </div>
                     {errors.startTime ? <p className="tour-request-error">{errors.startTime}</p> : null}
@@ -404,14 +437,20 @@ const CreateTourRequestPage: React.FC = () => {
                     <label className="field-label">Giờ kết thúc</label>
                     <div className="input-shell tour-request-picker-shell">
                       <Clock size={18} />
-                      <input
-                        type="time"
-                        className="input-field tour-request-picker-input"
-                        value={formData.endTime}
-                        onChange={(e) => {
-                          setFormData({ ...formData, endTime: e.target.value });
-                          validateField('endTime', e.target.value);
+                      <DatePicker
+                        selected={formData.endTime ? parse(formData.endTime, 'HH:mm', new Date()) : null}
+                        onChange={(date: Date | null) => {
+                          const val = date ? format(date, 'HH:mm') : '';
+                          setFormData({ ...formData, endTime: val });
+                          validateField('endTime', val);
                         }}
+                        showTimeSelect
+                        showTimeSelectOnly
+                        timeIntervals={15}
+                        timeCaption="Giờ"
+                        dateFormat="HH:mm"
+                        placeholderText="17:00"
+                        className="input-field tour-request-picker-input"
                       />
                     </div>
                     {errors.endTime ? <p className="tour-request-error">{errors.endTime}</p> : null}
@@ -422,19 +461,19 @@ const CreateTourRequestPage: React.FC = () => {
                   <label className="field-label">Thời hạn bài đăng</label>
                   <div className="input-shell">
                     <Clock size={18} />
-                    <select
-                      className="select-field tour-request-select"
+                    <input
+                      type="number"
+                      min="1"
+                      className="input-field"
+                      placeholder="Ví dụ: 24"
                       value={formData.expiryHours}
-                      onChange={(e) => setFormData({ ...formData, expiryHours: e.target.value })}
-                    >
-                      <option value="1">1 giờ</option>
-                      <option value="3">3 giờ</option>
-                      <option value="6">6 giờ</option>
-                      <option value="12">12 giờ</option>
-                      <option value="24">24 giờ</option>
-                      <option value="48">48 giờ</option>
-                    </select>
+                      onChange={(e) => {
+                        setFormData({ ...formData, expiryHours: e.target.value });
+                        validateField('expiryHours', e.target.value);
+                      }}
+                    />
                   </div>
+                  {errors.expiryHours ? <p className="tour-request-error">{errors.expiryHours}</p> : null}
                 </div>
               </section>
 

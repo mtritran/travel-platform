@@ -117,7 +117,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ booking, tourRequest, onClose
                 width: '100%',
                 height: '120px',
                 padding: '16px',
-                borderRadius: '12px',
+                borderRadius: '20px',
                 background: 'var(--surface-hover)',
                 border: '1px solid var(--glass-border)',
                 color: 'var(--text-primary)',

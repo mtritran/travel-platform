@@ -15,9 +15,8 @@ import api from '../../services/api';
 import type { ApiResponse, Tour } from '../../types';
 import { ENDPOINTS } from '../../constants/endpoints';
 import DashboardLayout from '../../layouts/DashboardLayout';
-import { formatVND } from '../../utils/format';
 
-type BadgeTone = 'expired' | 'pending' | 'rejected' | 'inactive' | 'price';
+type BadgeTone = 'expired' | 'pending' | 'rejected' | 'inactive' | 'active';
 
 type StatusBadge = {
   label: string;
@@ -69,9 +68,11 @@ const GuideToursPage: React.FC = () => {
   };
 
   const getStatusBadge = (tour: Tour): StatusBadge => {
-    const isExpired = new Date(`${tour.startDate}T${tour.startTime}`) < new Date();
+    const startDateTime = new Date(`${tour.startDate}T${tour.startTime}`);
+    const cutoffTime = new Date(startDateTime.getTime() - (tour.bookingCutoffMinutes || 0) * 60000);
+    const isPastCutoff = new Date() > cutoffTime;
 
-    if (isExpired) {
+    if (isPastCutoff) {
       return {
         label: 'Đã quá hạn',
         tone: 'expired',
@@ -103,11 +104,18 @@ const GuideToursPage: React.FC = () => {
       };
     }
 
+    if (tour.status === 'ACTIVE') {
+      return {
+        label: 'Đang mở',
+        tone: 'active',
+        icon: <ArrowUpRight size={16} />,
+      };
+    }
+
     return {
-      label: 'Giá từ',
-      tone: 'price',
+      label: 'Đang mở',
+      tone: 'active',
       icon: <ArrowUpRight size={16} />,
-      value: formatVND(tour.price),
     };
   };
 

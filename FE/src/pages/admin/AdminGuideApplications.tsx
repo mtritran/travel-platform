@@ -30,7 +30,8 @@ const AdminGuideApplications: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [editData, setEditData] = useState<Record<string, { languages: string, yearsOfExperience: number }>>({});
-
+  const [rejectingAppId, setRejectingAppId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     fetchApplications();
@@ -54,14 +55,14 @@ const AdminGuideApplications: React.FC = () => {
     }
   };
 
-  const handleProcess = async (id: string, status: 'APPROVED' | 'REJECTED') => {
-    setProcessing(id);
-    const reason = status === 'REJECTED' ? prompt("Nhập lý do từ chối:") : "";
-    if (status === 'REJECTED' && reason === null) {
-      setProcessing(null);
+  const handleProcess = async (id: string, status: 'APPROVED' | 'REJECTED', reason = "") => {
+    if (status === 'REJECTED' && !reason) {
+      setRejectingAppId(id);
+      setRejectReason("");
       return;
     }
 
+    setProcessing(id);
     const verification = editData[id];
 
     try {
@@ -73,6 +74,7 @@ const AdminGuideApplications: React.FC = () => {
           yearsOfExperience: status === 'APPROVED' ? verification.yearsOfExperience : undefined
         }
       });
+      setRejectingAppId(null);
       fetchApplications();
     } catch (err) {
       console.error("Failed to process application:", err);
@@ -81,6 +83,130 @@ const AdminGuideApplications: React.FC = () => {
       setProcessing(null);
     }
   };
+
+  const RejectionModal = () => (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0, 0, 0, 0.4)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '20px'
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: '460px',
+        background: '#e8e8e6',
+        borderRadius: '32px',
+        padding: '32px',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        animation: 'modalFadeUp 0.3s ease-out'
+      }}>
+        {/* Icon Box */}
+        <div style={{
+          width: '64px',
+          height: '64px',
+          borderRadius: '16px',
+          background: '#ef4444',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 24px',
+          boxShadow: '0 8px 16px -4px rgba(239, 68, 68, 0.3)'
+        }}>
+          <ShieldX size={32} color="white" />
+        </div>
+
+        <h3 style={{ 
+          fontSize: '1.25rem', 
+          fontWeight: '900', 
+          marginBottom: '8px', 
+          color: '#1e293b',
+          textAlign: 'center'
+        }}>
+          Từ chối đơn ứng tuyển
+        </h3>
+        <p style={{ 
+          fontSize: '0.875rem', 
+          color: '#64748b', 
+          marginBottom: '24px',
+          textAlign: 'center',
+          lineHeight: '1.5'
+        }}>
+          Vui lòng nhập lý do từ chối để gửi thông báo cho khách hàng.
+        </p>
+
+        <textarea
+          autoFocus
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          placeholder="Ví dụ: Tài liệu không rõ nét, thiếu chứng chỉ ngoại ngữ..."
+          style={{
+            width: '100%',
+            height: '120px',
+            padding: '16px',
+            borderRadius: '16px',
+            border: '1px solid #d1d5db',
+            background: 'white',
+            fontSize: '0.925rem',
+            marginBottom: '24px',
+            resize: 'none',
+            boxSizing: 'border-box',
+            outline: 'none',
+            transition: 'border-color 0.2s'
+          }}
+          onFocus={(e) => e.target.style.borderColor = '#0f766e'}
+          onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+        />
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <button
+            onClick={() => setRejectingAppId(null)}
+            style={{
+              padding: '14px',
+              background: '#d1d5db',
+              color: '#475569',
+              borderRadius: '16px',
+              fontWeight: '700',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background 0.2s'
+            }}
+          >
+            Hủy bỏ
+          </button>
+          <button
+            onClick={() => handleProcess(rejectingAppId!, 'REJECTED', rejectReason)}
+            disabled={!rejectReason.trim()}
+            style={{
+              padding: '14px',
+              background: '#0f766e',
+              color: 'white',
+              borderRadius: '16px',
+              fontWeight: '700',
+              border: 'none',
+              cursor: rejectReason.trim() ? 'pointer' : 'not-allowed',
+              opacity: rejectReason.trim() ? 1 : 0.6,
+              transition: 'transform 0.2s'
+            }}
+            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
+            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            Xác nhận từ chối
+          </button>
+        </div>
+      </div>
+      <style>{`
+        @keyframes modalFadeUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -93,6 +219,7 @@ const AdminGuideApplications: React.FC = () => {
   return (
     <DashboardLayout>
       <div style={{ padding: '24px 0' }}>
+        {rejectingAppId && <RejectionModal />}
         <h2 style={{ fontSize: '2rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '8px' }}>
           Phê duyệt Hướng dẫn viên
         </h2>
