@@ -332,8 +332,8 @@ const TripRequestsPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="page-stack">
-        <section style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="page-stack trip-requests-page">
+        <section className="trip-requests-head" style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div className="section-heading">
             <span className="eyebrow">Trip matching</span>
             <h1 className="page-title">Yêu cầu chuyến đi</h1>
@@ -357,7 +357,7 @@ const TripRequestsPage: React.FC = () => {
           ) : null}
         </section>
 
-        <div className="tab-strip">
+        <div className="tab-strip trip-requests-tabs">
           {isGuide ? (
             <button type="button" className={`tab-button${activeTab === 'OPEN' ? ' active' : ''}`} onClick={() => setActiveTab('OPEN')}>
               Yêu cầu đang mở
@@ -383,27 +383,27 @@ const TripRequestsPage: React.FC = () => {
             <p className="page-subtitle">Đang tải danh sách yêu cầu...</p>
           </div>
         ) : requests.length > 0 ? (
-          <div className="request-grid">
+          <div className="request-grid trip-request-grid-premium">
             {requests.map((req) => {
               const status = getStatusBadge(req.status);
               const myInterestSent = req.interestedGuides.some((item) => item.guideId === user?.id);
 
               return (
-                <article key={req.id} className="glass-card request-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <article key={req.id} className="glass-card request-card trip-request-card-premium">
+                  <div className="trip-request-card-head" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+                    <div className="trip-request-owner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <span className="avatar-pill">
                         <User size={18} />
                       </span>
-                      <div>
-                        <div style={{ fontWeight: 800 }}>{req.userName}</div>
-                        <div className="muted-text" style={{ fontSize: '0.82rem' }}>
+                      <div className="trip-request-owner-copy">
+                        <div className="trip-request-owner-name" style={{ fontWeight: 800 }}>{req.userName}</div>
+                        <div className="muted-text trip-request-owner-meta" style={{ fontSize: '0.82rem' }}>
                           {req.status === 'MATCHED' ? 'Đã tìm được HDV' : 'Yêu cầu du lịch'}
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gap: '6px', justifyItems: 'end' }}>
+                    <div className="trip-request-status-col" style={{ display: 'grid', gap: '6px', justifyItems: 'end' }}>
                       <span className={status.className} style={status.style}>
                         {status.label}
                       </span>
@@ -415,16 +415,16 @@ const TripRequestsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
-                    <div className="section-heading" style={{ gap: '8px' }}>
-                      <h2 className="section-title">{req.title}</h2>
-                      <p className="muted-text" style={{ fontStyle: 'italic', lineHeight: 1.7 }}>
+                  <div className="trip-request-body-head" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+                    <div className="section-heading trip-request-copy" style={{ gap: '8px' }}>
+                      <h2 className="section-title trip-request-title">{req.title}</h2>
+                      <p className="muted-text trip-request-description" style={{ fontStyle: 'italic', lineHeight: 1.7 }}>
                         "{req.description}"
                       </p>
                     </div>
 
                     {activeTab === 'MY' && ['OPEN', 'EXPIRED'].includes(req.status) ? (
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div className="trip-request-inline-actions" style={{ display: 'flex', gap: '8px' }}>
                         <button type="button" className="icon-button" onClick={() => handleEditRequest(req)} title="Sửa yêu cầu">
                           <Edit size={16} />
                         </button>
@@ -435,7 +435,7 @@ const TripRequestsPage: React.FC = () => {
                     ) : null}
                   </div>
 
-                  <div className="booking-box">
+                  <div className="booking-box trip-request-facts">
                     <div className="info-pair">
                       <MapPin size={14} />
                       {req.locationName || req.customLocationName || 'Địa điểm chưa xác định'}
@@ -454,8 +454,8 @@ const TripRequestsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span className="price-value" style={{ fontSize: '1.1rem' }}>
+                  <div className="trip-request-budget-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span className="price-value trip-request-budget" style={{ fontSize: '1.1rem' }}>
                       {req.budget ? formatVND(req.budget) : 'Thỏa thuận'}
                     </span>
 
@@ -482,17 +482,17 @@ const TripRequestsPage: React.FC = () => {
                   </div>
 
                   {activeTab === 'MY' && req.status === 'OPEN' ? (
-                    <section className="booking-box">
+                    <section className="booking-box trip-request-interest-panel">
                       <div className="section-heading" style={{ gap: '6px' }}>
                         <h3 className="section-title" style={{ fontSize: '1.05rem' }}>
                           Danh sách HDV quan tâm ({req.interestedGuides.length})
                         </h3>
                       </div>
 
-                      <div style={{ display: 'grid', gap: '10px', marginTop: '12px' }}>
+                      <div className="trip-request-interest-list" style={{ display: 'grid', gap: '10px', marginTop: '12px' }}>
                         {req.interestedGuides.length > 0 ? (
                           req.interestedGuides.map((interest, index) => (
-                            <div key={interest.id} className="info-strip" style={{ justifyContent: 'space-between' }}>
+                            <div key={interest.id} className="info-strip trip-request-interest-item" style={{ justifyContent: 'space-between' }}>
                                 <Link 
                                   to={`/profile/${interest.guideId}`} 
                                   style={{ fontWeight: 800, color: 'var(--primary)', textDecoration: 'none' }}
@@ -519,7 +519,7 @@ const TripRequestsPage: React.FC = () => {
 
                   {req.status === 'PENDING_CONFIRMATION' ? (
                     <section 
-                      className="glass-panel" 
+                      className="glass-panel trip-request-state-panel" 
                       style={{ 
                         background: isGuide ? 'rgba(15, 118, 110, 0.04)' : 'rgba(217, 119, 6, 0.04)', 
                         border: isGuide ? '2px dashed var(--primary-soft)' : '2px dashed var(--secondary-soft)', 
@@ -529,9 +529,9 @@ const TripRequestsPage: React.FC = () => {
                       }}
                     >
                       {isGuide ? (
-                        <div className="page-stack" style={{ gap: '16px', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ 
+                        <div className="page-stack trip-request-state-stack" style={{ gap: '16px', textAlign: 'center' }}>
+                          <div className="trip-request-state-copy" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                            <div className="trip-request-state-icon" style={{ 
                               background: 'var(--primary-soft)', 
                               padding: '12px', 
                               borderRadius: '16px',
@@ -545,7 +545,7 @@ const TripRequestsPage: React.FC = () => {
                               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>Giai đoạn này rất quan trọng. Vui lòng xác nhận sớm để bắt đầu chuẩn bị.</p>
                             </div>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                          <div className="trip-request-state-actions" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
                             <button 
                               className="btn-primary" 
                               style={{ 
@@ -574,8 +574,8 @@ const TripRequestsPage: React.FC = () => {
                           </div>
                         </div>
                       ) : (
-                        <div className="page-stack" style={{ gap: '16px', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                        <div className="page-stack trip-request-state-stack" style={{ gap: '16px', textAlign: 'center' }}>
+                          <div className="trip-request-state-copy" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                             <p style={{ fontWeight: 800, color: 'var(--secondary)', fontSize: '1.05rem' }}>Đang chờ HDV xác nhận lần cuối</p>
                             <p className="muted-text" style={{ fontSize: '0.875rem' }}>Hệ thống đã gửi thông báo tới <strong>{req.guideName}</strong>.</p>
                           </div>
@@ -593,7 +593,7 @@ const TripRequestsPage: React.FC = () => {
                   ) : null}
 
                   {['WAITING_PAYMENT', 'CONFIRMED', 'COMPLETED', 'MATCHED'].includes(req.status) ? (
-                    <section className="booking-box">
+                    <section className="booking-box trip-request-contact-panel">
                       <div className="section-heading" style={{ gap: '6px' }}>
                         <h3 className="section-title" style={{ fontSize: '1.05rem' }}>
                           <span style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
@@ -603,7 +603,7 @@ const TripRequestsPage: React.FC = () => {
                         </h3>
                       </div>
 
-                      <div className="split-fields" style={{ marginTop: '12px' }}>
+                      <div className="split-fields trip-request-contact-grid" style={{ marginTop: '12px' }}>
                         <div>
                           <div className="price-label">{activeTab === 'MY' ? 'Hướng dẫn viên' : 'Khách hàng'}</div>
                           <div className="booking-value">{activeTab === 'MY' ? req.guideName : req.customerName}</div>
@@ -632,8 +632,8 @@ const TripRequestsPage: React.FC = () => {
                         </div>
                       ) : null}
 
-                      <div style={{ marginTop: '14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div className="trip-request-payment-panel" style={{ marginTop: '14px' }}>
+                        <div className="trip-request-payment-head" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                           <span className="muted-text">Tiến độ thanh toán</span>
                           <span style={{ fontWeight: 700 }}>
                             {req.paymentStatus === 'PAID_FULL'
@@ -659,7 +659,7 @@ const TripRequestsPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <div style={{ display: 'grid', gap: '10px', marginTop: '14px' }}>
+                        <div className="trip-request-contact-actions" style={{ display: 'grid', gap: '10px', marginTop: '14px' }}>
                         {!isGuide && req.status === 'WAITING_PAYMENT' ? (
                           <button type="button" className="btn-primary" onClick={() => handlePayDeposit(req)}>
                             Thanh toán tiền cọc
@@ -758,15 +758,29 @@ const TripRequestsPage: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="glass-panel empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
-            <AlertCircle size={48} style={{ opacity: 0.2, marginBottom: '20px' }} />
-            <p className="page-subtitle" style={{ margin: '0 auto' }}>
+          <div className="glass-panel collection-empty-state">
+            <div className="collection-empty-icon">
+              <AlertCircle size={40} />
+            </div>
+            <h2 className="collection-empty-title">
+              {activeTab === 'OPEN'
+                ? 'Hiện chưa có yêu cầu nào phù hợp'
+                : activeTab === 'MY'
+                  ? 'Bạn chưa có yêu cầu chuyến đi nào'
+                  : 'Bạn chưa nhận yêu cầu nào'}
+            </h2>
+            <p className="collection-empty-copy">
               {activeTab === 'OPEN'
                 ? 'Hiện tại không có yêu cầu tour nào đang mở.'
                 : activeTab === 'MY'
                   ? 'Bạn chưa đăng yêu cầu tour nào.'
                   : 'Bạn chưa nhận yêu cầu tour nào.'}
             </p>
+            {!isGuide && activeTab === 'MY' ? (
+              <button type="button" className="btn-primary" onClick={() => navigate('/customer/create-request')}>
+                Đăng yêu cầu mới
+              </button>
+            ) : null}
           </div>
         )}
 

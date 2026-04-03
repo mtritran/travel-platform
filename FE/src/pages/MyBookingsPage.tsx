@@ -159,23 +159,23 @@ const MyBookingsPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="page-stack">
-        <section className="section-heading">
+      <div className="page-stack bookings-page">
+        <section className="section-heading bookings-head">
           <span className="eyebrow">Booking center</span>
           <h1 className="page-title">Lịch sử đặt tour</h1>
           <p className="page-subtitle">Theo dõi toàn bộ booking, khoản thanh toán và trạng thái chuyến đi của bạn trong một bảng nhìn dễ quét hơn.</p>
         </section>
 
         {loading ? (
-          <div className="glass-panel empty-state">
+          <div className="glass-panel collection-empty-state">
             <p className="page-subtitle">Đang tải danh sách đặt tour...</p>
           </div>
         ) : bookings.length > 0 ? (
-          <div className="booking-list">
+          <div className="booking-list bookings-list">
             {bookings.map((booking) => {
               const status = getStatusBadge(booking.status);
               return (
-                <article key={booking.id} className="glass-card booking-history-card">
+                <article key={booking.id} className="glass-card booking-history-card booking-history-card-premium">
                   <div className="booking-date-box">
                     <span style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase' }}>
                       {new Date(booking.bookingDate).toLocaleString('en-US', { month: 'short' })}
@@ -183,7 +183,7 @@ const MyBookingsPage: React.FC = () => {
                     <span style={{ fontSize: '1.3rem', fontWeight: 800 }}>{new Date(booking.bookingDate).getDate()}</span>
                   </div>
 
-                  <div>
+                  <div className="booking-history-main">
                     <h3 className="tour-title" style={{ fontSize: '1.15rem' }}>{booking.tourTitle}</h3>
                     <div className="info-pair" style={{ marginTop: '8px' }}>
                       <MapPin size={14} />
@@ -195,7 +195,7 @@ const MyBookingsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div>
+                  <div className="booking-history-status">
                     <span className={status.className} style={status.style}>
                       {status.icon}
                       {status.label}
@@ -207,7 +207,7 @@ const MyBookingsPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div>
+                  <div className="booking-history-finance">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
                         <span className="muted-text">Giá tour:</span>
@@ -238,7 +238,7 @@ const MyBookingsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                  <div className="booking-history-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
                     {booking.status === 'AWAITING_DEPOSIT' ? (
                       <>
                         <button type="button" className="btn-secondary" onClick={() => setPayingBooking(booking)} style={{ color: '#b45309' }}>
@@ -285,10 +285,15 @@ const MyBookingsPage: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="glass-panel empty-state">
-            <Calendar size={42} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
-            <h2 className="section-title">Bạn chưa có đơn đặt tour nào</h2>
-            <button type="button" className="btn-primary" style={{ marginTop: '18px' }} onClick={() => (window.location.href = '/')}>
+          <div className="glass-panel collection-empty-state">
+            <div className="collection-empty-icon">
+              <Calendar size={40} />
+            </div>
+            <h2 className="collection-empty-title">Bạn chưa có đơn đặt tour nào</h2>
+            <p className="collection-empty-copy">
+              Hãy bắt đầu khảo sát và chọn một hành trình phù hợp để lưu lại toàn bộ lịch sử đặt tour của bạn tại đây.
+            </p>
+            <button type="button" className="btn-primary" style={{ marginTop: '18px' }} onClick={() => (window.location.href = '/') }>
               Khám phá tour
             </button>
           </div>

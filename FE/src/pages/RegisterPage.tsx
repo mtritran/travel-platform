@@ -71,7 +71,7 @@ const RegisterPage: React.FC = () => {
             </div>
             <div className="auth-feature">
               <Calendar size={18} />
-              <span>Gửi yêu cầu mới nhanh hơn với flow rõ ràng và dễ thao tác trên mobile.</span>
+              <span>Gửi yêu cầu mới nhanh hơn với flow rõ ràng và dễ thao tác.</span>
             </div>
           </div>
         </section>

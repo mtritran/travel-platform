@@ -9,11 +9,7 @@ import TripRequestsPage from './pages/TripRequestsPage';
 import BecomeGuidePage from './pages/BecomeGuidePage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
-import AdminToursPage from './pages/admin/AdminToursPage';
-import AdminLocationsPage from './pages/admin/AdminLocationsPage';
 import AdminGuideApplications from './pages/admin/AdminGuideApplications';
-import AdminTours from './pages/admin/AdminTours';
-import AdminPayouts from './pages/admin/AdminPayouts';
 import AdminReports from './pages/admin/AdminReports';
 import CreateTourPage from './pages/guide/CreateTourPage';
 import EditTourPage from './pages/guide/EditTourPage';
@@ -110,33 +106,9 @@ function App() {
               </ProtectedRoute>
             } />
 
-            <Route path="/admin/tours" element={
-              <ProtectedRoute role="ADMIN">
-                <AdminToursPage />
-              </ProtectedRoute>
-            } />
-
-            <Route path="/admin/locations" element={
-              <ProtectedRoute role="ADMIN">
-                <AdminLocationsPage />
-              </ProtectedRoute>
-            } />
-
             <Route path="/admin/applications" element={
               <ProtectedRoute role="ADMIN">
                 <AdminGuideApplications />
-              </ProtectedRoute>
-            } />
-
-            <Route path="/admin/tours-approval" element={
-              <ProtectedRoute role="ADMIN">
-                <AdminTours />
-              </ProtectedRoute>
-            } />
-
-            <Route path="/admin/payouts" element={
-              <ProtectedRoute role="ADMIN">
-                <AdminPayouts />
               </ProtectedRoute>
             } />
 
