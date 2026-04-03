@@ -32,4 +32,11 @@ public class ReviewController {
                 .result(reviewService.getReviewsByTour(tourId))
                 .build();
     }
+
+    @GetMapping("/guide/{guideId}")
+    public ApiResponse<List<ReviewResponse>> getReviewsByGuide(@PathVariable String guideId) {
+        return ApiResponse.<List<ReviewResponse>>builder()
+                .result(reviewService.getReviewsByGuide(guideId))
+                .build();
+    }
 }

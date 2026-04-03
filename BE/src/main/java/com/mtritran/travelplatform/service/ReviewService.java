@@ -94,4 +94,10 @@ public class ReviewService {
                 .map(reviewMapper::toResponse)
                 .toList();
     }
+
+    public List<ReviewResponse> getReviewsByGuide(String guideId) {
+        return reviewRepository.findAllByGuideId(guideId).stream()
+                .map(reviewMapper::toResponse)
+                .toList();
+    }
 }

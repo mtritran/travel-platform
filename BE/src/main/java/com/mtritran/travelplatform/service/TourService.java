@@ -71,11 +71,13 @@ public class TourService {
         Location meetingLocation = locationRepository.findById(request.getMeetingLocationId())
                 .orElseThrow(() -> new AppException(ErrorCode.LOCATION_NOT_FOUND));
 
-        // Validate date and time
-        java.time.LocalDateTime nowWithBuffer = java.time.LocalDateTime.now().minusMinutes(10);
+        // Validate date and time accounting for booking cutoff
+        int cutoff = request.getBookingCutoffMinutes() != null ? request.getBookingCutoffMinutes() : 60;
         java.time.LocalDateTime startDateTime = java.time.LocalDateTime.of(request.getStartDate(), request.getStartTime());
+        java.time.LocalDateTime cutoffDateTime = startDateTime.minusMinutes(cutoff);
         
-        if (startDateTime.isBefore(nowWithBuffer)) {
+        // Use a 5-minute buffer for network/server delay
+        if (cutoffDateTime.isBefore(java.time.LocalDateTime.now().plusMinutes(5))) {
             throw new AppException(ErrorCode.INVALID_TOUR_DATE);
         }
 
@@ -92,6 +94,7 @@ public class TourService {
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .maxGuests(request.getMaxGuests() != null ? request.getMaxGuests() : 1)
+                .bookingCutoffMinutes(request.getBookingCutoffMinutes() != null ? request.getBookingCutoffMinutes() : 60)
                 .status(TourStatus.ACTIVE)
                 .build();
 
@@ -110,7 +113,13 @@ public class TourService {
     public List<TourResponse> getAllActiveTours() {
         java.time.ZoneId zoneId = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
         java.time.Instant expiryTime = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
+        java.time.LocalDateTime vnNow = java.time.LocalDateTime.now(zoneId);
         return tourRepository.findAvailableTours(java.time.LocalDate.now(zoneId), java.time.LocalTime.now(zoneId), expiryTime).stream()
+                .filter(t -> {
+                    Integer cutoff = t.getBookingCutoffMinutes() != null ? t.getBookingCutoffMinutes() : 60;
+                    java.time.LocalDateTime cutoffPoint = java.time.LocalDateTime.of(t.getStartDate(), t.getStartTime()).minusMinutes(cutoff);
+                    return vnNow.isBefore(cutoffPoint);
+                })
                 .map(this::mapWithRating)
                 .toList();
     }
@@ -118,7 +127,13 @@ public class TourService {
     public List<TourResponse> getNearbyTours(double lat, double lng, double radius) {
         java.time.ZoneId zoneId = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
         java.time.Instant expiryTime = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
+        java.time.LocalDateTime vnNow = java.time.LocalDateTime.now(zoneId);
         return tourRepository.findNearbyTours(lat, lng, radius, java.time.LocalDate.now(zoneId), java.time.LocalTime.now(zoneId), expiryTime).stream()
+                .filter(t -> {
+                    Integer cutoff = t.getBookingCutoffMinutes() != null ? t.getBookingCutoffMinutes() : 60;
+                    java.time.LocalDateTime cutoffPoint = java.time.LocalDateTime.of(t.getStartDate(), t.getStartTime()).minusMinutes(cutoff);
+                    return vnNow.isBefore(cutoffPoint);
+                })
                 .map(this::mapWithRating)
                 .toList();
     }
@@ -144,6 +159,34 @@ public class TourService {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
+        // Logic check: If have active bookings and not finished, block critical changes
+        java.time.Instant tenMinsAgo = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
+        long activeCount = bookingRepository.countActiveBookings(id, tenMinsAgo);
+
+        java.time.ZoneId vnZone = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
+        java.time.LocalDateTime vnNow = java.time.LocalDateTime.now(vnZone);
+        
+        // Use endDate and endTime to determine completion. Fallback to start if end missing.
+        java.time.LocalDate effectiveEndDate = tour.getEndDate() != null ? tour.getEndDate() : tour.getStartDate();
+        java.time.LocalTime effectiveEndTime = tour.getEndTime() != null ? tour.getEndTime() : tour.getStartTime().plusHours(4); // default 4h if missing
+        java.time.LocalDateTime tourEnd = java.time.LocalDateTime.of(effectiveEndDate, effectiveEndTime);
+
+        if (activeCount > 0 && vnNow.isBefore(tourEnd)) {
+            // Check if critical fields changed
+            boolean criticalChanged = !tour.getStartDate().equals(request.getStartDate())
+                    || !tour.getStartTime().equals(request.getStartTime())
+                    || tour.getPrice().compareTo(request.getPrice()) != 0
+                    || !tour.getLocation().getId().equals(request.getLocationId());
+            
+            // Also check endDate/endTime specifically
+            if (tour.getEndDate() != null && !tour.getEndDate().equals(request.getEndDate())) criticalChanged = true;
+            if (tour.getEndTime() != null && !tour.getEndTime().equals(request.getEndTime())) criticalChanged = true;
+
+            if (criticalChanged) {
+                throw new AppException(ErrorCode.TOUR_CANNOT_UPDATE_DATE_TIME);
+            }
+        }
+
         tour.setTitle(request.getTitle());
         tour.setDescription(request.getDescription());
         tour.setPrice(request.getPrice());
@@ -154,6 +197,7 @@ public class TourService {
         tour.setEndTime(request.getEndTime());
         tour.setMaxGuests(request.getMaxGuests() != null ? request.getMaxGuests() : 1);
         tour.setDepositPercentage(request.getDepositPercentage());
+        tour.setBookingCutoffMinutes(request.getBookingCutoffMinutes());
         
         if (request.getLocationId() != null) {
             Location location = locationRepository.findById(request.getLocationId())
@@ -165,6 +209,15 @@ public class TourService {
             Location meetingLoc = locationRepository.findById(request.getMeetingLocationId())
                     .orElseThrow(() -> new AppException(ErrorCode.LOCATION_NOT_FOUND));
             tour.setMeetingLocation(meetingLoc);
+        }
+
+        // Validate new timing
+        int newCutoff = request.getBookingCutoffMinutes() != null ? request.getBookingCutoffMinutes() : 60;
+        java.time.LocalDateTime newStart = java.time.LocalDateTime.of(request.getStartDate(), request.getStartTime());
+        java.time.LocalDateTime newCutoffPoint = newStart.minusMinutes(newCutoff);
+        
+        if (newCutoffPoint.isBefore(java.time.LocalDateTime.now().plusMinutes(5))) {
+            throw new AppException(ErrorCode.INVALID_TOUR_DATE);
         }
 
         return mapWithRating(tourRepository.save(tour));

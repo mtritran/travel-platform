@@ -36,7 +36,7 @@ public enum ErrorCode {
     DATE_REQUIRED(1021, "Planned date is required", HttpStatus.BAD_REQUEST),
     TOUR_HAS_BOOKINGS(1022, "Cannot delete tour as it has bookings", HttpStatus.BAD_REQUEST),
     EXCEED_MAX_GUESTS(1023, "Number of guests exceeds tour limit", HttpStatus.BAD_REQUEST),
-    INVALID_TOUR_DATE(1024, "Tour start date and time cannot be in the past", HttpStatus.BAD_REQUEST),
+    INVALID_TOUR_DATE(1024, "Thời gian bắt đầu quá gần (phải chừa ít nhất thời gian chuẩn bị)", HttpStatus.BAD_REQUEST),
     INVALID_BOOKING_STATUS(1025, "Trạng thái không hợp lệ để thực hiện thao tác này", HttpStatus.BAD_REQUEST),
     ALREADY_REVIEWED(1026, "You have already reviewed this booking", HttpStatus.BAD_REQUEST),
     INSUFFICIENT_BALANCE(1027, "Insufficient balance", HttpStatus.BAD_REQUEST),
@@ -48,6 +48,7 @@ public enum ErrorCode {
     TOUR_NOT_STARTED_YET(1033, "Chưa thể hoàn thành vì thời gian Tour chưa bắt đầu/kết thúc", HttpStatus.BAD_REQUEST),
     ALREADY_HAS_ACTIVE_BOOKING(1034, "You already have an active booking for this tour", HttpStatus.CONFLICT),
     ALREADY_EXPRESSED_INTEREST(1035, "Bạn đã gửi yêu cầu nhận chuyến đi này rồi", HttpStatus.BAD_REQUEST),
+    TOUR_CANNOT_UPDATE_DATE_TIME(1036, "Không thể thay đổi thời gian/giá khi đang có khách đặt. Vui lòng chờ tour hoàn thành hoặc liên hệ hỗ trợ.", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

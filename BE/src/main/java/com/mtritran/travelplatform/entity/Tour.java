@@ -72,6 +72,10 @@ public class Tour {
     @Builder.Default
     BigDecimal depositPercentage = BigDecimal.valueOf(30);
 
+    @Column
+    @Builder.Default
+    Integer bookingCutoffMinutes = 60; // Default preparation time (60 mins)
+
     @CreationTimestamp
     LocalDateTime createdAt;
 

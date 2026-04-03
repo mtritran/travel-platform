@@ -55,8 +55,17 @@ public class TourChatService {
     public TourChatResponse chat(String userQuestion) {
         ZoneId zone = ZoneId.of("Asia/Ho_Chi_Minh");
         java.time.Instant expiry = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
-        List<Tour> activeTours = tourRepository.findAvailableTours(
+        List<Tour> allAvailable = tourRepository.findAvailableTours(
                 LocalDate.now(zone), LocalTime.now(zone), expiry);
+
+        java.time.LocalDateTime vnNow = java.time.LocalDateTime.now(zone);
+        List<Tour> activeTours = allAvailable.stream()
+                .filter(t -> {
+                    Integer cutoff = t.getBookingCutoffMinutes() != null ? t.getBookingCutoffMinutes() : 60;
+                    java.time.LocalDateTime cutoffPoint = java.time.LocalDateTime.of(t.getStartDate(), t.getStartTime()).minusMinutes(cutoff);
+                    return vnNow.isBefore(cutoffPoint);
+                })
+                .collect(Collectors.toList());
 
         if (activeTours.isEmpty()) {
             return TourChatResponse.builder()

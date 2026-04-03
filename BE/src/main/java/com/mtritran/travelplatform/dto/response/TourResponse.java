@@ -42,5 +42,6 @@ public class TourResponse {
     double rating;
     int reviewCount;
     Integer occupiedGuests;
+    Integer bookingCutoffMinutes;
     LocalDateTime createdAt;
 }

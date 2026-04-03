@@ -44,4 +44,13 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     boolean hasActiveBookingForTour(
         @org.springframework.data.repository.query.Param("user") User user,
         @org.springframework.data.repository.query.Param("tourId") String tourId);
+
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT COUNT(b) FROM Booking b " +
+        "WHERE b.tour.id = :tourId " +
+        "AND (b.status IN ('CONFIRMED', 'PAID_FULL') " +
+        "OR (b.status = 'AWAITING_DEPOSIT' AND b.createdAt > :expiryThreshold))")
+    long countActiveBookings(
+        @org.springframework.data.repository.query.Param("tourId") String tourId,
+        @org.springframework.data.repository.query.Param("expiryThreshold") java.time.Instant expiryThreshold);
 }

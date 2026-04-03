@@ -41,4 +41,5 @@ public class TourCreateRequest {
     
     Integer maxGuests;
     BigDecimal depositPercentage;
+    Integer bookingCutoffMinutes;
 }
