@@ -4,11 +4,13 @@ export interface User {
   fullName: string;
   phone: string;
   roles: Role[];
+  hasPaymentPin: boolean;
   balance: number;
   biography?: string;
   languages?: string;
   yearsOfExperience?: number;
   specialties?: string;
+  avatarUrl?: string;
 }
 
 export interface Role {
@@ -55,6 +57,7 @@ export type TourStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED' | 'INACTIVE'
 export interface Tour {
   id: string;
   guideName: string;
+  guideAvatarUrl?: string;
   locationName: string;
   locationAddress?: string;
   latitude?: number;
@@ -79,6 +82,7 @@ export interface Tour {
   reviewCount: number;
   occupiedGuests?: number;
   bookingCutoffMinutes?: number;
+  hiddenReason?: string;
   createdAt: string;
 }
 
@@ -86,9 +90,12 @@ export type BookingStatus = 'PENDING' | 'AWAITING_DEPOSIT' | 'CONFIRMED' | 'PAID
 
 export interface Booking {
   id: string;
+  bookingCode: string;
   userName: string;
+  userAvatarUrl?: string;
   tourTitle: string;
   guideName: string;
+  guideAvatarUrl?: string;
   bookingDate: string;
   numberOfGuests: number;
   totalPrice: number;
@@ -104,15 +111,29 @@ export interface Booking {
   pickupLatitude?: number;
   pickupLongitude?: number;
   reviewed: boolean;
+  isDisputed: boolean;
+  disputeReason?: string;
+  disputeEvidenceUrl?: string;
+  disputedAt?: string;
+  payoutAt: string;
   createdAt: string;
+}
+
+export interface DisputeRequest {
+  reason: string;
+  evidenceUrl?: string;
 }
 
 export interface Review {
   id: string;
   userName: string;
+  userAvatarUrl: string;
+  userPhone: string;
   tourTitle: string;
   rating: number;
   comment: string;
+  imagesUrl?: string;
+  tourRequestId?: string;
   createdAt: string;
 }
 
@@ -128,6 +149,7 @@ export interface TourRequestInterest {
   id: string;
   guideId: string;
   guideName: string;
+  guideAvatarUrl?: string;
   guideEmail: string;
   guidePhone: string;
   message: string;
@@ -137,6 +159,7 @@ export interface TourRequestInterest {
 export interface TourRequest {
   id: string;
   userName: string;
+  customerAvatarUrl?: string;
   locationName?: string;
   customLocationName?: string;
   plannedDate: string;
@@ -146,6 +169,7 @@ export interface TourRequest {
   description: string;
   status: TourRequestStatus;
   guideName?: string;
+  guideAvatarUrl?: string;
   guideEmail?: string;
   guidePhone?: string;
   customerName?: string;
@@ -163,6 +187,13 @@ export interface TourRequest {
   depositAmount?: number;
   paidAmount?: number;
   paymentStatus?: string;
+  
+  requestCode: string;
+  isDisputed: boolean;
+  disputeReason?: string;
+  disputeEvidenceUrl?: string;
+  disputedAt?: string;
+  payoutAt: string;
   
   interestedGuides: TourRequestInterest[];
 }

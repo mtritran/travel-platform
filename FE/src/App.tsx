@@ -11,6 +11,9 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminGuideApplications from './pages/admin/AdminGuideApplications';
 import AdminReports from './pages/admin/AdminReports';
+import AdminToursPage from './pages/admin/AdminToursPage';
+import AdminDisputesPage from './pages/admin/AdminDisputesPage';
+import AdminReviewsPage from './pages/admin/AdminReviewsPage';
 import CreateTourPage from './pages/guide/CreateTourPage';
 import EditTourPage from './pages/guide/EditTourPage';
 import GuideToursPage from './pages/guide/GuideToursPage';
@@ -115,6 +118,24 @@ function App() {
             <Route path="/admin/reports" element={
               <ProtectedRoute role="ADMIN">
                 <AdminReports />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/tours" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminToursPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/disputes" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminDisputesPage />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/admin/reviews" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminReviewsPage />
               </ProtectedRoute>
             } />
 

@@ -11,8 +11,10 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -29,6 +31,17 @@ public class BookingController {
     public ApiResponse<BookingResponse> bookTour(@Valid @RequestBody BookingCreateRequest request) {
         return ApiResponse.<BookingResponse>builder()
                 .result(bookingService.createBooking(request))
+                .build();
+    }
+
+    @Operation(summary = "File a dispute", description = "User files a dispute for a tour within 24h of completion.")
+    @PostMapping(value = "/{id}/dispute", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<BookingResponse> fileDispute(
+            @PathVariable String id,
+            @RequestParam String reason,
+            @RequestParam(name = "files", required = false) List<MultipartFile> files) {
+        return ApiResponse.<BookingResponse>builder()
+                .result(bookingService.fileDispute(id, reason, files))
                 .build();
     }
 
@@ -96,6 +109,28 @@ public class BookingController {
     public ApiResponse<BookingResponse> completeTour(@PathVariable String id) {
         return ApiResponse.<BookingResponse>builder()
                 .result(bookingService.completeTour(id))
+                .build();
+    }
+
+    @Operation(summary = "Admin: Get disputed bookings", description = "Admin views all active disputes.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/disputes")
+    public ApiResponse<List<BookingResponse>> getDisputedBookings() {
+        return ApiResponse.<List<BookingResponse>>builder()
+                .result(bookingService.getDisputedBookings())
+                .build();
+    }
+
+    @Operation(summary = "Admin: Resolve dispute", description = "Admin resolves a dispute by favoring either guide or customer.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/admin/disputes/{id}/resolve")
+    public ApiResponse<BookingResponse> resolveDispute(
+            @PathVariable String id,
+            @RequestParam String action,
+            @RequestParam(required = false, defaultValue = "100") int refundPercentage,
+            @RequestParam(required = false, defaultValue = "") String note) {
+        return ApiResponse.<BookingResponse>builder()
+                .result(bookingService.resolveDispute(id, action, refundPercentage, note))
                 .build();
     }
 }

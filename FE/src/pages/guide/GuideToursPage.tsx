@@ -7,7 +7,7 @@ import {
   Clock,
   Eye,
   AlertCircle,
-  Edit2,
+  Pencil,
   CalendarDays,
   ArrowUpRight,
 } from 'lucide-react';
@@ -29,6 +29,14 @@ const GuideToursPage: React.FC = () => {
   const navigate = useNavigate();
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const toIsoDateString = (val: any) => {
+    if (Array.isArray(val)) {
+      const [y, m, d] = val;
+      return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+    return typeof val === 'string' ? val.split('T')[0] : '';
+  };
 
   const fetchTours = async () => {
     setLoading(true);
@@ -68,13 +76,28 @@ const GuideToursPage: React.FC = () => {
   };
 
   const getStatusBadge = (tour: Tour): StatusBadge => {
-    const startDateTime = new Date(`${tour.startDate}T${tour.startTime}`);
+    const tourDate = tour.startDate ? new Date(toIsoDateString(tour.startDate)) : null;
+    if (tourDate && tour.startTime) {
+      const [h, m] = tour.startTime.split(':').map(Number);
+      tourDate.setHours(h, m, 0, 0);
+    }
+    const isExpired = tourDate ? tourDate < new Date() : false;
+
+    if (isExpired && tour.status === 'ACTIVE') {
+      return {
+        label: 'Đã kết thúc',
+        tone: 'expired',
+        icon: <Clock size={16} />,
+      };
+    }
+
+    const startDateTime = tourDate || new Date(`${toIsoDateString(tour.startDate)}T${tour.startTime}`);
     const cutoffTime = new Date(startDateTime.getTime() - (tour.bookingCutoffMinutes || 0) * 60000);
     const isPastCutoff = new Date() > cutoffTime;
 
-    if (isPastCutoff) {
+    if (isPastCutoff && tour.status === 'ACTIVE') {
       return {
-        label: 'Đã quá hạn',
+        label: 'Hết hạn đặt',
         tone: 'expired',
         icon: <Clock size={16} />,
       };
@@ -241,6 +264,24 @@ const GuideToursPage: React.FC = () => {
                           </div>
                         </div>
                       </div>
+                      
+                      {tour.status === 'INACTIVE' && tour.hiddenReason && (
+                        <div style={{ 
+                          marginTop: '16px', 
+                          padding: '12px', 
+                          borderRadius: '8px', 
+                          background: '#ef444408', 
+                          border: '1px solid #ef444420',
+                          display: 'flex',
+                          gap: '10px'
+                        }}>
+                          <AlertCircle size={16} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
+                          <div>
+                            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#ef4444', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lưu ý từ Admin</span>
+                            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>{tour.hiddenReason}</p>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="guide-tour-card-footer">
                         <div className="guide-tour-quick-note">
@@ -258,7 +299,7 @@ const GuideToursPage: React.FC = () => {
                             className="guide-tour-action"
                             title="Chỉnh sửa tour"
                           >
-                            <Edit2 size={18} />
+                            <Pencil size={18} />
                           </button>
                           <button
                             onClick={(e) => {

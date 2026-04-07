@@ -6,6 +6,9 @@ export const ENDPOINTS = {
     LOGOUT: '/auth/logout',
     REFRESH: '/auth/refresh',
   },
+  OTP: {
+    SEND: '/otp/send',
+  },
   USER: {
     REGISTER: '/users/register',
     GET_MY_INFO: '/users/my-info',
@@ -14,6 +17,7 @@ export const ENDPOINTS = {
     GET_BY_ID: (id: string) => `/users/${id}`,
     UPDATE: (id: string) => `/users/${id}`,
     DELETE: (id: string) => `/users/${id}`,
+    AVATAR: '/users/avatar',
   },
   TOUR: {
     BASE: '/tours',
@@ -23,6 +27,7 @@ export const ENDPOINTS = {
     GET_MY_TOURS: '/tours/my-tours',
     GET_BY_ID: (id: string) => `/tours/${id}`,
     TOGGLE_STATUS: (id: string) => `/tours/${id}/toggle-status`,
+    UPDATE_STATUS: (id: string) => `/tours/${id}/status`,
     UPDATE: (id: string) => `/tours/${id}`,
     DELETE: (id: string) => `/tours/${id}`,
     GET_NEARBY: (lat: number, lng: number, radius: number) =>
@@ -44,6 +49,14 @@ export const ENDPOINTS = {
     PAY_DEPOSIT: (id: string) => `/bookings/${id}/pay`,
     PAY_REMAINING: (id: string) => `/bookings/${id}/pay-remaining`,
     COMPLETE: (id: string) => `/bookings/${id}/complete`,
+    DISPUTE: (id: string) => `/bookings/${id}/dispute`,
+    ADMIN_DISPUTES: '/bookings/admin/disputes',
+    RESOLVE_DISPUTE: (id: string, action: string, refundPercentage?: number, note?: string) => {
+      let q = `/bookings/admin/disputes/${id}/resolve?action=${action}`;
+      if (refundPercentage !== undefined) q += `&refundPercentage=${refundPercentage}`;
+      if (note) q += `&note=${encodeURIComponent(note)}`;
+      return q;
+    },
   },
   TOUR_REQUEST: {
     CREATE: '/tour-requests',
@@ -65,6 +78,14 @@ export const ENDPOINTS = {
     COMPLETE: (id: string) => `/tour-requests/${id}/complete-tour`,
     AI_RECOMMENDATIONS: (id: string) => `/tour-requests/${id}/ai-recommendations`,
     AI_INDEX_GUIDES: '/tour-requests/ai-index-guides',
+    DISPUTE: (id: string) => `/tour-requests/${id}/dispute`,
+    ADMIN_DISPUTES: '/tour-requests/admin/disputes',
+    RESOLVE_DISPUTE: (id: string, action: string, refundPercentage?: number, note?: string) => {
+      let q = `/tour-requests/admin/disputes/${id}/resolve?action=${action}`;
+      if (refundPercentage !== undefined) q += `&refundPercentage=${refundPercentage}`;
+      if (note) q += `&note=${encodeURIComponent(note)}`;
+      return q;
+    },
   },
   PAYOUT: {
     CREATE: '/payouts',
@@ -74,6 +95,7 @@ export const ENDPOINTS = {
   },
   REPORT: {
     FINANCIAL: '/admin/reports/financial',
+    HISTORY: '/admin/reports/history',
   },
   GUIDE_APPLICATION: {
     APPLY: '/guide-applications',
@@ -86,6 +108,9 @@ export const ENDPOINTS = {
     CREATE: '/reviews',
     GET_BY_TOUR: (tourId: string) => `/reviews/tour/${tourId}`,
     GET_BY_GUIDE: (guideId: string) => `/reviews/guide/${guideId}`,
+    ADMIN_GET_ALL: '/reviews/admin',
+    UPDATE_STATUS: (id: string) => `/reviews/${id}/status`,
+    DELETE: (id: string) => `/reviews/${id}`,
   },
   TRANSACTION: {
     GET_MY: '/transactions/my',

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Footer from '../components/Footer';
+import { getFileUrl } from '../utils/format';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -121,8 +122,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     <span className="profile-chip-name">{user?.fullName || 'Người khám phá'}</span>
                     <span className="profile-chip-role">{roleLabel}</span>
                   </div>
-                  <span className="avatar-pill">
-                    <User size={18} />
+                  <span className="avatar-pill" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {user?.avatarUrl ? (
+                      <img 
+                        src={getFileUrl(user.avatarUrl)} 
+                        alt="Avatar" 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      />
+                    ) : (
+                      <User size={18} />
+                    )}
                   </span>
                   <ChevronDown size={14} style={{ color: 'var(--text-secondary)', marginLeft: '4px', transform: isMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                 </button>
@@ -140,13 +149,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     flexDirection: 'column',
                     gap: '4px'
                   }}>
-                    <Link to="/profile" className="nav-link" onClick={() => setIsMenuOpen(false)} style={{ margin: 0, padding: '10px 12px' }}>
-                      <User size={16} /> <span>Thông tin cá nhân</span>
-                    </Link>
-                    <Link to="/wallet" className="nav-link" onClick={() => setIsMenuOpen(false)} style={{ margin: 0, padding: '10px 12px' }}>
-                      <Wallet size={16} /> <span>Ví của tôi</span>
-                    </Link>
-                    <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '4px 0' }} />
+                    {!isAdmin && (
+                      <>
+                        <Link to="/profile" className="nav-link" onClick={() => setIsMenuOpen(false)} style={{ margin: 0, padding: '10px 12px' }}>
+                          <User size={16} /> <span>Thông tin cá nhân</span>
+                        </Link>
+                        <Link to="/wallet" className="nav-link" onClick={() => setIsMenuOpen(false)} style={{ margin: 0, padding: '10px 12px' }}>
+                          <Wallet size={16} /> <span>Ví của tôi</span>
+                        </Link>
+                        <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '4px 0' }} />
+                      </>
+                    )}
                     <button 
                       onClick={handleLogout} 
                       className="nav-link" 

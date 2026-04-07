@@ -16,5 +16,6 @@ public interface TourMapper {
     @Mapping(target = "meetingLocationAddress", source = "meetingLocation.address")
     @Mapping(target = "meetingLatitude", source = "meetingLocation.latitude")
     @Mapping(target = "meetingLongitude", source = "meetingLocation.longitude")
+    @Mapping(target = "guideAvatarUrl", source = "guide.avatarUrl")
     TourResponse toResponse(Tour tour);
 }

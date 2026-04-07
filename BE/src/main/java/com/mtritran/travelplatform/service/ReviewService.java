@@ -33,17 +33,28 @@ public class ReviewService {
     com.mtritran.travelplatform.repository.TourRequestRepository tourRequestRepository;
     UserRepository userRepository;
     ReviewMapper reviewMapper;
+    StorageService storageService;
 
     @Transactional
-    public ReviewResponse createReview(ReviewCreateRequest request) {
+    public ReviewResponse createReview(ReviewCreateRequest request, List<org.springframework.web.multipart.MultipartFile> files) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
+        // Handle multiple image uploads
+        String imagesUrl = "";
+        if (files != null && !files.isEmpty()) {
+            List<String> storedPaths = files.stream()
+                    .map(file -> storageService.saveFile(file, "reviews"))
+                    .toList();
+            imagesUrl = String.join(";", storedPaths);
+        }
+
         Review.ReviewBuilder reviewBuilder = Review.builder()
                 .user(user)
                 .rating(request.getRating())
-                .comment(request.getComment());
+                .comment(request.getComment())
+                .imagesUrl(imagesUrl);
 
         if (request.getBookingId() != null) {
             Booking booking = bookingRepository.findById(request.getBookingId())
@@ -90,14 +101,37 @@ public class ReviewService {
         Tour tour = tourRepository.findById(tourId)
                 .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
         
-        return reviewRepository.findAllByTour(tour).stream()
+        return reviewRepository.findAllByTourAndActive(tour, true).stream()
                 .map(reviewMapper::toResponse)
                 .toList();
     }
 
     public List<ReviewResponse> getReviewsByGuide(String guideId) {
-        return reviewRepository.findAllByGuideId(guideId).stream()
+        return reviewRepository.findAllByGuideIdAndActive(guideId, true).stream()
                 .map(reviewMapper::toResponse)
                 .toList();
+    }
+
+    // Admin methods
+    public List<ReviewResponse> getAllReviewsForAdmin() {
+        return reviewRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(reviewMapper::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public void updateReviewStatus(String id, boolean active) {
+        Review review = reviewRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_KEY));
+        review.setActive(active);
+        reviewRepository.save(review);
+    }
+
+    @Transactional
+    public void deleteReview(String id) {
+        if (!reviewRepository.existsById(id)) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+        reviewRepository.deleteById(id);
     }
 }

@@ -26,4 +26,7 @@ public class PayoutCreateRequest {
 
     @NotBlank(message = "Tên chủ tài khoản không được để trống")
     String bankAccountName;
+ 
+    @NotBlank(message = "Mã PIN thanh toán không được để trống")
+    String paymentPin;
 }

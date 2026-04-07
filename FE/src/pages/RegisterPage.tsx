@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Calendar, Lock, Mail, Phone, User, UserPlus } from 'lucide-react';
+import { Calendar, Lock, Mail, User, UserPlus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import api from '../services/api';
 import { ENDPOINTS } from '../constants/endpoints';
-
+ 
 type ApiError = {
   response?: {
     data?: {
@@ -13,29 +13,64 @@ type ApiError = {
     };
   };
 };
-
+ 
 const RegisterPage: React.FC = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     fullName: '',
-    phone: '',
+    otpCode: '',
     dob: '',
     gender: 'MALE',
   });
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
+ 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
+ 
+  const handleSendOtp = async () => {
+    if (!formData.email) {
+      setError('Vui lòng nhập email trước khi gửi mã.');
+      return;
+    }
+    setOtpLoading(true);
+    setError('');
+    try {
+      await api.post(`${ENDPOINTS.OTP.SEND}?email=${encodeURIComponent(formData.email)}`);
+      setIsOtpSent(true);
+      setCountdown(60);
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.response?.data?.message || 'Gửi OTP thất bại.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+ 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isOtpSent) {
+      setError('Vui lòng xác thực Email trước khi đăng ký.');
+      return;
+    }
     setLoading(true);
     setError('');
-
+ 
     try {
       await api.post(ENDPOINTS.USER.REGISTER, formData);
       navigate('/login');
@@ -46,7 +81,7 @@ const RegisterPage: React.FC = () => {
       setLoading(false);
     }
   };
-
+ 
   return (
     <div className="auth-shell">
       <div className="glass-panel auth-card">
@@ -57,13 +92,13 @@ const RegisterPage: React.FC = () => {
             </span>
             <span>TravelX</span>
           </div>
-
+ 
           <h1>Tạo tài khoản để bắt đầu hành trình đầu tiên.</h1>
           <p>
             Một tài khoản là đủ để đặt tour, gửi yêu cầu riêng và theo dõi toàn bộ trải nghiệm
             du lịch trong cùng một giao diện thống nhất.
           </p>
-
+ 
           <div className="auth-feature-list">
             <div className="auth-feature">
               <User size={18} />
@@ -75,16 +110,16 @@ const RegisterPage: React.FC = () => {
             </div>
           </div>
         </section>
-
+ 
         <section className="auth-form-wrap">
           <div className="auth-form-head">
             <h2>Đăng ký tài khoản</h2>
             <p>Điền thông tin cơ bản để tham gia TravelX.</p>
           </div>
-
+ 
           <form className="auth-form" onSubmit={handleRegister}>
-            <div className="split-fields">
-              <div>
+            <div className="auth-form-section">
+              
                 <label className="field-label" htmlFor="fullName">
                   Họ và tên
                 </label>
@@ -94,49 +129,60 @@ const RegisterPage: React.FC = () => {
                     id="fullName"
                     className="input-field"
                     name="fullName"
+                    placeholder="Nguyễn Văn A"
                     value={formData.fullName}
                     onChange={handleChange}
                     required
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="field-label" htmlFor="phone">
-                  Số điện thoại
-                </label>
-                <div className="input-shell">
-                  <Phone size={18} />
-                  <input
-                    id="phone"
-                    className="input-field"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
+              
             </div>
-
+ 
             <div>
               <label className="field-label" htmlFor="email">
                 Email
               </label>
-              <div className="input-shell">
+              <div className="input-shell with-action">
                 <Mail size={18} />
                 <input
                   id="email"
                   className="input-field"
                   name="email"
                   type="email"
+                  placeholder="name@example.com"
                   value={formData.email}
                   onChange={handleChange}
                   required
                 />
+                <button
+                  type="button"
+                  className="btn-text-action"
+                  onClick={handleSendOtp}
+                  disabled={otpLoading || countdown > 0}
+                >
+                  {otpLoading ? '...' : countdown > 0 ? `${countdown}s` : 'Gửi mã'}
+                </button>
               </div>
             </div>
-
+ 
+            <div className={`otp-field-wrap ${isOtpSent ? 'active' : ''}`}>
+              <label className="field-label" htmlFor="otpCode">
+                Mã xác thực OTP (Kiểm tra Email)
+              </label>
+              <div className="input-shell">
+                <User size={18} />
+                <input
+                  id="otpCode"
+                  className="input-field"
+                  name="otpCode"
+                  placeholder="Nhập 6 chữ số"
+                  value={formData.otpCode}
+                  onChange={handleChange}
+                  required={isOtpSent}
+                />
+              </div>
+            </div>
+ 
             <div>
               <label className="field-label" htmlFor="password">
                 Mật khẩu
@@ -154,7 +200,7 @@ const RegisterPage: React.FC = () => {
                 />
               </div>
             </div>
-
+ 
             <div className="split-fields">
               <div>
                 <label className="field-label" htmlFor="dob">
@@ -179,7 +225,7 @@ const RegisterPage: React.FC = () => {
                   />
                 </div>
               </div>
-
+ 
               <div>
                 <label className="field-label" htmlFor="gender">
                   Giới tính
@@ -197,15 +243,15 @@ const RegisterPage: React.FC = () => {
                 </select>
               </div>
             </div>
-
+ 
             {error ? <div className="status-message error">{error}</div> : null}
-
+ 
             <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? 'Đang tạo tài khoản...' : 'Đăng ký tài khoản'}
               {!loading ? <UserPlus size={18} /> : null}
             </button>
           </form>
-
+ 
           <p className="auth-footer">
             Đã có tài khoản?{' '}
             <Link to="/login" className="subtle-link">
@@ -217,5 +263,5 @@ const RegisterPage: React.FC = () => {
     </div>
   );
 };
-
+ 
 export default RegisterPage;

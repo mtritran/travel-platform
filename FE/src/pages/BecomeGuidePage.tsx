@@ -12,6 +12,7 @@ import type { ApiResponse } from '../types';
 import { ENDPOINTS } from '../constants/endpoints';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
+import IdentityUpgradeBanner from '../components/common/IdentityUpgradeBanner';
 
 interface GuideApplication {
   idCardUrl: string;
@@ -233,7 +234,14 @@ const BecomeGuidePage: React.FC = () => {
           </p>
         </div>
 
-        {isAlreadyGuide ? (
+        {(!user?.phone || !user?.hasPaymentPin) ? (
+          <div style={{ width: '100%', margin: '0 0 60px 0' }}>
+            <IdentityUpgradeBanner 
+              title="Cần định danh để đăng ký HDV"
+              message="Để đảm bảo an toàn cho cộng đồng TravelX, vui lòng thiết lập Số điện thoại và Mã PIN thanh toán trước khi bắt đầu quy trình trở thành Hướng dẫn viên."
+            />
+          </div>
+        ) : isAlreadyGuide ? (
           <div className="glass-panel" style={{ textAlign: 'center', padding: '60px 40px' }}>
             <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
               <ShieldCheck size={48} color="#059669" />

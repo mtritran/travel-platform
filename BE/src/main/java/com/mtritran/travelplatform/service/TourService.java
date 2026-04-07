@@ -65,6 +65,11 @@ public class TourService {
         User guide = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
+        // Penalty Check: Block banned guides
+        if (guide.getGuideBannedUntil() != null && guide.getGuideBannedUntil().isAfter(java.time.Instant.now())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED); // Or customize error: GUIDE_BANNED
+        }
+
         Location location = locationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new AppException(ErrorCode.LOCATION_NOT_FOUND));
 
@@ -223,7 +228,7 @@ public class TourService {
         return mapWithRating(tourRepository.save(tour));
     }
 
-    public TourResponse updateTourStatus(String id, TourStatus status) {
+    public TourResponse updateTourStatus(String id, TourStatus status, String reason) {
         Tour tour = tourRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
         
@@ -237,6 +242,11 @@ public class TourService {
 
         if (isAdmin) {
             tour.setStatus(status);
+            if (status == TourStatus.ACTIVE) {
+                tour.setHiddenReason(null); // Clear reason if re-activated
+            } else if (reason != null) {
+                tour.setHiddenReason(reason);
+            }
         } else if (isOwner) {
             // Guide can only toggle between ACTIVE and INACTIVE, and only if it was already approved
             if (tour.getStatus() == TourStatus.PENDING_APPROVAL || tour.getStatus() == TourStatus.REJECTED) {

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -42,6 +43,15 @@ public class Review {
     @Column(columnDefinition = "TEXT")
     String comment;
 
+    @Column(length = 2000)
+    String imagesUrl;
+
+    @Builder.Default
+    boolean active = true;
+
     @CreationTimestamp
     LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    LocalDateTime updatedAt;
 }

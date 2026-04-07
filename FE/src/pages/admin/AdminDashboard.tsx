@@ -3,7 +3,10 @@ import {
   Users, 
   ShieldCheck, 
   TrendingUp, 
-  ExternalLink
+  ExternalLink,
+  AlertTriangle,
+  Briefcase,
+  Star
 } from 'lucide-react';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
@@ -72,6 +75,27 @@ const AdminDashboard: React.FC = () => {
       icon: <TrendingUp size={32} />, 
       color: '#ec4899', 
       link: '/admin/reports' 
+    },
+    { 
+      label: 'Quản lý tour', 
+      desc: `${stats.totalTours} tour trên hệ thống`,
+      icon: <Briefcase size={32} />, 
+      color: '#10b981', 
+      link: '/admin/tours' 
+    },
+    { 
+      label: 'Quản lý Khiếu nại', 
+      desc: 'Giải quyết tranh chấp tour & hoàn tiền',
+      icon: <AlertTriangle size={32} />, 
+      color: '#dc2626', 
+      link: '/admin/disputes' 
+    },
+    { 
+      label: 'Quản lý Đánh giá', 
+      desc: 'Kiểm soát nội dung & phản hồi khách hàng',
+      icon: <Star size={32} />, 
+      color: '#f59e0b', 
+      link: '/admin/reviews' 
     },
   ];
 

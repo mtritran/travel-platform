@@ -14,6 +14,7 @@ public class TourRequestInterestResponse {
     String id;
     String guideId;
     String guideName;
+    String guideAvatarUrl;
     String guideEmail;
     String guidePhone;
     String message;

@@ -94,9 +94,12 @@ public class TourController {
 
     @Operation(summary = "Admin/Guide: Update tour status", description = "Admin can set any status. Guide can toggle ACTIVE/INACTIVE if approved.")
     @PatchMapping("/{id}/status")
-    public ApiResponse<TourResponse> updateStatus(@PathVariable String id, @RequestParam com.mtritran.travelplatform.enums.TourStatus status) {
+    public ApiResponse<TourResponse> updateStatus(
+            @PathVariable String id, 
+            @RequestParam com.mtritran.travelplatform.enums.TourStatus status,
+            @RequestParam(required = false) String reason) {
         return ApiResponse.<TourResponse>builder()
-                .result(tourService.updateTourStatus(id, status))
+                .result(tourService.updateTourStatus(id, status, reason))
                 .build();
     }
 

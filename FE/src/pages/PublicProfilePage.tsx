@@ -4,6 +4,7 @@ import { Mail, Phone, User, Globe, Award, Briefcase, Star } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import api from '../services/api';
 import { ENDPOINTS } from '../constants/endpoints';
+import { getFileUrl } from '../utils/format';
 import type { User as UserType, ApiResponse, Review } from '../types';
 
 const PublicProfilePage: React.FC = () => {
@@ -50,12 +51,16 @@ const PublicProfilePage: React.FC = () => {
         </section>
 
         <div className="profile-grid">
-           <aside className="glass-panel profile-sidebar">
-              <span className="avatar-large">
-                <User size={54} />
-              </span>
-              <div>
-                <h2 className="section-title">{profile.fullName}</h2>
+            <aside className="glass-panel profile-sidebar" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+               <span className="avatar-large">
+                 {profile.avatarUrl ? (
+                   <img src={getFileUrl(profile.avatarUrl)} alt={profile.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                 ) : (
+                   <User size={54} />
+                 )}
+               </span>
+               <div style={{ width: '100%' }}>
+                 <h2 className="section-title" style={{ margin: '0 0 8px 0' }}>{profile.fullName}</h2>
                 <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                   {profile.roles?.map(role => (
                     <span key={role.name} className="badge badge-primary">

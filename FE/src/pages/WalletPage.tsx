@@ -14,6 +14,7 @@ import { ENDPOINTS } from '../constants/endpoints';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { formatVND } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
+import IdentityUpgradeBanner from '../components/common/IdentityUpgradeBanner';
 
 const PayoutModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({ onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -21,6 +22,7 @@ const PayoutModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({
     bankName: '',
     bankAccountNumber: '',
     bankAccountName: '',
+    paymentPin: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -108,6 +110,18 @@ const PayoutModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({
               onChange={(e) => setFormData({ ...formData, bankAccountName: e.target.value.toUpperCase() })}
             />
           </div>
+          <div className="input-group">
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Mã PIN thanh toán (6 chữ số)</label>
+            <input
+              type="password"
+              maxLength={6}
+              required
+              className="input-field"
+              placeholder="••••••"
+              value={formData.paymentPin}
+              onChange={(e) => setFormData({ ...formData, paymentPin: e.target.value })}
+            />
+          </div>
           <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
             <button type="button" className="btn-secondary" onClick={onClose} style={{ flex: 1 }}>
               Hủy
@@ -121,6 +135,7 @@ const PayoutModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({
     </div>
   );
 };
+
 
 const WalletPage: React.FC = () => {
   const { user, refreshUser } = useAuth();
@@ -177,23 +192,6 @@ const WalletPage: React.FC = () => {
     }
   };
 
-  const getTransactionLabel = (type: string) => {
-    switch (type) {
-      case 'INCOME':
-        return 'Tiền về ví';
-      case 'WITHDRAW':
-        return 'Rút tiền';
-      case 'REVENUE':
-        return 'Doanh thu';
-      case 'COMMISSION':
-        return 'Phí hệ thống';
-      case 'REFUND':
-        return 'Hoàn tiền';
-      default:
-        return type;
-    }
-  };
-
   return (
     <DashboardLayout>
       <div className="wallet-page">
@@ -201,234 +199,256 @@ const WalletPage: React.FC = () => {
           <span className="eyebrow">Finance</span>
           <h1 className="page-title">Ví của tôi</h1>
           <p className="page-subtitle">
-            Quản lý thu nhập, lịch sử giao dịch và thực hiện rút tiền về tài khoản ngân hàng.
+            Theo dõi dòng tiền nạp/hoàn và thực hiện rút tiền về tài khoản ngân hàng.
           </p>
         </div>
 
-        <div className="wallet-grid">
-          <div className="wallet-main-column">
-            <div className="glass-panel wallet-balance-card">
-
-
-              <div className="wallet-balance-content">
-                <div className="wallet-balance-topline">
-                  <span className="wallet-balance-label">Số dư hiện tại</span>
-                  <span className="wallet-balance-pill">Cập nhật theo thời gian thực</span>
-                </div>
-
-                <div className="wallet-balance-amount-wrap">
-                  <span className="wallet-balance-caption">Khả dụng để rút</span>
-                  <h3 className="wallet-balance-amount">{formatVND(user?.balance || 0)}</h3>
-                </div>
-
-                <div className="wallet-balance-actions">
-                  <button className="btn-primary wallet-balance-primary" onClick={() => setShowPayoutModal(true)}>
-                    Yêu cầu rút tiền
-                  </button>
-                  <button className="btn-secondary wallet-balance-secondary">Lịch sử rút</button>
-                </div>
-              </div>
-            </div>
-
-            <div className="glass-panel" style={{ padding: '32px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h4 style={{ fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <History size={24} className="text-primary" />
-                  Lịch sử giao dịch gần đây
-                </h4>
-                <button
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--primary)',
-                    fontWeight: '600',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Download size={18} /> Xuất file
-                </button>
-              </div>
-
-              {loading ? (
-                <div style={{ textAlign: 'center', padding: '40px' }}>Đang tải...</div>
-              ) : transactions.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px 40px', color: 'var(--text-secondary)' }}>
-                  <AlertCircle size={40} style={{ marginBottom: '16px', opacity: 0.5 }} />
-                  <p>Bạn chưa có giao dịch nào.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {transactions.map((t) => (
-                    <div
-                      key={t.id}
-                      style={{
-                        padding: '16px',
-                        borderRadius: '20px',
-                        background: 'var(--surface)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '16px',
-                        border: '1px solid var(--glass-border)',
-                        transition: 'transform 0.2s hover',
-                      }}
-                    >
-                      {getTransactionIcon(t.type)}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>{t.note}</div>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                          {new Date(t.createdAt).toLocaleString('vi-VN')} • Mã: {t.id.substring(0, 8).toUpperCase()}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div
-                          style={{
-                            fontSize: '1.125rem',
-                            fontWeight: '800',
-                            color:
-                              t.type === 'INCOME' || t.type === 'REFUND'
-                                ? '#10b981'
-                                : t.type === 'WITHDRAW'
-                                  ? '#ef4444'
-                                  : 'var(--text-primary)',
-                          }}
-                        >
-                          {t.type === 'WITHDRAW' ? '-' : '+'}
-                          {formatVND(t.amount)}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            fontWeight: 'bold',
-                            color: 'var(--text-secondary)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            marginTop: '4px',
-                          }}
-                        >
-                          {getTransactionLabel(t.type)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+        {(!user?.phone || !user?.hasPaymentPin) ? (
+          <div style={{ width: '100%', margin: '40px 0' }}>
+            <IdentityUpgradeBanner
+              title="Định danh để truy cập Ví"
+              message="Vì lý do bảo mật, bạn cần hoàn thiện Số điện thoại và Mã PIN thanh toán để có thể xem số dư và lịch sử giao dịch."
+            />
           </div>
+        ) : (
+          <div className="wallet-grid">
+            <div className="wallet-main-column">
+              <div className="glass-panel wallet-balance-card">
+                <div className="wallet-balance-content">
+                  <div className="wallet-balance-topline">
+                    <span className="wallet-balance-label">Số dư hiện tại</span>
+                    <span className="wallet-balance-pill">Cập nhật theo thời gian thực</span>
+                  </div>
 
-          <div className="wallet-side-column">
-            <div className="glass-panel wallet-info-card">
-              <h4 className="wallet-info-title">Thông tin ví</h4>
-              <div className="wallet-info-list">
-                <div className="wallet-info-row">
-                  <span className="wallet-info-label">Loại ví</span>
-                  <span className="wallet-info-value">Ví đối tác (Partner)</span>
-                </div>
-                <div className="wallet-info-row">
-                  <span className="wallet-info-label">Trạng thái</span>
-                  <span className="wallet-status-badge">
-                    <span className="wallet-status-dot"></span>
-                    Đang hoạt động
-                  </span>
-                </div>
-                <div className="wallet-info-row">
-                  <span className="wallet-info-label">Phí giao dịch</span>
-                  <span className="wallet-info-value">Miễn phí</span>
+                  <div className="wallet-balance-amount-wrap">
+                    <span className="wallet-balance-caption">Khả dụng để rút</span>
+                    <h3 className="wallet-balance-amount">{formatVND(user?.balance || 0)}</h3>
+                  </div>
+
+                  <div className="wallet-balance-actions">
+                    <button className="btn-primary wallet-balance-primary" onClick={() => setShowPayoutModal(true)}>
+                      Rút tiền
+                    </button>
+                    <button className="btn-secondary wallet-balance-secondary">Lịch sử rút</button>
+                  </div>
                 </div>
               </div>
 
-              <hr className="wallet-info-divider" />
+              <div className="glass-panel" style={{ padding: '32px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                  <h4 style={{ fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <History size={24} className="text-primary" />
+                    Biến động số dư
+                  </h4>
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--primary)',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Download size={18} /> Xuất file
+                  </button>
+                </div>
 
-              <div className="wallet-info-note">
-                <AlertCircle size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                <p>
-                  Yêu cầu rút tiền được xử lý trong vòng <strong>24h làm việc</strong>. Hạn mức rút tối thiểu là{' '}
-                  <strong>50.000đ</strong>.
-                </p>
+                {loading ? (
+                  <div style={{ textAlign: 'center', padding: '40px' }}>Đang tải...</div>
+                ) : transactions.filter(t => t.type !== 'REVENUE').length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '60px 40px', color: 'var(--text-secondary)' }}>
+                    <AlertCircle size={40} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                    <p>Bạn chưa có giao dịch nào.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {transactions
+                      .filter(t => t.type !== 'REVENUE')
+                      .map((t) => (
+                      <div
+                        key={t.id}
+                        style={{
+                          padding: '16px',
+                          borderRadius: '20px',
+                          background: 'var(--surface)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '16px',
+                          border: '1px solid var(--glass-border)',
+                          transition: 'transform 0.2s hover',
+                        }}
+                      >
+                        {getTransactionIcon(t.type)}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>{t.note}</div>
+                          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                            {new Date(t.createdAt).toLocaleString('vi-VN')} • Mã: {t.id.substring(0, 8).toUpperCase()}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div
+                            style={{
+                              fontSize: '1.125rem',
+                              fontWeight: '800',
+                              color:
+                                t.type === 'INCOME' || t.type === 'REFUND' || t.type === 'COMMISSION'
+                                  ? '#10b981'
+                                  : '#ef4444',
+                            }}
+                          >
+                            {['WITHDRAW', 'REVENUE', 'PENALTY'].includes(t.type) ? '-' : '+'}
+                            {formatVND(t.amount)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="glass-panel" style={{ padding: '32px', background: 'var(--surface)' }}>
-              <h4 style={{ fontWeight: '800', marginBottom: '20px' }}>Quy trình nhận tiền</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <div
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      background: 'var(--primary)',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
-                      flexShrink: 0,
-                    }}
-                  >
-                    1
+            <div className="wallet-side-column">
+              <div className="glass-panel wallet-info-card">
+                <h4 className="wallet-info-title">Thông tin ví</h4>
+                <div className="wallet-info-list">
+                  <div className="wallet-info-row">
+                    <span className="wallet-info-label">Loại ví</span>
+                    <span className="wallet-info-value">Ví đối tác (Partner)</span>
                   </div>
-                  <p style={{ fontSize: '0.875rem' }}>Khách hàng thanh toán tour qua cổng VNPay.</p>
+                  <div className="wallet-info-row">
+                    <span className="wallet-info-label">Trạng thái</span>
+                    <span className="wallet-status-badge">
+                      <span className="wallet-status-dot"></span>
+                      Đang hoạt động
+                    </span>
+                  </div>
+                  <div className="wallet-info-row">
+                    <span className="wallet-info-label">Phí giao dịch</span>
+                    <span className="wallet-info-value">Miễn phí</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <div
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      background: 'var(--primary)',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
-                      flexShrink: 0,
-                    }}
-                  >
-                    2
-                  </div>
-                  <p style={{ fontSize: '0.875rem' }}>TravelX giữ tiền tạm thời để đảm bảo quyền lợi đôi bên.</p>
-                </div>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <div
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      background: 'var(--primary)',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
-                      flexShrink: 0,
-                    }}
-                  >
-                    3
-                  </div>
-                  <p style={{ fontSize: '0.875rem' }}>
-                    Sau khi tour hoàn thành, tiền sẽ được cộng vào ví của bạn (sau khi trừ 20% phí sàn).
+
+                <hr className="wallet-info-divider" />
+
+                <div className="wallet-info-note">
+                  <AlertCircle size={20} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                  <p>
+                    Yêu cầu rút tiền được xử lý trong vòng <strong>24h làm việc</strong>. Hạn mức rút tối thiểu là{' '}
+                    <strong>50.000đ</strong>.
                   </p>
                 </div>
               </div>
+
+              <div className="glass-panel" style={{ padding: '32px', background: 'var(--surface)' }}>
+                <h4 style={{ fontWeight: '800', marginBottom: '20px' }}>Quy trình nhận tiền</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: 'var(--primary)',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        flexShrink: 0,
+                      }}
+                    >
+                      1
+                    </div>
+                    <p style={{ fontSize: '0.875rem' }}>Khách hàng thanh toán tour qua cổng VNPay.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: 'var(--primary)',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        flexShrink: 0,
+                      }}
+                    >
+                      2
+                    </div>
+                    <p style={{ fontSize: '0.875rem' }}>TravelX giữ tiền tạm thời để đảm bảo quyền lợi đôi bên.</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        background: 'var(--primary)',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        flexShrink: 0,
+                      }}
+                    >
+                      3
+                    </div>
+                    <p style={{ fontSize: '0.875rem' }}>
+                      Sau khi tour hoàn thành, tiền sẽ được cộng vào ví của bạn (sau khi trừ 20% phí sàn).
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
       {showPayoutModal && (
-        <PayoutModal
-          onClose={() => setShowPayoutModal(false)}
-          onSuccess={() => {
-            setShowPayoutModal(false);
-            refreshUser();
-            window.location.reload();
-          }}
-        />
+        user?.hasPaymentPin && user?.phone ? (
+          <PayoutModal
+            onClose={() => setShowPayoutModal(false)}
+            onSuccess={() => {
+              setShowPayoutModal(false);
+              refreshUser();
+              window.location.reload();
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              backdropFilter: 'blur(5px)',
+            }}
+          >
+            <div className="glass-panel" style={{ maxWidth: '500px', width: '100%', padding: 0 }}>
+              <IdentityUpgradeBanner
+                type="modal"
+                onClose={() => setShowPayoutModal(false)}
+                title="Yêu cầu thiết lập mã PIN"
+                message="Bạn cần hoàn thiện thông tin định danh (Số điện thoại và Mã PIN) để có thể thực hiện rút tiền."
+              />
+            </div>
+          </div>
+        )
       )}
     </DashboardLayout>
   );

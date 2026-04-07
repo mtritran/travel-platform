@@ -14,6 +14,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,12 +29,18 @@ public class PayoutService {
     PayoutRequestRepository payoutRequestRepository;
     UserRepository userRepository;
     TransactionRepository transactionRepository;
+    PasswordEncoder passwordEncoder;
 
     @Transactional
-    public PayoutRequest createRequest(BigDecimal amount, String bankName, String bankAccountNumber, String bankAccountName) {
+    public PayoutRequest createRequest(BigDecimal amount, String bankName, String bankAccountNumber, String bankAccountName, String pin) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+ 
+        // Verify PIN
+        if (user.getPaymentPin() == null || !passwordEncoder.matches(pin, user.getPaymentPin())) {
+            throw new AppException(ErrorCode.INVALID_PAYMENT_PIN);
+        }
 
         if (user.getBalance().compareTo(amount) < 0) {
             throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
@@ -49,7 +56,8 @@ public class PayoutService {
                 .bankName(bankName)
                 .bankAccountNumber(bankAccountNumber)
                 .bankAccountName(bankAccountName)
-                .status(PayoutStatus.PENDING)
+                .status(PayoutStatus.COMPLETED)
+                .processedAt(LocalDateTime.now())
                 .build();
 
         PayoutRequest saved = payoutRequestRepository.save(request);
@@ -59,7 +67,7 @@ public class PayoutService {
                 .user(user)
                 .amount(amount)
                 .type(TransactionType.WITHDRAW)
-                .note("Yêu cầu rút tiền về ngân hàng: " + bankName + " (" + bankAccountNumber + ")")
+                .note("Rút tiền trực tiếp về ngân hàng: " + bankName + " (" + bankAccountNumber + ")")
                 .build());
 
         return saved;
@@ -70,40 +78,5 @@ public class PayoutService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
         return payoutRequestRepository.findAllByUserOrderByCreatedAtDesc(user);
-    }
-
-    public List<PayoutRequest> getAllPending() {
-        return payoutRequestRepository.findAllByStatusOrderByCreatedAtDesc(PayoutStatus.PENDING);
-    }
-
-    @Transactional
-    public PayoutRequest processRequest(String id, PayoutStatus status, String adminNote) {
-        PayoutRequest request = payoutRequestRepository.findById(id)
-                .orElseThrow(() -> new AppException(ErrorCode.PAYOUT_NOT_FOUND));
-
-        if (request.getStatus() != PayoutStatus.PENDING) {
-            throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
-        }
-
-        request.setStatus(status);
-        request.setAdminNote(adminNote);
-        request.setProcessedAt(LocalDateTime.now());
-
-        if (status == PayoutStatus.REJECTED) {
-            // Refund balance if rejected
-            User user = request.getUser();
-            user.setBalance(user.getBalance().add(request.getAmount()));
-            userRepository.save(user);
-
-            // Log Refund Transaction
-            transactionRepository.save(Transaction.builder()
-                    .user(user)
-                    .amount(request.getAmount())
-                    .type(TransactionType.REFUND)
-                    .note("Bồi hoàn tiền rút do yêu cầu bị từ chối: " + adminNote)
-                    .build());
-        }
-
-        return payoutRequestRepository.save(request);
     }
 }

@@ -13,7 +13,7 @@ import api from '../../services/api';
 import type { ApiResponse, Booking } from '../../types';
 import { ENDPOINTS } from '../../constants/endpoints';
 import DashboardLayout from '../../layouts/DashboardLayout';
-import { formatVND } from '../../utils/format';
+import { formatVND, getFileUrl } from '../../utils/format';
 import { useNotification } from '../../context/NotificationContext';
 
 const GuideBookingsPage: React.FC = () => {
@@ -186,7 +186,16 @@ const GuideBookingsPage: React.FC = () => {
                   <div>
                     <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '8px' }}>{booking.tourTitle}</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '24px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><User size={16} /> <strong>Khách:</strong> {booking.userName}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="avatar-pill" style={{ width: '24px', height: '24px' }}>
+                          {booking.userAvatarUrl ? (
+                            <img src={getFileUrl(booking.userAvatarUrl)} alt={booking.userName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <User size={12} />
+                          )}
+                        </span>
+                        <span><strong>Khách:</strong> {booking.userName}</span>
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={16} /> <strong>Ngày đi:</strong> {new Date(booking.bookingDate).toLocaleDateString('vi-VN')}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={16} /> <strong>Ngày đặt:</strong> {new Date(booking.createdAt).toLocaleDateString('vi-VN')}</div>
                     </div>

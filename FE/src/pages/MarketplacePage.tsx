@@ -5,18 +5,23 @@ import {
   Search,
   Bot,
   Star,
+  User,
 } from 'lucide-react';
 import api from '../services/api';
 import type { ApiResponse, Tour } from '../types';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { ENDPOINTS } from '../constants/endpoints';
-import { formatVND } from '../utils/format';
+import { formatVND, getFileUrl } from '../utils/format';
 import TourChatWidget from '../components/TourChatWidget';
+import IdentityUpgradeBanner from '../components/common/IdentityUpgradeBanner';
+import { useAuth } from '../context/AuthContext';
 
 const MarketplacePage: React.FC = () => {
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,7 +58,7 @@ const MarketplacePage: React.FC = () => {
               <h1 className="hero-title">Khám phá hành trình tiếp theo thật đồng điệu.</h1>
               <p className="page-subtitle">
                 Tìm tour theo địa điểm, chọn trải nghiệm phù hợp và đi từ cảm hứng đến đặt chỗ
-                chỉ trong một luồng giao diện gọn gàng hơn.
+                chỉ trong một luồng giao diện gọn gàng.
               </p>
             </div>
           </div>
@@ -113,7 +118,7 @@ const MarketplacePage: React.FC = () => {
                 <div className="tour-card-content">
                   <div className="tour-card-top">
                     <span className="tour-location">
-                      <MapPin size={14} />
+                      <MapPin size={18} />
                       {tour.locationName}
                     </span>
                     <h3 className="tour-title">{tour.title}</h3>
@@ -124,12 +129,34 @@ const MarketplacePage: React.FC = () => {
                     </p>
                   </div>
 
+                  <div className="tour-card-guide" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '16px', marginBottom: '8px' }}>
+                    <span className="avatar-pill" style={{ width: '28px', height: '28px' }}>
+                      {tour.guideAvatarUrl ? (
+                        <img src={getFileUrl(tour.guideAvatarUrl)} alt={tour.guideName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : (
+                        <User size={14} />
+                      )}
+                    </span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{tour.guideName}</span>
+                  </div>
+
                   <div className="tour-card-footer">
                     <div>
                       <span className="price-label">Giá mỗi người</span>
                       <span className="price-value">{formatVND(tour.price)}</span>
                     </div>
-                    <button type="button" className="btn-primary">
+                    <button 
+                      type="button" 
+                      className="btn-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!user?.phone || !user?.hasPaymentPin) {
+                          setShowUpgradeModal(true);
+                        } else {
+                          navigate(`/tours/${tour.id}`);
+                        }
+                      }}
+                    >
                       Đặt ngay
                     </button>
                   </div>
@@ -150,6 +177,15 @@ const MarketplacePage: React.FC = () => {
 
       {/* AI Chat Widget - fixed bottom-right */}
       <TourChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+
+      {/* Identity Upgrade Modal */}
+      {showUpgradeModal && (
+        <IdentityUpgradeBanner 
+          type="modal" 
+          onClose={() => setShowUpgradeModal(false)}
+          message="Bạn cần cập nhật Số điện thoại và Mã PIN thanh toán để có thể đặt tour. Việc này chỉ mất 1 phút!"
+        />
+      )}
     </DashboardLayout>
   );
 };

@@ -25,4 +25,12 @@ public interface TourRequestRepository extends JpaRepository<TourRequest, String
     List<TourRequest> findNearbyRequests(@Param("lat") double lat, 
                                         @Param("lng") double lng, 
                                         @Param("radius") double radius);
+
+    /**
+     * Tìm tất cả các tour yêu cầu chưa giải ngân, đã đến hạn giải ngân và không có tranh chấp.
+     */
+    List<TourRequest> findAllByIsPaidOutFalseAndPayoutAtBeforeAndIsDisputedFalse(java.time.Instant now);
+    
+    @Query("SELECT tr FROM TourRequest tr WHERE tr.isDisputed = true")
+    List<TourRequest> findAllByIsDisputedTrue();
 }

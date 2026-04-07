@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -30,6 +31,10 @@ public class Transaction {
     @JoinColumn(name = "booking_id")
     Booking booking; // Giao diện gắn với mã booking nào
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tour_request_id")
+    TourRequest tourRequest; // Link to a specific tour request if applicable
+
     @Column(nullable = false)
     BigDecimal amount;
 
@@ -42,4 +47,7 @@ public class Transaction {
 
     @CreationTimestamp
     LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    LocalDateTime updatedAt;
 }

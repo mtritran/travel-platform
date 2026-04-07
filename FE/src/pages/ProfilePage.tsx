@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { BadgeCheck, KeyRound, Mail, Phone, ShieldCheck, User } from 'lucide-react';
+import { BadgeCheck, Camera, KeyRound, Loader2, Mail, Phone, ShieldCheck, User } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { ENDPOINTS } from '../constants/endpoints';
 import api from '../services/api';
+import IdentityUpgradeBanner from '../components/common/IdentityUpgradeBanner';
+import { getFileUrl } from '../utils/format';
 
 const ProfilePage: React.FC = () => {
   const { user, refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | ''; text: string }>({
     type: '',
     text: '',
@@ -21,6 +25,8 @@ const ProfilePage: React.FC = () => {
     languages: '',
     yearsOfExperience: '',
     specialties: '',
+    paymentPin: '',
+    oldPassword: '',
   });
 
   const isGuide = user?.roles?.some((r) => r.name === 'GUIDE');
@@ -56,19 +62,21 @@ const ProfilePage: React.FC = () => {
     try {
       const response = await api.put(ENDPOINTS.USER.MY_INFO, {
         fullName: formData.fullName,
-        phone: formData.phone,
+        phone: formData.phone || undefined,
         password: formData.password || undefined,
         biography: formData.biography,
         languages: formData.languages,
         yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
         specialties: formData.specialties,
+        paymentPin: formData.paymentPin || undefined,
+        oldPassword: formData.oldPassword || undefined,
       });
 
       const data = response.data;
       if (data.code === 1000) {
         setMessage({ type: 'success', text: 'Cập nhật hồ sơ thành công.' });
         await refreshUser();
-        setFormData((prev) => ({ ...prev, password: '', confirmPassword: '' }));
+        setFormData((prev) => ({ ...prev, password: '', confirmPassword: '', oldPassword: '' }));
       } else {
         setMessage({ type: 'error', text: data.message || 'Cập nhật thất bại.' });
       }
@@ -76,6 +84,34 @@ const ProfilePage: React.FC = () => {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi kết nối máy chủ.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarLoading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await api.post(ENDPOINTS.USER.AVATAR, formData);
+
+      if (response.data.code === 1000) {
+        await refreshUser();
+        setMessage({ type: 'success', text: 'Cập nhật ảnh đại diện thành công.' });
+      } else {
+        setMessage({ type: 'error', text: response.data.message || 'Lỗi khi tải ảnh.' });
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Lỗi máy chủ khi tải ảnh.' });
+    } finally {
+      setAvatarLoading(false);
     }
   };
 
@@ -89,14 +125,58 @@ const ProfilePage: React.FC = () => {
             Quản lý thông tin tài khoản và cập nhật các chi tiết quan trọng trong một không gian trực quan, dễ
             theo dõi hơn.
           </p>
+          <IdentityUpgradeBanner 
+            title="Nâng cấp định danh tài khoản"
+            message="Bạn cần cập nhật Số điện thoại và Mã PIN thanh toán để bảo mật."
+          />
         </section>
 
         <div className="profile-grid">
           <aside className="glass-panel profile-sidebar">
             <div className="profile-sidebar-hero">
-              <span className="avatar-large profile-avatar">
-                <User size={54} />
-              </span>
+              <div 
+                className="avatar-large profile-avatar" 
+                onClick={handleAvatarClick}
+                style={{ 
+                  cursor: 'pointer', 
+                  position: 'relative', 
+                  overflow: 'hidden',
+                  background: 'var(--surface-hover)',
+                  border: '2px solid var(--primary-muted)'
+                }}
+              >
+                {avatarLoading ? (
+                  <Loader2 size={32} className="animate-spin" style={{ color: 'var(--primary)' }} />
+                ) : user?.avatarUrl ? (
+                  <img 
+                    src={getFileUrl(user.avatarUrl)} 
+                    alt="Avatar" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  />
+                ) : (
+                  <User size={54} />
+                )}
+                <div className="avatar-overlay" style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0,
+                  transition: 'opacity 0.2s',
+                  color: 'white'
+                }}>
+                  <Camera size={24} />
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  style={{ display: 'none' }} 
+                  accept="image/*" 
+                  onChange={handleAvatarChange} 
+                />
+              </div>
               <div>
                 <p className="profile-sidebar-kicker">Hồ sơ cá nhân</p>
                 <h2 className="section-title">{user?.fullName || 'Thành viên TravelX'}</h2>
@@ -185,9 +265,11 @@ const ProfilePage: React.FC = () => {
                         name="phone"
                         value={formData.phone}
                         onChange={handleChange}
+                        placeholder="Ví dụ: 0912345678"
                       />
                     </div>
                   </div>
+ 
 
                   <div className="profile-field-full">
                     <label className="field-label" htmlFor="email-view">
@@ -293,13 +375,30 @@ const ProfilePage: React.FC = () => {
                     <div className="page-stack" style={{ gap: '10px' }}>
                       <p className="profile-note-title">Tăng độ an toàn cho tài khoản</p>
                       <p className="muted-text">
-                        Nên dùng mật khẩu dài, có chữ hoa, chữ thường và ký tự đặc biệt để bảo vệ lịch sử đặt
-                        tour và thông tin cá nhân.
+                        Nên dùng mật khẩu dài, có chữ hoa, chữ thường và ký tự đặc biệt để bảo vệ tài khoản của bạn.
                       </p>
                     </div>
                   </div>
 
                   <div className="page-stack" style={{ gap: '18px' }}>
+                    <div>
+                      <label className="field-label" htmlFor="oldPassword">
+                        Mật khẩu cũ
+                      </label>
+                      <div className="input-shell">
+                        <KeyRound size={18} />
+                        <input
+                          id="oldPassword"
+                          className="input-field"
+                          type="password"
+                          name="oldPassword"
+                          value={formData.oldPassword}
+                          onChange={handleChange}
+                          placeholder="Nhập mật khẩu hiện tại"
+                        />
+                      </div>
+                    </div>
+
                     <div>
                       <label className="field-label" htmlFor="password">
                         Mật khẩu mới

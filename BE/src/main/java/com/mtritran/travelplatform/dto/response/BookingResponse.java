@@ -15,9 +15,12 @@ import java.time.Instant;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class BookingResponse {
     String id;
+    String bookingCode;
     String userName;
+    String userAvatarUrl;
     String tourTitle;
     String guideName;
+    String guideAvatarUrl;
     LocalDate bookingDate;
     Integer numberOfGuests;
     BigDecimal totalPrice;
@@ -36,5 +39,12 @@ public class BookingResponse {
     java.time.LocalTime tourStartTime;
 
     boolean reviewed;
+    boolean isDisputed;
+
+    Instant payoutAt;
+    Instant disputedAt;
+    String disputeReason;
+    String disputeEvidenceUrl;
+
     Instant createdAt;
 }

@@ -3,6 +3,8 @@ package com.mtritran.travelplatform.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "locations")
@@ -31,4 +33,10 @@ public class Location {
 
     @Column(columnDefinition = "TEXT")
     String imageUrl;
+
+    @CreationTimestamp
+    java.time.Instant createdAt;
+
+    @UpdateTimestamp
+    java.time.Instant updatedAt;
 }

@@ -53,4 +53,12 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     long countActiveBookings(
         @org.springframework.data.repository.query.Param("tourId") String tourId,
         @org.springframework.data.repository.query.Param("expiryThreshold") java.time.Instant expiryThreshold);
+
+    /**
+     * Tìm tất cả các booking chưa giải ngân, đã đến hạn giải ngân và không có tranh chấp.
+     */
+    List<Booking> findAllByIsPaidOutFalseAndPayoutAtBeforeAndIsDisputedFalse(java.time.Instant now);
+
+    @org.springframework.data.jpa.repository.Query("SELECT b FROM Booking b WHERE b.isDisputed = true")
+    List<Booking> findAllByIsDisputedTrue();
 }

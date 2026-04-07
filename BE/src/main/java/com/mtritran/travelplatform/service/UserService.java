@@ -17,6 +17,8 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -29,15 +31,18 @@ public class UserService {
     UserMapper userMapper;
     RoleRepository roleRepository;
     PasswordEncoder passwordEncoder;
+    OtpService otpService;
+    StorageService storageService;
 
     public UserResponse createUser(UserCreateRequest request) {
+        // Verify OTP first
+        if (!otpService.verifyOtp(request.getEmail(), request.getOtpCode())) {
+            throw new AppException(ErrorCode.INVALID_OTP);
+        }
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
 
-        if (userRepository.existsByPhone(request.getPhone())) {
-            throw new AppException(ErrorCode.PHONE_EXISTED);
-        }
 
         User user = userMapper.toUser(request);
 
@@ -105,6 +110,24 @@ public class UserService {
         return userMapper.toResponse(user);
     }
 
+    @Transactional
+    public UserResponse updateAvatar(MultipartFile file) {
+        String name = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(name).orElseThrow(
+                () -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // Delete old avatar if exists
+        if (user.getAvatarUrl() != null) {
+            storageService.deleteFile(user.getAvatarUrl());
+        }
+
+        // Save new avatar to avatars/{userId}/ namespace
+        String path = storageService.saveFile(file, "avatars/" + user.getId());
+        user.setAvatarUrl(path);
+
+        return userMapper.toResponse(userRepository.save(user));
+    }
+
     public UserResponse updateMyInfo(UserUpdateRequest request) {
         String name = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(name).orElseThrow(
@@ -114,7 +137,14 @@ public class UserService {
             user.setFullName(request.getFullName());
         if (request.getPhone() != null)
             user.setPhone(request.getPhone());
+        if (request.getPaymentPin() != null && !request.getPaymentPin().isBlank()) {
+            user.setPaymentPin(passwordEncoder.encode(request.getPaymentPin()));
+        }
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            if (request.getOldPassword() == null || request.getOldPassword().isBlank()
+                    || !passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+                throw new AppException(ErrorCode.PASSWORD_INCORRECT);
+            }
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 

@@ -1,10 +1,12 @@
 package com.mtritran.travelplatform.entity;
 
 import com.mtritran.travelplatform.enums.TourRequestStatus;
+import com.mtritran.travelplatform.enums.TourRequestPaymentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,6 +25,9 @@ public class TourRequest {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     String id;
+
+    @Column(unique = true)
+    String requestCode; // Ví dụ: TX-RQ12345
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -83,8 +88,28 @@ public class TourRequest {
     @Builder.Default
     BigDecimal refundAmount = BigDecimal.ZERO;
 
-    String paymentStatus; // PENDING, PAID_DEPOSIT, PAID_FULL, REFUNDED
+    @Enumerated(EnumType.STRING)
+    TourRequestPaymentStatus paymentStatus; // PENDING, PAID_DEPOSIT, PAID_FULL, REFUNDED
 
     @CreationTimestamp
     Instant createdAt;
+
+    @UpdateTimestamp
+    Instant updatedAt;
+
+    @Builder.Default
+    boolean isDisputed = false;
+
+    @Column(columnDefinition = "TEXT")
+    String disputeReason;
+
+    @Column(columnDefinition = "TEXT")
+    String disputeEvidenceUrl;
+
+    Instant disputedAt;
+
+    Instant payoutAt;
+
+    @Builder.Default
+    boolean isPaidOut = false;
 }

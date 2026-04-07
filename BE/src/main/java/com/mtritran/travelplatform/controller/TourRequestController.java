@@ -11,7 +11,9 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -169,6 +171,39 @@ public class TourRequestController {
         guideRecommendationService.indexAllGuides();
         return ApiResponse.<String>builder()
                 .result("Đang bắt đầu đồng bộ hóa dữ liệu HDV vào Vector Database...")
+                .build();
+    }
+
+    @Operation(summary = "File a dispute for tour request", description = "User files a dispute for a custom tour within 24h of completion.")
+    @PostMapping(value = "/{id}/dispute", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<TourRequestResponse> fileDispute(
+            @PathVariable String id,
+            @RequestParam String reason,
+            @RequestParam(name = "files", required = false) List<MultipartFile> files) {
+        return ApiResponse.<TourRequestResponse>builder()
+                .result(tourRequestService.fileDispute(id, reason, files))
+                .build();
+    }
+
+    @Operation(summary = "Admin: Get disputed tour requests", description = "Admin views all active custom tour disputes.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/disputes")
+    public ApiResponse<List<TourRequestResponse>> getDisputedRequests() {
+        return ApiResponse.<List<TourRequestResponse>>builder()
+                .result(tourRequestService.getDisputedTourRequests())
+                .build();
+    }
+
+    @Operation(summary = "Admin: Resolve custom tour dispute", description = "Admin resolves a custom tour dispute.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/admin/disputes/{id}/resolve")
+    public ApiResponse<TourRequestResponse> resolveDispute(
+            @PathVariable String id,
+            @RequestParam String action,
+            @RequestParam(required = false, defaultValue = "100") int refundPercentage,
+            @RequestParam(required = false, defaultValue = "") String note) {
+        return ApiResponse.<TourRequestResponse>builder()
+                .result(tourRequestService.resolveDispute(id, action, refundPercentage, note))
                 .build();
     }
 }

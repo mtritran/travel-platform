@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Trash2,
-  Edit3,
+  Pencil,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -244,7 +244,7 @@ const AdminUsersPage: React.FC = () => {
                             className="admin-users-icon-btn"
                             title="Sửa"
                           >
-                            <Edit3 size={17} />
+                            <Pencil size={17} />
                           </button>
                           <button
                             onClick={() => handleDelete(user.id)}

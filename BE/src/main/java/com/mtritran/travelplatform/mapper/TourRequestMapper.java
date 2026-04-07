@@ -10,5 +10,6 @@ public interface TourRequestMapper {
     @Mapping(target = "userName", source = "user.fullName")
     @Mapping(target = "locationName", source = "location.name")
     @Mapping(target = "guideName", source = "guide.fullName")
+    @Mapping(target = "customerAvatarUrl", source = "user.avatarUrl")
     TourRequestResponse toResponse(TourRequest request);
 }

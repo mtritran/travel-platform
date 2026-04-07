@@ -2,9 +2,6 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: 'http://localhost:8080', // Context path removed to match BE application.yaml
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Add a request interceptor to attach JWT token

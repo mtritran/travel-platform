@@ -30,4 +30,13 @@ public class AdminReportController {
                 .result(adminReportService.getFinancialSummary())
                 .build();
     }
+
+    @Operation(summary = "Get transaction history", description = "Admin only.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/history")
+    public ApiResponse<java.util.List<Map<String, Object>>> getTransactionHistory() {
+        return ApiResponse.<java.util.List<Map<String, Object>>>builder()
+                .result(adminReportService.getTransactionHistory())
+                .build();
+    }
 }

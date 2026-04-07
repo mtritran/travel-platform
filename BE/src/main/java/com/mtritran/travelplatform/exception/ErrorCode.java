@@ -49,6 +49,13 @@ public enum ErrorCode {
     ALREADY_HAS_ACTIVE_BOOKING(1034, "You already have an active booking for this tour", HttpStatus.CONFLICT),
     ALREADY_EXPRESSED_INTEREST(1035, "Bạn đã gửi yêu cầu nhận chuyến đi này rồi", HttpStatus.BAD_REQUEST),
     TOUR_CANNOT_UPDATE_DATE_TIME(1036, "Không thể thay đổi thời gian/giá khi đang có khách đặt. Vui lòng chờ tour hoàn thành hoặc liên hệ hỗ trợ.", HttpStatus.BAD_REQUEST),
+    INVALID_OTP(1037, "Mã xác thực không chính xác", HttpStatus.BAD_REQUEST),
+    OTP_EXPIRED(1038, "Mã xác thực đã hết hạn", HttpStatus.BAD_REQUEST),
+    IDENTITY_NOT_UPGRADED(1039, "Bạn cần bổ sung Số điện thoại và Mã PIN để thực hiện hành động này", HttpStatus.FORBIDDEN),
+    INVALID_PAYMENT_PIN(1040, "Mã PIN thanh toán không chính xác", HttpStatus.BAD_REQUEST),
+    PASSWORD_INCORRECT(1041, "Mật khẩu cũ không chính xác", HttpStatus.BAD_REQUEST),
+    ALREADY_DISPUTED(1042, "Đơn hàng này đang trong quá trình khiếu nại", HttpStatus.BAD_REQUEST),
+    DISPUTE_WINDOW_EXPIRED(1043, "Thời hạn khiếu nại (24h) đã kết thúc", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

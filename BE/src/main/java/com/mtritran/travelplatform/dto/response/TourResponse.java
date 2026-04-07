@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class TourResponse {
     String id;
     String guideName;
+    String guideAvatarUrl;
     String locationName;
     String locationAddress;
     Double latitude;
@@ -43,5 +44,6 @@ public class TourResponse {
     int reviewCount;
     Integer occupiedGuests;
     Integer bookingCutoffMinutes;
+    String hiddenReason;
     LocalDateTime createdAt;
 }

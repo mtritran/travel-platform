@@ -11,14 +11,16 @@ import {
   Plus,
   ShieldCheck,
   Star,
+  User,
   Users,
 } from 'lucide-react';
 import api from '../services/api';
 import type { ApiResponse, Review, Tour } from '../types';
 import { ENDPOINTS } from '../constants/endpoints';
-import { formatVND } from '../utils/format';
+import { formatVND, getFileUrl } from '../utils/format';
 import DashboardLayout from '../layouts/DashboardLayout';
 import LocationPicker from '../components/common/LocationPicker';
+import { useAuth } from '../context/AuthContext';
 
 type ApiError = {
   response?: {
@@ -29,6 +31,7 @@ type ApiError = {
 };
 
 const TourDetailPage: React.FC = () => {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [tour, setTour] = useState<Tour | null>(null);
@@ -80,6 +83,14 @@ const TourDetailPage: React.FC = () => {
 
   const handleBook = async () => {
     if (!id || !tour) return;
+
+    if (!user?.phone || !user?.hasPaymentPin) {
+      setMessage({
+        type: 'error',
+        text: 'Bạn cần cập nhật Số điện thoại và Mã PIN thanh toán trong hồ sơ để có thể đặt tour.'
+      });
+      return;
+    }
 
     if (numberOfGuests < 1) {
       setMessage({ type: 'error', text: 'Số lượng khách phải ít nhất là 1.' });
@@ -188,10 +199,10 @@ const TourDetailPage: React.FC = () => {
     if (!cutoffDateTime || isExpired) return null;
     const diff = cutoffDateTime.getTime() - currentTime.getTime();
     if (diff <= 0) return null;
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hours >= 72) return null; // Show up to 3 days
     if (hours >= 24) return `Hạn đặt tour còn lại: ${Math.floor(hours / 24)} ngày ${hours % 24} tiếng`;
     if (hours > 0) return `Hạn đặt tour còn lại: ${hours} tiếng ${minutes} phút`;
@@ -333,7 +344,13 @@ const TourDetailPage: React.FC = () => {
                     <article key={review.id} className="review-card">
                       <div className="review-head">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <span className="avatar-review">{review.userName.charAt(0)}</span>
+                          <span className="avatar-review">
+                            {review.userAvatarUrl ? (
+                              <img src={getFileUrl(review.userAvatarUrl)} alt={review.userName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                              review.userName.charAt(0)
+                            )}
+                          </span>
                           <div>
                             <div style={{ fontWeight: 800 }}>{review.userName}</div>
                             <div className="muted-text" style={{ fontSize: '0.8rem' }}>
@@ -352,7 +369,25 @@ const TourDetailPage: React.FC = () => {
                           ))}
                         </div>
                       </div>
-                      <p style={{ lineHeight: 1.7 }}>"{review.comment}"</p>
+                      <p style={{ lineHeight: 1.7, marginBottom: review.imagesUrl ? '16px' : '0' }}>"{review.comment}"</p>
+
+                      {review.imagesUrl && (
+                        <div className="review-gallery" style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '8px', scrollbarWidth: 'none' }}>
+                          {review.imagesUrl.split(';').filter((url: string) => url.trim()).map((url: string, idx: number) => (
+                            <div
+                              key={idx}
+                              style={{ flexShrink: 0, width: '100px', height: '100px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--line)', cursor: 'zoom-in' }}
+                              onClick={() => window.open(getFileUrl(url), '_blank')}
+                            >
+                              <img
+                                src={getFileUrl(url)}
+                                alt={`Review ${idx}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </article>
                   ))}
                 </div>
@@ -503,8 +538,8 @@ const TourDetailPage: React.FC = () => {
               {message.text ? <div className={`status-message ${message.type}`}>{message.text}</div> : null}
 
               {timeLeftLabel && !isExpired && (
-                <div style={{ 
-                  background: 'rgba(245, 158, 11, 0.1)', 
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.1)',
                   border: '1px solid rgba(245, 158, 11, 0.2)',
                   color: '#b45309',
                   padding: '12px',
@@ -526,12 +561,12 @@ const TourDetailPage: React.FC = () => {
                 onClick={handleBook}
                 style={(remainingSlots <= 0 || isExpired) ? { background: '#94a3b8', cursor: 'not-allowed' } : {}}
               >
-                {isExpired 
-                  ? 'Tour đã kết thúc/hết hạn' 
-                  : remainingSlots <= 0 
-                    ? 'Hiện đã hết chỗ' 
-                    : bookingLoading 
-                      ? 'Đang xử lý...' 
+                {isExpired
+                  ? 'Tour đã kết thúc/hết hạn'
+                  : remainingSlots <= 0
+                    ? 'Hiện đã hết chỗ'
+                    : bookingLoading
+                      ? 'Đang xử lý...'
                       : 'Đặt ngay tour này'}
               </button>
 
@@ -545,7 +580,11 @@ const TourDetailPage: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span className="avatar-pill" style={{ width: 48, height: 48 }}>
-                    <Users size={22} />
+                    {tour.guideAvatarUrl ? (
+                      <img src={getFileUrl(tour.guideAvatarUrl)} alt={tour.guideName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <User size={22} />
+                    )}
                   </span>
                   <div>
                     <div style={{ fontWeight: 800 }}>{tour.guideName}</div>

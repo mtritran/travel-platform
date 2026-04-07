@@ -17,10 +17,15 @@ public class UserUpdateRequest {
     @Email(message = "INVALID_EMAIL")
     String email;
 
+    @Size(min = 6, max = 6, message = "Mã PIN phải có đúng 6 chữ số")
+    String paymentPin;
+ 
     String phone;
 
     @Size(min = 3, message = "INVALID_FULLNAME")
     String fullName;
+ 
+    String oldPassword;
 
     @Size(min = 8, message = "INVALID_PASSWORD")
     String password;

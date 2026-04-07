@@ -76,6 +76,9 @@ public class Tour {
     @Builder.Default
     Integer bookingCutoffMinutes = 60; // Default preparation time (60 mins)
 
+    @Column(columnDefinition = "TEXT")
+    String hiddenReason;
+
     @CreationTimestamp
     LocalDateTime createdAt;
 

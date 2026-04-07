@@ -11,5 +11,6 @@ public interface ReviewMapper {
     @Mapping(target = "userPhone", source = "user.phone")
     @Mapping(target = "tourTitle", expression = "java(review.getTour() != null ? review.getTour().getTitle() : (review.getTourRequest() != null ? review.getTourRequest().getTitle() : null))")
     @Mapping(target = "tourRequestId", source = "tourRequest.id")
+    @Mapping(target = "userAvatarUrl", source = "user.avatarUrl")
     ReviewResponse toResponse(Review review);
 }

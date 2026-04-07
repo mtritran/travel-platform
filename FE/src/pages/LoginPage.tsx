@@ -92,7 +92,7 @@ const LoginPage: React.FC = () => {
                   id="email"
                   className="input-field"
                   type="email"
-                  placeholder="ban@example.com"
+                  placeholder="mail@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

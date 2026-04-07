@@ -13,6 +13,7 @@ public class UserResponse {
     String id;
     String email;
     String phone;
+    boolean hasPaymentPin;
     String fullName;
     Gender gender;
     LocalDate dob;
@@ -22,4 +23,5 @@ public class UserResponse {
     String languages;
     Integer yearsOfExperience;
     String specialties;
+    String avatarUrl;
 }

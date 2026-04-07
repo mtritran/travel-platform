@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, CheckCircle2, ChevronRight, Clock, AlertCircle, MapPin, Wallet, XCircle } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronRight, Clock, AlertCircle, MapPin, Wallet, XCircle, AlertTriangle, Camera, Trash2 } from 'lucide-react';
 import api from '../services/api';
 import type { ApiResponse, Booking } from '../types';
 import { ENDPOINTS } from '../constants/endpoints';
@@ -58,12 +58,16 @@ const ReservationTimer: React.FC<{ createdAt: string }> = ({ createdAt }) => {
 };
 
 const MyBookingsPage: React.FC = () => {
-  const { notifications } = useNotification();
+  const { showToast } = useNotification();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [payingBooking, setPayingBooking] = useState<Booking | null>(null);
   const [reviewingBooking, setReviewingBooking] = useState<Booking | null>(null);
+  const [disputingBooking, setDisputingBooking] = useState<Booking | null>(null);
+  const [isDisputing, setIsDisputing] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeFiles, setDisputeFiles] = useState<File[]>([]);
   const [showCancelModal, setShowCancelModal] = useState<Booking | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   /** '' = chọn phương thức trên cổng VNPAY; 'VNPAYQR' = quét mã QR */
@@ -88,17 +92,6 @@ const MyBookingsPage: React.FC = () => {
   useEffect(() => {
     if (payingBooking) setVnpayBankCode('');
   }, [payingBooking]);
-
-  useEffect(() => {
-    const latestNotif = notifications[0];
-    if (
-      latestNotif?.type === 'BOOKING_STATUS_UPDATE' ||
-      latestNotif?.type === 'TOUR_REQUEST_MATCHED' ||
-      latestNotif?.type === 'TOUR_COMPLETED'
-    ) {
-      fetchBookings(true);
-    }
-  }, [notifications]);
 
   const handlePayment = async () => {
     if (!payingBooking) return;
@@ -136,6 +129,40 @@ const MyBookingsPage: React.FC = () => {
 
   const handleCancelClick = (booking: Booking) => {
     setShowCancelModal(booking);
+  };
+
+  const handleDisputeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!disputingBooking || !disputeReason) return;
+
+    setIsDisputing(true);
+    const formData = new FormData();
+    formData.append('reason', disputeReason);
+    disputeFiles.forEach(file => {
+      formData.append('files', file);
+    });
+
+    try {
+      const response = await api.post(ENDPOINTS.BOOKING.DISPUTE(disputingBooking.id), formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data.code === 1000) {
+        showToast('Gửi khiếu nại thành công! Admin sẽ sớm phản hồi.', 'success');
+        setDisputingBooking(null);
+        setDisputeReason('');
+        setDisputeFiles([]);
+        fetchBookings();
+      } else {
+        showToast(response.data.message || 'Lỗi khi gửi khiếu nại.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Lỗi máy chủ khi gửi khiếu nại.', 'error');
+    } finally {
+      setIsDisputing(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -257,14 +284,36 @@ const MyBookingsPage: React.FC = () => {
                           Hủy tour
                         </button>
                       </>
-                    ) : booking.status === 'COMPLETED' ? (
-                      booking.reviewed ? (
-                        <span className="badge badge-success">Đã đánh giá</span>
-                      ) : (
-                        <button type="button" className="btn-primary" onClick={() => setReviewingBooking(booking)}>
-                          Viết đánh giá
-                        </button>
-                      )
+                    ) : (booking.status === 'COMPLETED' || (booking.status === 'PAID_FULL' && new Date().getTime() > new Date(booking.tourStartDate + 'T' + (booking.tourStartTime || '00:00:00')).getTime())) ? (
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        {!booking.isDisputed && (!booking.payoutAt || new Date().getTime() < new Date(booking.payoutAt).getTime()) && (
+                          <button 
+                            type="button" 
+                            className="btn-primary" 
+                            style={{ 
+                              background: 'rgba(220, 38, 38, 0.06)', 
+                              color: '#dc2626', 
+                              border: '1px solid rgba(220, 38, 38, 0.15)',
+                              boxShadow: '0 8px 20px rgba(220, 38, 38, 0.08)',
+                              padding: '0 24px'
+                            }}
+                            onClick={() => setDisputingBooking(booking)}
+                          >
+                            Khiếu nại
+                          </button>
+                        )}
+                        {booking.isDisputed ? (
+                          <span className="badge" style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
+                            Đang khiếu nại
+                          </span>
+                        ) : (booking.status === 'COMPLETED' && !booking.reviewed) ? (
+                          <button type="button" className="btn-primary" onClick={() => setReviewingBooking(booking)}>
+                            Viết đánh giá
+                          </button>
+                        ) : booking.reviewed ? (
+                          <span className="badge badge-success">Đã đánh giá</span>
+                        ) : null}
+                      </div>
                     ) : (booking.status !== 'CANCELLED' && booking.status !== 'PAID_FULL') ? (
                       <button
                         type="button"
@@ -520,15 +569,103 @@ const MyBookingsPage: React.FC = () => {
           </div>
         ) : null}
 
-        {reviewingBooking ? (
+        {disputingBooking && (
+          <div className="review-modal-overlay">
+            <div className="glass-panel review-modal-card" style={{ width: 'min(100%, 540px)' }}>
+              <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <AlertTriangle size={32} />
+                </div>
+                <h2 className="section-title" style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Gửi khiếu nại tour</h2>
+                <p className="page-subtitle" style={{ margin: 0 }}>Vui lòng cung cấp lý do chi tiết và bằng chứng hình ảnh (nếu có) để Admin hỗ trợ phân xử.</p>
+              </div>
+
+              <form onSubmit={handleDisputeSubmit} style={{ display: 'grid', gap: '20px' }}>
+                <div>
+                  <label className="field-label">Lý do khiếu nại <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <textarea
+                    required
+                    className="input-field"
+                    placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."
+                    value={disputeReason}
+                    onChange={(e) => setDisputeReason(e.target.value)}
+                    style={{ minHeight: '120px', padding: '16px', borderRadius: '16px', resize: 'none' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="field-label">Bằng chứng hình ảnh (Tải lên nhiều ảnh)</label>
+                  <label style={{ 
+                    display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', 
+                    background: 'white', border: '2px dashed #e2e8f0', borderRadius: '16px', cursor: 'pointer',
+                    transition: 'all 0.2s', borderColor: disputeFiles.length > 0 ? 'var(--primary)' : '#e2e8f0'
+                  }}>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      multiple
+                      style={{ display: 'none' }} 
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setDisputeFiles(prev => [...prev, ...files]);
+                        e.target.value = ''; // Reset to allow same-file selection if needed
+                      }}
+                    />
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                      <Camera size={20} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: 700, fontSize: '0.95rem', margin: 0 }}>Chọn ảnh bằng chứng</p>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Nhấn để chọn một hoặc nhiều ảnh (JPG, PNG)</p>
+                    </div>
+                  </label>
+
+                  {disputeFiles.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+                      {disputeFiles.map((file, idx) => (
+                        <div key={`${file.name}-${idx}`} style={{ 
+                          display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', 
+                          background: 'var(--surface-muted)', borderRadius: '12px', border: '1px solid var(--line)'
+                        }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {file.name}
+                          </span>
+                          <button 
+                            type="button" 
+                            onClick={() => setDisputeFiles(prev => prev.filter((_, i) => i !== idx))}
+                            style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', padding: '2px' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '8px' }}>
+                  <button type="button" className="btn-ghost" onClick={() => setDisputingBooking(null)} disabled={isDisputing} style={{ height: '52px', borderRadius: '16px' }}>
+                    Hủy bỏ
+                  </button>
+                  <button type="submit" className="btn-primary" disabled={isDisputing || !disputeReason} style={{ height: '52px', borderRadius: '16px', background: '#dc2626', borderColor: '#dc2626' }}>
+                    {isDisputing ? 'Đang gửi...' : 'Gửi khiếu nại'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {reviewingBooking && (
           <ReviewModal
             booking={reviewingBooking}
             onClose={() => setReviewingBooking(null)}
             onSuccess={() => {
-              fetchBookings(true);
+              setReviewingBooking(null);
+              fetchBookings();
             }}
           />
-        ) : null}
+        )}
       </div>
     </DashboardLayout>
   );

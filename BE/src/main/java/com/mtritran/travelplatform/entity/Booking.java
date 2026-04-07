@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -22,6 +23,9 @@ public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     String id;
+    
+    @Column(unique = true)
+    String bookingCode; // Ví dụ: TX-BH12345
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -65,4 +69,36 @@ public class Booking {
 
     @CreationTimestamp
     Instant createdAt;
+
+    @UpdateTimestamp
+    Instant updatedAt;
+
+    @Builder.Default
+    boolean isDisputed = false;
+
+    @Column(columnDefinition = "TEXT")
+    String disputeReason;
+
+    @Column(length = 2000)
+    String disputeEvidenceUrl;
+
+    Instant disputedAt;
+
+    Instant payoutAt;
+
+    @Builder.Default
+    boolean isPaidOut = false;
+
+    @PrePersist
+    public void generateBookingCode() {
+        if (this.bookingCode == null) {
+            String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            StringBuilder sb = new StringBuilder("TX-");
+            java.util.Random rnd = new java.util.Random();
+            for (int i = 0; i < 7; i++) {
+                sb.append(chars.charAt(rnd.nextInt(chars.length())));
+            }
+            this.bookingCode = sb.toString();
+        }
+    }
 }

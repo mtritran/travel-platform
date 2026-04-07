@@ -35,7 +35,8 @@ public class SecurityConfig {
             "/users/profile/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
-            "/swagger-ui.html"
+            "/swagger-ui/index.html",
+            "/otp/**"
     };
 
     @Value("${jwt.signer-key}")
@@ -49,7 +50,7 @@ public class SecurityConfig {
                 .permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/payment/vnpay-callback").permitAll()
-                .requestMatchers(HttpMethod.GET, "/users/profile/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                .requestMatchers(HttpMethod.GET, "/users/profile/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/files", "/files/**").permitAll()
                 .anyRequest().authenticated());
 
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder())
@@ -65,7 +66,7 @@ public class SecurityConfig {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
 
         corsConfiguration.setAllowedOrigins(List.of("http://localhost:5173"));
-        corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         corsConfiguration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Cache-Control"));
         corsConfiguration.setAllowCredentials(true);
 

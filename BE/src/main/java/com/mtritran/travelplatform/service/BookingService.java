@@ -24,9 +24,13 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
+
+import com.mtritran.travelplatform.enums.RoleName;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +44,8 @@ public class BookingService {
     NotificationService notificationService;
     ReviewRepository reviewRepository;
     TransactionRepository transactionRepository;
+    PenaltyService penaltyService;
+    StorageService storageService;
 
     public BookingResponse getBookingById(String id) {
         Booking booking = bookingRepository.findById(id)
@@ -53,7 +59,7 @@ public class BookingService {
         boolean isOwner = booking.getUser().getId().equals(currentUser.getId());
         boolean isGuide = booking.getTour().getGuide().getId().equals(currentUser.getId());
         boolean isAdmin = currentUser.getRoles().stream()
-                .anyMatch(r -> r.getName() == com.mtritran.travelplatform.enums.RoleName.ADMIN);
+                .anyMatch(r -> r.getName() == RoleName.ADMIN);
 
         if (!isOwner && !isGuide && !isAdmin) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -65,6 +71,15 @@ public class BookingService {
     private BookingResponse mapToResponse(Booking booking) {
         BookingResponse response = bookingMapper.toResponse(booking);
         response.setReviewed(reviewRepository.existsByBookingId(booking.getId()));
+        
+        // Ensure payoutAt is provided for frontend dispute logic
+        if (response.getPayoutAt() == null && booking.getTour().getEndDate() != null) {
+            java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(booking.getTour().getEndDate(),
+                    booking.getTour().getEndTime() != null ? booking.getTour().getEndTime() : java.time.LocalTime.of(23, 59));
+            response.setPayoutAt(endDateTime.atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toInstant()
+                    .plus(24, java.time.temporal.ChronoUnit.HOURS));
+        }
+        
         return response;
     }
 
@@ -73,6 +88,10 @@ public class BookingService {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+ 
+        if (user.getPhone() == null || user.getPaymentPin() == null) {
+            throw new AppException(ErrorCode.IDENTITY_NOT_UPGRADED);
+        }
 
         // Concurrency handling: lock the tour row
         Tour tour = tourRepository.findByIdWithLock(request.getTourId())
@@ -144,11 +163,10 @@ public class BookingService {
         Booking savedBooking = bookingRepository.save(booking);
 
         // Notify Guide real-time
-        notificationService.sendNotification(tour.getGuide().getId(),
-                java.util.Map.of(
-                        "type", "NEW_BOOKING",
-                        "message", "Bạn có một Booking mới cho tour: " + tour.getTitle(),
-                        "bookingId", savedBooking.getId()));
+        notificationService.sendNotification(tour.getGuide().getId(), 
+                "Booking mới", 
+                "Bạn có một Booking mới cho tour: " + tour.getTitle(), 
+                "NEW_BOOKING");
 
         return mapToResponse(savedBooking);
     }
@@ -188,11 +206,10 @@ public class BookingService {
         Booking saved = bookingRepository.save(booking);
 
         // Notify Customer real-time
-        notificationService.sendNotification(booking.getUser().getId(),
-                java.util.Map.of(
-                        "type", "BOOKING_STATUS_UPDATE",
-                        "message", "Trạng thái đơn hàng " + booking.getTour().getTitle() + " đã chuyển sang " + status,
-                        "bookingId", saved.getId()));
+        notificationService.sendNotification(booking.getUser().getId(), 
+                "Cập nhật đơn hàng", 
+                "Trạng thái đơn hàng " + booking.getTour().getTitle() + " đã chuyển sang " + status, 
+                "BOOKING_STATUS_UPDATE");
 
         return mapToResponse(saved);
     }
@@ -203,6 +220,8 @@ public class BookingService {
                 .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
 
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
         // Check ownership (either the user who booked or the guide)
         boolean isGuide = booking.getTour().getGuide().getEmail().equals(email);
@@ -216,125 +235,88 @@ public class BookingService {
             return mapToResponse(booking);
         }
 
-        BigDecimal refund = BigDecimal.ZERO;
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDateTime tourStart = java.time.LocalDateTime.of(booking.getTour().getStartDate(),
+                booking.getTour().getStartTime() != null ? booking.getTour().getStartTime() : java.time.LocalTime.of(0, 0));
+
+        BigDecimal refundAmount = BigDecimal.ZERO;
+        BigDecimal penaltyFee = BigDecimal.ZERO;
+
         if (isGuide) {
             // Guide cancels -> 100% refund of paid amount
-            refund = booking.getPaidAmount();
+            refundAmount = booking.getPaidAmount();
+            // Penalty for guide
+            penaltyService.addPenalty(booking.getTour().getGuide().getId(), 2, 
+                    "Bạn đã hủy tour '" + booking.getTour().getTitle() + "' mà khách đã đặt.");
+            
+            notificationService.sendNotification(booking.getUser().getId(), 
+                    "HDV đã hủy đặt tour", 
+                    "Hướng dẫn viên " + booking.getTour().getGuide().getFullName() + " đã hủy việc đặt tour cho '" + booking.getTour().getTitle() + "'.", 
+                    "BOOKING_CANCELLED");
         } else {
-            // Customer cancels -> check time
-            java.time.LocalDateTime now = java.time.LocalDateTime.now();
-            java.time.LocalDateTime startDateTime = java.time.LocalDateTime.of(booking.getTour().getStartDate(),
-                    booking.getTour().getStartTime());
+            // Customer cancels -> 3-tier refund policy per system report
+            java.time.Duration timeUntilTour = java.time.Duration.between(now, tourStart);
+            long hoursLeft = timeUntilTour.toHours();
 
-            if (now.isAfter(startDateTime)) {
-                refund = BigDecimal.ZERO; // Already started/passed
+            if (hoursLeft >= 48) {
+                // Early cancellation (> 48h): 100% refund
+                refundAmount = booking.getPaidAmount();
+            } else if (hoursLeft >= 24) {
+                // Mid cancellation (24-48h): 50% refund, 50% penalty
+                penaltyFee = booking.getPaidAmount().multiply(new BigDecimal("0.50"))
+                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                refundAmount = booking.getPaidAmount().subtract(penaltyFee);
+
+                user.setCancellationCount((user.getCancellationCount() != null ? user.getCancellationCount() : 0) + 1);
+                booking.setPayoutAt(java.time.Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS));
             } else {
-                long hoursDiff = java.time.Duration.between(now, startDateTime).toHours();
-                if (hoursDiff > 48) {
-                    refund = booking.getPaidAmount();
-                } else if (hoursDiff > 24) {
-                    refund = booking.getPaidAmount().multiply(new BigDecimal("0.5")).setScale(0,
-                            java.math.RoundingMode.HALF_UP);
-                } else {
-                    refund = BigDecimal.ZERO;
-                }
+                // Late cancellation (< 24h): 0% refund, hold 24h for dispute window
+                penaltyFee = booking.getPaidAmount();
+                refundAmount = BigDecimal.ZERO;
+
+                user.setCancellationCount((user.getCancellationCount() != null ? user.getCancellationCount() : 0) + 1);
+                booking.setPayoutAt(java.time.Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS));
             }
+
+            notificationService.sendNotification(booking.getTour().getGuide().getId(), 
+                    "Khách đã hủy đặt tour", 
+                    "Khách hàng " + user.getFullName() + " đã hủy việc đặt tour cho '" + booking.getTour().getTitle() + "'.", 
+                    "BOOKING_CANCELLED");
         }
 
-        booking.setRefundAmount(refund);
-        booking.setStatus(BookingStatus.CANCELLED);
-        Booking saved = bookingRepository.save(booking);
-
-        // Actual money transfer to customer wallet if refund > 0
-        if (refund.compareTo(BigDecimal.ZERO) > 0) {
-            User target = userRepository.findById(booking.getUser().getId())
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-
-            BigDecimal currentBalance = target.getBalance() != null ? target.getBalance() : BigDecimal.ZERO;
-            target.setBalance(currentBalance.add(refund));
-            userRepository.save(target);
+        // Process actual refund to customer wallet
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+            User customer = booking.getUser();
+            customer.setBalance((customer.getBalance() != null ? customer.getBalance() : BigDecimal.ZERO).add(refundAmount));
+            userRepository.save(customer);
 
             // Log Refund Transaction
             transactionRepository.save(Transaction.builder()
-                    .booking(saved)
-                    .user(target)
-                    .amount(refund)
+                    .booking(booking)
+                    .user(customer)
+                    .amount(refundAmount)
                     .type(TransactionType.REFUND)
-                    .note("Hoàn tiền hủy tour: " + booking.getTour().getTitle() +
-                            (isGuide ? " (Guide đã hủy tour)" : " (Hủy tour theo chính sách)"))
+                    .note("Hoàn tiền hủy tour: " + booking.getTour().getTitle() + (isGuide ? " (HDV hủy)" : " (Khách hủy trễ/đúng hạn)"))
                     .build());
-
-            // Notify Customer real-time about refund
-            notificationService.sendNotification(target.getId(),
-                    java.util.Map.of(
-                            "type", "REFUND_RECEIVED",
-                            "message",
-                            "Bạn được hoàn " + refund + " VND vào ví từ tour: " + booking.getTour().getTitle(),
-                            "bookingId", saved.getId()));
+            
+            notificationService.sendNotification(customer.getId(), 
+                    "Cập nhật hoàn tiền", 
+                    "Bạn được hoàn " + refundAmount + " VND sau khi hủy tour (Phí hủy: " + penaltyFee + " VND)", 
+                    "REFUND_PROCESSED");
         }
 
-        // If Customer cancelled and there is a penalty (i.e. PaidAmount > Refund)
-        if (!isGuide && booking.getPaidAmount().compareTo(refund) > 0) {
-            BigDecimal penaltyAmount = booking.getPaidAmount().subtract(refund);
-            distributePenalty(saved, penaltyAmount);
-        }
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setPaidAmount(penaltyFee); // Keep only penalty in escrow for platform
+        booking.setRefundAmount(refundAmount);
+        
+        Booking saved = bookingRepository.save(booking);
 
         return mapToResponse(saved);
     }
 
-    /**
-     * Phân chia tiền phạt khi khách hủy tour trễ: 80% bồi thường cho guide, 20% phí sàn.
-     */
-    private void distributePenalty(Booking booking, BigDecimal penaltyAmount) {
-        BigDecimal platformFee = penaltyAmount
-                .multiply(new BigDecimal("0.20"))
-                .setScale(0, java.math.RoundingMode.HALF_UP);
-        BigDecimal compensation = penaltyAmount.subtract(platformFee);
+    // Money distribution now handled by ScheduledTasks.java using payoutAt
 
-        // Credit guide wallet safely
-        User guide = booking.getTour().getGuide();
-        BigDecimal currentGuideBalance = guide.getBalance() != null ? guide.getBalance() : BigDecimal.ZERO;
-        guide.setBalance(currentGuideBalance.add(compensation));
-        userRepository.save(guide);
-
-        // Credit admin wallet (first ADMIN found)
-        List<User> admins = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN);
-        if (!admins.isEmpty()) {
-            User admin = admins.get(0);
-            BigDecimal currentAdminBalance = admin.getBalance() != null ? admin.getBalance() : BigDecimal.ZERO;
-            admin.setBalance(currentAdminBalance.add(platformFee));
-            userRepository.save(admin);
-            notificationService.sendNotification(admin.getId(),
-                    java.util.Map.of(
-                            "type", "COMMISSION_EARNED",
-                            "message", "Thu phí bồi thường (20%) từ tour bị hủy: " + booking.getTour().getTitle() + " — " + platformFee + " VND",
-                            "bookingId", booking.getId()));
-        }
-
-        // Log Commission transaction (Admin)
-        transactionRepository.save(Transaction.builder()
-                .booking(booking)
-                .user(admins.isEmpty() ? null : admins.get(0))
-                .amount(platformFee)
-                .type(TransactionType.COMMISSION)
-                .note("Phí dịch vụ từ tiền phạt hủy tour: " + booking.getTour().getTitle())
-                .build());
-
-        // Log Income transaction (Guide) - treated as compensation
-        transactionRepository.save(Transaction.builder()
-                .booking(booking)
-                .user(guide)
-                .amount(compensation)
-                .type(TransactionType.INCOME)
-                .note("Tiền bồi thường khách hủy tour: " + booking.getTour().getTitle())
-                .build());
-        
-        notificationService.sendNotification(guide.getId(),
-                java.util.Map.of(
-                        "type", "COMPENSATION_RECEIVED",
-                        "message", "Khách hủy tour " + booking.getTour().getTitle() + ", bạn được bồi thường " + compensation + " VND",
-                        "bookingId", booking.getId()));
-    }
+    // Payout and Penalty distribution logic moved to ScheduledTasks.java using payoutAt
 
     @Transactional
     public BookingResponse payDeposit(String bookingId) {
@@ -352,23 +334,19 @@ public class BookingService {
 
         booking.setPaidAmount(booking.getDepositAmount());
         booking.setStatus(BookingStatus.CONFIRMED);
+        // Set Payout time: Tour end time + 24 hours (Dispute window)
+        java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(booking.getTour().getEndDate(),
+                booking.getTour().getEndTime());
+        booking.setPayoutAt(endDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant()
+                .plus(24, java.time.temporal.ChronoUnit.HOURS));
+        
         Booking saved = bookingRepository.save(booking);
 
-        // Log Revenue Transaction
-        transactionRepository.save(Transaction.builder()
-                .booking(saved)
-                .user(booking.getUser())
-                .amount(booking.getDepositAmount())
-                .type(TransactionType.REVENUE)
-                .note("Thanh toán tiền cọc cho tour: " + booking.getTour().getTitle())
-                .build());
-
         // Notify Guide real-time
-        notificationService.sendNotification(booking.getTour().getGuide().getId(),
-                java.util.Map.of(
-                        "type", "PAYMENT_CONFIRMED",
-                        "message", "Khách hàng đã thanh toán cọc cho tour: " + booking.getTour().getTitle(),
-                        "bookingId", saved.getId()));
+        notificationService.sendNotification(booking.getTour().getGuide().getId(), 
+                "Thanh toán cọc mới", 
+                "Khách hàng đã thanh toán cọc cho tour: " + booking.getTour().getTitle(), 
+                "PAYMENT_CONFIRMED");
 
         return mapToResponse(saved);
     }
@@ -390,19 +368,27 @@ public class BookingService {
         }
         booking.setPaidAmount(booking.getDepositAmount());
         booking.setStatus(BookingStatus.CONFIRMED);
+        
+        // Set Payout time: Tour end time + 24 hours (Dispute window)
+        java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(booking.getTour().getEndDate(),
+                booking.getTour().getEndTime());
+        booking.setPayoutAt(endDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant()
+                .plus(24, java.time.temporal.ChronoUnit.HOURS));
+
         Booking saved = bookingRepository.save(booking);
+        // Log REVENUE to Admin (Platform intermediary)
+        User admin = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN).get(0);
         transactionRepository.save(Transaction.builder()
                 .booking(saved)
-                .user(booking.getUser())
+                .user(admin)
                 .amount(booking.getDepositAmount())
                 .type(TransactionType.REVENUE)
                 .note("Thanh toán tiền cọc cho tour: " + booking.getTour().getTitle())
                 .build());
-        notificationService.sendNotification(booking.getTour().getGuide().getId(),
-                java.util.Map.of(
-                        "type", "PAYMENT_CONFIRMED",
-                        "message", "Khách hàng đã thanh toán cọc cho tour: " + booking.getTour().getTitle(),
-                        "bookingId", saved.getId()));
+        notificationService.sendNotification(booking.getTour().getGuide().getId(), 
+                "Thanh toán cọc mới", 
+                "Khách hàng đã thanh toán cọc cho tour: " + booking.getTour().getTitle(), 
+                "PAYMENT_CONFIRMED");
     }
 
     @Transactional
@@ -419,19 +405,19 @@ public class BookingService {
         booking.setPaidAmount(booking.getTotalPrice());
         booking.setStatus(BookingStatus.PAID_FULL);
         Booking saved = bookingRepository.save(booking);
-        // Log REVENUE: money received by platform, held until tour completion
+        // Log REVENUE to Admin (Platform intermediary)
+        User admin = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN).get(0);
         transactionRepository.save(Transaction.builder()
                 .booking(saved)
-                .user(booking.getUser())
+                .user(admin)
                 .amount(payAmount)
                 .type(TransactionType.REVENUE)
                 .note("Thanh toán nốt số tiền còn lại cho tour: " + booking.getTour().getTitle())
                 .build());
-        notificationService.sendNotification(booking.getTour().getGuide().getId(),
-                java.util.Map.of(
-                        "type", "PAYMENT_COMPLETED",
-                        "message", "Khách hàng đã thanh toán đủ 100% cho tour: " + booking.getTour().getTitle(),
-                        "bookingId", saved.getId()));
+        notificationService.sendNotification(booking.getTour().getGuide().getId(), 
+                "Thanh toán hoàn tất", 
+                "Khách hàng đã thanh toán đủ 100% cho tour: " + booking.getTour().getTitle(), 
+                "PAYMENT_COMPLETED");
     }
 
     @Transactional
@@ -453,74 +439,25 @@ public class BookingService {
         booking.setStatus(BookingStatus.PAID_FULL);
         Booking saved = bookingRepository.save(booking);
 
-        // Log REVENUE: money received by platform, held until tour completion
+        // Log REVENUE to Admin (Platform intermediary)
+        User admin = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN).get(0);
         transactionRepository.save(Transaction.builder()
                 .booking(saved)
-                .user(booking.getUser())
+                .user(admin)
                 .amount(payAmount)
                 .type(TransactionType.REVENUE)
                 .note("Thanh toán nốt số tiền còn lại cho tour: " + booking.getTour().getTitle())
                 .build());
 
         // Notify Guide real-time
-        notificationService.sendNotification(booking.getTour().getGuide().getId(),
-                java.util.Map.of(
-                        "type", "PAYMENT_COMPLETED",
-                        "message", "Khách hàng đã thanh toán đủ 100% cho tour: " + booking.getTour().getTitle(),
-                        "bookingId", saved.getId()));
+        notificationService.sendNotification(booking.getTour().getGuide().getId(), 
+                "Thanh toán hoàn tất", 
+                "Khách hàng đã thanh toán đủ 100% cho tour: " + booking.getTour().getTitle(), 
+                "PAYMENT_COMPLETED");
 
         return mapToResponse(saved);
     }
 
-    /**
-     * Phân chia 80% tiền thực nhận vào ví guide,
-     * ghi nhận 20% commission cho admin và log transactions.
-     */
-    private void distributePayment(Booking booking, BigDecimal totalAmount) {
-        BigDecimal platformFee = totalAmount
-                .multiply(new BigDecimal("0.20"))
-                .setScale(0, java.math.RoundingMode.HALF_UP);
-        BigDecimal guideEarnings = totalAmount.subtract(platformFee);
-
-        // Credit guide wallet safely (handle null balance for existing users)
-        User guide = booking.getTour().getGuide();
-        BigDecimal currentGuideBalance = guide.getBalance() != null ? guide.getBalance() : BigDecimal.ZERO;
-        guide.setBalance(currentGuideBalance.add(guideEarnings));
-        userRepository.save(guide);
-
-        // Credit admin wallet (first ADMIN found)
-        List<User> admins = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN);
-        if (!admins.isEmpty()) {
-            User admin = admins.get(0);
-            BigDecimal currentAdminBalance = admin.getBalance() != null ? admin.getBalance() : BigDecimal.ZERO;
-            admin.setBalance(currentAdminBalance.add(platformFee));
-            userRepository.save(admin);
-            notificationService.sendNotification(admin.getId(),
-                    java.util.Map.of(
-                            "type", "COMMISSION_EARNED",
-                            "message",
-                            "Thu phí 20% từ tour: " + booking.getTour().getTitle() + " — " + platformFee + " VND",
-                            "bookingId", booking.getId()));
-        }
-
-        // Log Commission transaction (Admin)
-        transactionRepository.save(Transaction.builder()
-                .booking(booking)
-                .user(admins.isEmpty() ? null : admins.get(0))
-                .amount(platformFee)
-                .type(TransactionType.COMMISSION)
-                .note("Phí dịch vụ sàn (20%) từ tour: " + booking.getTour().getTitle())
-                .build());
-
-        // Log Income transaction (Guide)
-        transactionRepository.save(Transaction.builder()
-                .booking(booking)
-                .user(guide)
-                .amount(guideEarnings)
-                .type(TransactionType.INCOME)
-                .note("Tiền thực nhận từ tour: " + booking.getTour().getTitle() + " (sau khi trừ phí 20%)")
-                .build());
-    }
 
     @Transactional
     public BookingResponse completeTour(String bookingId) {
@@ -553,17 +490,22 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.COMPLETED);
+        
+        // Ensure payoutAt is set (24h after tour end) if not already set
+        if (booking.getPayoutAt() == null) {
+            java.time.LocalDateTime endTime = java.time.LocalDateTime.of(booking.getBookingDate(), 
+                booking.getTour().getEndTime() != null ? booking.getTour().getEndTime() : java.time.LocalTime.of(23, 59));
+            booking.setPayoutAt(endTime.atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toInstant()
+                .plus(24, java.time.temporal.ChronoUnit.HOURS));
+        }
+
         Booking saved = bookingRepository.save(booking);
 
-        // Distribute 80% to guide wallet, 20% commission to admin
-        distributePayment(saved, booking.getTotalPrice());
-
         // Notify Customer real-time
-        notificationService.sendNotification(booking.getUser().getId(),
-                java.util.Map.of(
-                        "type", "TOUR_COMPLETED",
-                        "message", "Tour " + booking.getTour().getTitle() + " đã hoàn thành. Cảm ơn bạn!",
-                        "bookingId", saved.getId()));
+        notificationService.sendNotification(booking.getUser().getId(), 
+                "Tour đã hoàn thành", 
+                "Tour " + booking.getTour().getTitle() + " đã hoàn thành. Cảm ơn bạn!", 
+                "TOUR_COMPLETED");
 
         return mapToResponse(saved);
     }
@@ -581,23 +523,18 @@ public class BookingService {
         }
 
         booking.setStatus(BookingStatus.COMPLETED);
-        Booking saved = bookingRepository.save(booking);
-
-        // Distribute 80% to guide wallet, 20% commission to admin
-        distributePayment(saved, booking.getTotalPrice());
+        bookingRepository.save(booking);
 
         // Notify Customer and Guide
-        notificationService.sendNotification(booking.getUser().getId(),
-                java.util.Map.of(
-                        "type", "TOUR_COMPLETED",
-                        "message", "Tour " + booking.getTour().getTitle() + " đã tự động hoàn thành. Đừng quên đánh giá nhé!",
-                        "bookingId", saved.getId()));
+        notificationService.sendNotification(booking.getUser().getId(), 
+                "Tour tự động hoàn thành", 
+                "Tour " + booking.getTour().getTitle() + " đã tự động hoàn thành. Đừng quên đánh giá nhé!", 
+                "TOUR_COMPLETED");
 
-        notificationService.sendNotification(booking.getTour().getGuide().getId(),
-                java.util.Map.of(
-                        "type", "TOUR_COMPLETED",
-                        "message", "Tour " + booking.getTour().getTitle() + " đã tự động chuyển sang hoàn thành.",
-                        "bookingId", saved.getId()));
+        notificationService.sendNotification(booking.getTour().getGuide().getId(), 
+                "Tour tự động hoàn thành", 
+                "Tour " + booking.getTour().getTitle() + " đã tự động chuyển sang hoàn thành.", 
+                "TOUR_COMPLETED");
     }
 
     /**
@@ -644,12 +581,182 @@ public class BookingService {
                     .build());
 
             notificationService.sendNotification(target.getId(),
-                    java.util.Map.of(
-                            "type", "REFUND_RECEIVED",
-                            "message", "Bạn được hoàn " + refund + " VND vào ví do Admin xử lý sự cố tour: " + booking.getTour().getTitle(),
-                            "bookingId", saved.getId()));
+                    "Hoàn tiền từ Admin", 
+                    "Bạn được hoàn " + refund + " VND vào ví do Admin xử lý sự cố tour: " + booking.getTour().getTitle(), 
+                    "REFUND_RECEIVED");
         }
 
         return mapToResponse(saved);
+    }
+
+    @Transactional
+    public BookingResponse fileDispute(String bookingId, String reason, List<MultipartFile> files) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (!booking.getUser().getEmail().equals(email)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (booking.getStatus() != BookingStatus.COMPLETED && booking.getStatus() != BookingStatus.PAID_FULL) {
+            throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
+        }
+
+        if (booking.isDisputed()) {
+            throw new AppException(ErrorCode.ALREADY_DISPUTED);
+        }
+
+        // Verify timing: must be before payoutAt
+        if (Instant.now().isAfter(booking.getPayoutAt())) {
+            throw new AppException(ErrorCode.DISPUTE_WINDOW_EXPIRED);
+        }
+
+        booking.setDisputed(true);
+        booking.setDisputeReason(reason);
+        
+        if (files != null && !files.isEmpty()) {
+            List<String> paths = new java.util.ArrayList<>();
+            for (MultipartFile file : files) {
+                if (file != null && !file.isEmpty()) {
+                    String evidencePath = storageService.saveFile(file, "disputes/" + booking.getId());
+                    paths.add(evidencePath);
+                }
+            }
+            if (!paths.isEmpty()) {
+                booking.setDisputeEvidenceUrl(String.join(";", paths));
+            }
+        }
+        
+        booking.setDisputedAt(Instant.now());
+        
+        notificationService.sendNotification(booking.getTour().getGuide().getId(),
+                "Khiếu nại mới từ khách hàng",
+                "Đơn hàng " + booking.getBookingCode() + " bị khiếu nại. Thanh toán đang bị tạm dừng để Admin kiểm tra.",
+                "BOOKING_DISPUTED");
+
+        // Notify Admins
+        List<User> admins = userRepository.findAllByRoleName(RoleName.ADMIN);
+        for (User admin : admins) {
+            notificationService.sendNotification(admin.getId(), 
+                "Khiếu nại mới cần xử lý", 
+                "Khách hàng đã gửi khiếu nại cho tour: " + booking.getTour().getTitle(), 
+                "NEW_DISPUTE");
+        }
+
+        return mapToResponse(bookingRepository.save(booking));
+    }
+
+    public List<BookingResponse> getDisputedBookings() {
+        return bookingRepository.findAllByIsDisputedTrue().stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Transactional
+    public BookingResponse resolveDispute(String id, String action, int refundPercentage, String adminNote) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+
+        if (!booking.isDisputed()) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+
+        if ("RELEASE".equalsIgnoreCase(action)) {
+            // Admin favors Guide: Un-freeze
+            booking.setDisputed(false);
+            
+            notificationService.sendNotification(booking.getUser().getId(),
+                    "Phán quyết khiếu nại",
+                    "Khiếu nại đơn hàng " + booking.getBookingCode() + " của bạn đã được Admin bác bỏ sau khi xem xét bằng chứng." 
+                        + (adminNote != null && !adminNote.isEmpty() ? " Ghi chú: " + adminNote : ""),
+                    "DISPUTE_REJECTED");
+                    
+            notificationService.sendNotification(booking.getTour().getGuide().getId(),
+                    "Khiếu nại đã được bác bỏ",
+                    "Chúc mừng! Khiếu nại đơn hàng " + booking.getBookingCode() + " đã được Admin bác bỏ. Bạn sẽ nhận được thanh toán sớm.",
+                    "DISPUTE_RESOLVED_RELEASE");
+        } else if ("REFUND".equalsIgnoreCase(action)) {
+            // Validate percentage
+            if (refundPercentage < 1 || refundPercentage > 100) {
+                refundPercentage = 100;
+            }
+            
+            BigDecimal refundAmount = booking.getPaidAmount()
+                    .multiply(BigDecimal.valueOf(refundPercentage))
+                    .divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP);
+            
+            User user = booking.getUser();
+            user.setBalance((user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO).add(refundAmount));
+            userRepository.save(user);
+
+            String txNote = "Hoàn tiền " + refundPercentage + "% từ phán quyết khiếu nại: " + booking.getBookingCode();
+            if (adminNote != null && !adminNote.isEmpty()) {
+                txNote += " — " + adminNote;
+            }
+
+            transactionRepository.save(Transaction.builder()
+                    .booking(booking)
+                    .user(user)
+                    .amount(refundAmount)
+                    .type(TransactionType.REFUND)
+                    .note(txNote)
+                    .build());
+
+            booking.setDisputed(false);
+            booking.setPaidOut(true); // Closed
+            booking.setRefundAmount(refundAmount);
+            
+            // DISBURSE REMAINING TO GUIDE IMMEDIATELY
+            BigDecimal remainingAmount = booking.getPaidAmount().subtract(refundAmount);
+            if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal guideIncome = remainingAmount.multiply(BigDecimal.valueOf(0.8))
+                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                
+                User guide = booking.getTour().getGuide();
+                guide.setBalance((guide.getBalance() != null ? guide.getBalance() : BigDecimal.ZERO).add(guideIncome));
+                userRepository.save(guide);
+
+                transactionRepository.save(Transaction.builder()
+                        .booking(booking)
+                        .user(guide)
+                        .amount(guideIncome)
+                        .type(TransactionType.INCOME)
+                        .note("Thanh toán 80% số tiền còn lại sau khi bồi hoàn " + refundPercentage + "% cho khách: " + (booking.getBookingCode() != null ? booking.getBookingCode() : booking.getId()))
+                        .build());
+
+                // DISBURSE PLATFORM FEE (20%) TO ADMIN
+                BigDecimal platformFee = remainingAmount.subtract(guideIncome);
+                if (platformFee.compareTo(BigDecimal.ZERO) > 0) {
+                    List<User> admins = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN);
+                    if (!admins.isEmpty()) {
+                        User admin = admins.get(0);
+                        admin.setBalance((admin.getBalance() != null ? admin.getBalance() : BigDecimal.ZERO).add(platformFee));
+                        userRepository.save(admin);
+
+                        transactionRepository.save(Transaction.builder()
+                                .booking(booking)
+                                .user(admin)
+                                .amount(platformFee)
+                                .type(TransactionType.COMMISSION)
+                                .note("Thu phí sàn (20% của phần còn lại) từ tour: " + (booking.getBookingCode() != null ? booking.getBookingCode() : booking.getTour().getTitle()))
+                                .build());
+                    }
+                }
+            }
+
+            notificationService.sendNotification(user.getId(),
+                    "Bồi hoàn thành công",
+                    "Bạn đã được hoàn " + refundPercentage + "% (" + refundAmount + " VND) cho đơn hàng " + (booking.getBookingCode() != null ? booking.getBookingCode() : booking.getTour().getTitle()) + " theo phán quyết của Admin."
+                        + (adminNote != null && !adminNote.isEmpty() ? " Lý do: " + adminNote : ""),
+                    "DISPUTE_RESOLVED_REFUND");
+                    
+            notificationService.sendNotification(booking.getTour().getGuide().getId(),
+                    "Kết quả phân xử khiếu nại",
+                    "Khiếu nại đơn hàng " + (booking.getBookingCode() != null ? booking.getBookingCode() : booking.getTour().getTitle()) + " đã được chấp thuận. Hệ thống đã hoàn " + refundPercentage + "% cho khách hàng. Số tiền còn lại đã được cộng vào ví của bạn.",
+                    "DISPUTE_RESOLVED_REFUND_GUIDE");
+        }
+
+        return mapToResponse(bookingRepository.save(booking));
     }
 }

@@ -4,8 +4,11 @@ import com.mtritran.travelplatform.enums.Gender;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
@@ -26,7 +29,7 @@ public class User {
     @Column(unique = true, nullable = false)
     String email;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true)
     String phone;
 
     @Column(nullable = false)
@@ -39,6 +42,9 @@ public class User {
 
     @Column(nullable = false)
     String password;
+
+    @Column(name = "payment_pin")
+    String paymentPin;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
@@ -56,4 +62,20 @@ public class User {
     Integer yearsOfExperience;
 
     String specialties;
+
+    @Builder.Default
+    Integer penaltyPoints = 0;
+
+    @Builder.Default
+    Integer cancellationCount = 0;
+
+    Instant guideBannedUntil;
+
+    String avatarUrl;
+
+    @CreationTimestamp
+    Instant createdAt;
+
+    @UpdateTimestamp
+    Instant updatedAt;
 }

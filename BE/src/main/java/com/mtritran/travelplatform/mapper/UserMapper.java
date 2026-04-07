@@ -17,5 +17,6 @@ public interface UserMapper {
     @org.mapstruct.Mapping(target = "password", ignore = true)
     void updateUser(@MappingTarget User user, UserUpdateRequest request);
 
+    @org.mapstruct.Mapping(target = "hasPaymentPin", expression = "java(user.getPaymentPin() != null)")
     UserResponse toResponse(User user);
 }

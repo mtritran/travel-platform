@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import com.mtritran.travelplatform.entity.TourRequest;
 import com.mtritran.travelplatform.entity.User;
 import com.mtritran.travelplatform.enums.TourRequestStatus;
+import com.mtritran.travelplatform.enums.TourRequestPaymentStatus;
 import com.mtritran.travelplatform.exception.AppException;
 import com.mtritran.travelplatform.exception.ErrorCode;
 import com.mtritran.travelplatform.mapper.TourRequestMapper;
@@ -21,6 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import org.springframework.web.multipart.MultipartFile;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +35,9 @@ public class TourRequestService {
     LocationRepository locationRepository;
     TourRequestMapper tourRequestMapper;
     NotificationService notificationService;
+    final com.mtritran.travelplatform.repository.TransactionRepository transactionRepository;
+    final PenaltyService penaltyService;
+    final StorageService storageService;
 
     public TourRequestResponse createRequest(TourRequestCreateRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -65,7 +71,7 @@ public class TourRequestService {
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .depositPercentage(request.getDepositPercentage() != null ? request.getDepositPercentage() : java.math.BigDecimal.valueOf(30))
-                .paymentStatus("PENDING")
+                .paymentStatus(TourRequestPaymentStatus.PENDING)
                 .build();
 
         TourRequest saved = tourRequestRepository.save(tourRequest);
@@ -91,6 +97,7 @@ public class TourRequestService {
         // Populate guide info if matched or pending
         if (tourRequest.getGuide() != null) {
             response.setGuideName(tourRequest.getGuide().getFullName());
+            response.setGuideAvatarUrl(tourRequest.getGuide().getAvatarUrl());
             response.setGuideEmail(tourRequest.getGuide().getEmail());
             response.setGuidePhone(tourRequest.getGuide().getPhone());
         }
@@ -122,6 +129,7 @@ public class TourRequestService {
                 .id(interest.getId())
                 .guideId(interest.getGuide().getId())
                 .guideName(interest.getGuide().getFullName())
+                .guideAvatarUrl(interest.getGuide().getAvatarUrl())
                 .guideEmail(interest.getGuide().getEmail())
                 .guidePhone(interest.getGuide().getPhone())
                 .message(interest.getMessage())
@@ -177,6 +185,11 @@ public class TourRequestService {
             throw new AppException(ErrorCode.CANNOT_ACCEPT_OWN_REQUEST);
         }
 
+        // Penalty Check: Block banned guides
+        if (guide.getGuideBannedUntil() != null && guide.getGuideBannedUntil().isAfter(java.time.Instant.now())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED); // Or customize error: GUIDE_BANNED
+        }
+
         if (tourRequest.getStatus() != TourRequestStatus.OPEN) {
             throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
         }
@@ -195,11 +208,9 @@ public class TourRequestService {
 
         // Notify Customer
         notificationService.sendNotification(tourRequest.getUser().getId(), 
-            java.util.Map.of(
-                "type", "NEW_GUIDE_INTEREST", 
-                "message", "HDV " + guide.getFullName() + " quan tâm đến chuyến đi của bạn: " + tourRequest.getTitle(),
-                "requestId", tourRequest.getId()
-            ));
+                "Quan tâm mới", 
+                "HDV " + guide.getFullName() + " quan tâm đến chuyến đi của bạn: " + tourRequest.getTitle(), 
+                "NEW_GUIDE_INTEREST");
 
         return mapToResponse(tourRequest);
     }
@@ -226,11 +237,9 @@ public class TourRequestService {
 
         // Notify Guide real-time
         notificationService.sendNotification(guideId, 
-            java.util.Map.of(
-                "type", "TOUR_REQUEST_SELECTED", 
-                "message", "Bạn đã được chọn cho yêu cầu: " + tourRequest.getTitle() + ". Hãy xác nhận hoặc từ chối nhé!",
-                "requestId", saved.getId()
-            ));
+                "Bạn được chọn", 
+                "Bạn đã được chọn cho yêu cầu: " + tourRequest.getTitle() + ". Hãy xác nhận hoặc từ chối nhé!", 
+                "TOUR_REQUEST_SELECTED");
 
         return mapToResponse(saved);
     }
@@ -267,11 +276,9 @@ public class TourRequestService {
  
         // Notify Customer
         notificationService.sendNotification(tourRequest.getUser().getId(), 
-            java.util.Map.of(
-                "type", "TOUR_REQUEST_MATCHED", 
-                "message", "HDV " + guide.getFullName() + " đã xác nhận và đang chờ bạn thanh toán cho: " + tourRequest.getTitle(),
-                "requestId", saved.getId()
-            ));
+                "HDV đã xác nhận", 
+                "HDV " + guide.getFullName() + " đã xác nhận và đang chờ bạn thanh toán cho: " + tourRequest.getTitle(), 
+                "TOUR_REQUEST_MATCHED");
 
         return mapToResponse(saved);
     }
@@ -301,27 +308,24 @@ public class TourRequestService {
             userRepository.save(customer);
 
             // Notify Customer about refund
-            notificationService.sendNotification(customer.getId(), java.util.Map.of(
-                "type", "REFUND_PROCESSED",
-                "message", "Bạn đã nhận được hoàn tiền " + tourRequest.getPaidAmount() + " VND từ yêu cầu bị từ chối: " + tourRequest.getTitle(),
-                "requestId", tourRequest.getId()
-            ));
+            notificationService.sendNotification(customer.getId(), 
+                    "Hoàn tiền yêu cầu", 
+                    "Bạn đã nhận được hoàn tiền " + tourRequest.getPaidAmount() + " VND từ yêu cầu bị từ chối: " + tourRequest.getTitle(), 
+                    "REFUND_PROCESSED");
         }
 
         tourRequest.setStatus(TourRequestStatus.OPEN);
         tourRequest.setGuide(null);
         tourRequest.setPaidAmount(java.math.BigDecimal.ZERO);
-        tourRequest.setPaymentStatus("PENDING");
+        tourRequest.setPaymentStatus(TourRequestPaymentStatus.PENDING);
 
         TourRequest saved = tourRequestRepository.save(tourRequest);
 
         // Notify Customer about decline
         notificationService.sendNotification(tourRequest.getUser().getId(), 
-            java.util.Map.of(
-                "type", "TOUR_REQUEST_DECLINED", 
-                "message", "Tiếc quá, HDV " + guide.getFullName() + " hiện đang bận nên đã từ chối yêu cầu của bạn. Hệ thống đã mở lại tour và hoàn tiền (nếu có).",
-                "requestId", saved.getId()
-            ));
+                "Yêu cầu bị từ chối", 
+                "Tiếc quá, HDV " + guide.getFullName() + " hiện đang bận nên đã từ chối yêu cầu của bạn. Hệ thống đã mở lại tour và hoàn tiền (nếu có).", 
+                "TOUR_REQUEST_DECLINED");
 
         return mapToResponse(saved);
     }
@@ -339,22 +343,54 @@ public class TourRequestService {
              throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
-        // Refund if necessary
+        // Refund Logic with 80/20 rule if cancelled < 24h before tour
         if (tourRequest.getPaidAmount() != null && tourRequest.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
+            java.time.LocalDateTime tourStart = java.time.LocalDateTime.of(tourRequest.getPlannedDate(), 
+                    tourRequest.getStartTime() != null ? tourRequest.getStartTime() : java.time.LocalTime.of(0, 0));
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            
+            BigDecimal refundAmount;
+            BigDecimal platformFee = BigDecimal.ZERO;
+
+            java.time.Duration timeUntilTour = java.time.Duration.between(now, tourStart);
+            long hoursLeft = timeUntilTour.toHours();
+
+            if (hoursLeft >= 48) {
+                // Early cancellation (> 48h): 100% refund
+                refundAmount = tourRequest.getPaidAmount();
+            } else if (hoursLeft >= 24) {
+                // Mid cancellation (24-48h): 50% refund, 50% penalty
+                platformFee = tourRequest.getPaidAmount().multiply(new BigDecimal("0.50"))
+                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                refundAmount = tourRequest.getPaidAmount().subtract(platformFee);
+
+                user.setCancellationCount((user.getCancellationCount() != null ? user.getCancellationCount() : 0) + 1);
+                tourRequest.setPayoutAt(java.time.Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS));
+            } else {
+                // Late cancellation (< 24h): 0% refund, hold 24h for dispute window
+                platformFee = tourRequest.getPaidAmount();
+                refundAmount = BigDecimal.ZERO;
+
+                user.setCancellationCount((user.getCancellationCount() != null ? user.getCancellationCount() : 0) + 1);
+                tourRequest.setPayoutAt(java.time.Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS));
+            }
+
             BigDecimal currentBalance = user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO;
-            user.setBalance(currentBalance.add(tourRequest.getPaidAmount()));
+            user.setBalance(currentBalance.add(refundAmount));
             userRepository.save(user);
 
-            notificationService.sendNotification(user.getId(), java.util.Map.of(
-                "type", "REFUND_PROCESSED",
-                "message", "Hoàn tiền " + tourRequest.getPaidAmount() + " VND cho yêu cầu bị hủy: " + tourRequest.getTitle()
-            ));
+            notificationService.sendNotification(user.getId(), 
+                    "Cập nhật hoàn tiền", 
+                    "Bạn được hoàn " + refundAmount + " VND sau khi hủy yêu cầu (Phí hủy: " + platformFee + " VND)", 
+                    "REFUND_PROCESSED");
+            
+            tourRequest.setPaidAmount(platformFee); // Keep only what goes to platform in escrow
+            tourRequest.setRefundAmount(refundAmount);
         }
 
-        tourRequest.setStatus(TourRequestStatus.OPEN);
+        tourRequest.setStatus(TourRequestStatus.OPEN); // Or CANCELLED? User wants OPEN potentially to re-request
         tourRequest.setGuide(null);
-        tourRequest.setPaidAmount(BigDecimal.ZERO);
-        tourRequest.setPaymentStatus("PENDING");
+        tourRequest.setPaymentStatus(TourRequestPaymentStatus.CANCELLED);
         
         TourRequest saved = tourRequestRepository.save(tourRequest);
 
@@ -440,18 +476,23 @@ public class TourRequestService {
         userRepository.save(customer);
 
         tourRequest.setPaidAmount(deposit);
-        tourRequest.setPaymentStatus("PAID_DEPOSIT");
+        tourRequest.setPaymentStatus(TourRequestPaymentStatus.PAID_DEPOSIT);
         tourRequest.setStatus(TourRequestStatus.CONFIRMED);
+
+        // Set Payout time: Tour end time + 24 hours (Dispute window)
+        // Since TourRequestplannedDate is used as date and startTime as time
+        java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(tourRequest.getPlannedDate(),
+                tourRequest.getEndTime() != null ? tourRequest.getEndTime() : java.time.LocalTime.of(23, 59));
+        tourRequest.setPayoutAt(endDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant()
+                .plus(24, java.time.temporal.ChronoUnit.HOURS));
 
         TourRequest saved = tourRequestRepository.save(tourRequest);
 
         // Notify Guide
         notificationService.sendNotification(tourRequest.getGuide().getId(), 
-            java.util.Map.of(
-                "type", "TOUR_REQUEST_PAID", 
-                "message", "Khách hàng " + customer.getFullName() + " đã thanh toán cọc cho yêu cầu: " + tourRequest.getTitle(),
-                "requestId", saved.getId()
-            ));
+                "Khách đã đặt cọc", 
+                "Khách hàng " + customer.getFullName() + " đã thanh toán cọc cho yêu cầu: " + tourRequest.getTitle(), 
+                "TOUR_REQUEST_PAID");
 
         return mapToResponse(saved);
     }
@@ -469,7 +510,7 @@ public class TourRequestService {
              throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
-        if (tourRequest.getStatus() != TourRequestStatus.CONFIRMED || !"PAID_DEPOSIT".equals(tourRequest.getPaymentStatus())) {
+        if (tourRequest.getStatus() != TourRequestStatus.CONFIRMED || tourRequest.getPaymentStatus() != TourRequestPaymentStatus.PAID_DEPOSIT) {
              throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
         }
 
@@ -487,7 +528,7 @@ public class TourRequestService {
         userRepository.save(customer);
 
         tourRequest.setPaidAmount(budget);
-        tourRequest.setPaymentStatus("PAID_FULL");
+        tourRequest.setPaymentStatus(TourRequestPaymentStatus.PAID_FULL);
 
         return mapToResponse(tourRequestRepository.save(tourRequest));
     }
@@ -497,19 +538,35 @@ public class TourRequestService {
         TourRequest tourReq = tourRequestRepository.findById(requestId)
                 .orElseThrow(() -> new AppException(ErrorCode.TOUR_REQUEST_NOT_FOUND));
 
-        tourReq.setPaidAmount(tourReq.getDepositAmount());
-        tourReq.setPaymentStatus("PAID_DEPOSIT");
+        BigDecimal deposit = tourReq.getDepositAmount() != null ? tourReq.getDepositAmount() : BigDecimal.ZERO;
+        tourReq.setPaidAmount(deposit);
+        tourReq.setPaymentStatus(TourRequestPaymentStatus.PAID_DEPOSIT);
         tourReq.setStatus(TourRequestStatus.CONFIRMED);
-        tourRequestRepository.save(tourReq);
+        
+        // Set Payout time
+        java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(tourReq.getPlannedDate(),
+                tourReq.getEndTime() != null ? tourReq.getEndTime() : java.time.LocalTime.of(23, 59));
+        tourReq.setPayoutAt(endDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant()
+                .plus(24, java.time.temporal.ChronoUnit.HOURS));
+
+        TourRequest saved = tourRequestRepository.save(tourReq);
+
+        // Log REVENUE to Admin (Platform intermediary)
+        User admin = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN).get(0);
+        transactionRepository.save(com.mtritran.travelplatform.entity.Transaction.builder()
+                .tourRequest(saved)
+                .user(admin)
+                .amount(deposit)
+                .type(com.mtritran.travelplatform.enums.TransactionType.REVENUE)
+                .note("Thanh toán tiền cọc cho yêu cầu: " + tourReq.getTitle())
+                .build());
 
         // Notify Guide
         if (tourReq.getGuide() != null) {
             notificationService.sendNotification(tourReq.getGuide().getId(), 
-                java.util.Map.of(
-                    "type", "TOUR_REQUEST_PAID", 
-                    "message", "Khách hàng " + tourReq.getUser().getFullName() + " đã thanh toán cọc cho yêu cầu: " + tourReq.getTitle(),
-                    "requestId", tourReq.getId()
-                ));
+                    "Khách đã đặt cọc", 
+                    "Khách hàng " + tourReq.getUser().getFullName() + " đã thanh toán cọc cho yêu cầu: " + tourReq.getTitle(), 
+                    "TOUR_REQUEST_PAID");
         }
     }
 
@@ -518,9 +575,23 @@ public class TourRequestService {
         TourRequest tourReq = tourRequestRepository.findById(requestId)
                 .orElseThrow(() -> new AppException(ErrorCode.TOUR_REQUEST_NOT_FOUND));
 
-        tourReq.setPaidAmount(tourReq.getBudget());
-        tourReq.setPaymentStatus("PAID_FULL");
-        tourRequestRepository.save(tourReq);
+        BigDecimal budget = tourReq.getBudget() != null ? tourReq.getBudget() : BigDecimal.ZERO;
+        BigDecimal paidBefore = tourReq.getPaidAmount() != null ? tourReq.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal payAmount = budget.subtract(paidBefore);
+
+        tourReq.setPaidAmount(budget);
+        tourReq.setPaymentStatus(TourRequestPaymentStatus.PAID_FULL);
+        TourRequest saved = tourRequestRepository.save(tourReq);
+
+        // Log REVENUE to Admin (Platform intermediary)
+        User admin = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN).get(0);
+        transactionRepository.save(com.mtritran.travelplatform.entity.Transaction.builder()
+                .tourRequest(saved)
+                .user(admin)
+                .amount(payAmount)
+                .type(com.mtritran.travelplatform.enums.TransactionType.REVENUE)
+                .note("Thanh toán nốt số tiền còn lại cho yêu cầu: " + tourReq.getTitle())
+                .build());
     }
 
     @Transactional
@@ -536,7 +607,7 @@ public class TourRequestService {
              throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
-        if (tourRequest.getStatus() != TourRequestStatus.CONFIRMED || !"PAID_FULL".equals(tourRequest.getPaymentStatus())) {
+        if (tourRequest.getStatus() != TourRequestStatus.CONFIRMED || tourRequest.getPaymentStatus() != TourRequestPaymentStatus.PAID_FULL) {
              throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
         }
 
@@ -548,12 +619,9 @@ public class TourRequestService {
         }
 
         tourRequest.setStatus(TourRequestStatus.COMPLETED);
-        
-        // Add funds to guide
-        guide.setBalance(guide.getBalance().add(tourRequest.getBudget()));
-        userRepository.save(guide);
+        TourRequest saved = tourRequestRepository.save(tourRequest);
 
-        return mapToResponse(tourRequestRepository.save(tourRequest));
+        return mapToResponse(saved);
     }
 
     @Transactional
@@ -587,5 +655,179 @@ public class TourRequestService {
     public TourRequestResponse acceptRequest(String requestId) {
         // Obsolete
         return null;
+    }
+
+    @Transactional
+    public TourRequestResponse fileDispute(String requestId, String reason, List<MultipartFile> files) {
+        TourRequest tourRequest = tourRequestRepository.findById(requestId)
+                .orElseThrow(() -> new AppException(ErrorCode.TOUR_REQUEST_NOT_FOUND));
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (!tourRequest.getUser().getEmail().equals(email)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (tourRequest.getStatus() != TourRequestStatus.COMPLETED && tourRequest.getPaymentStatus() != TourRequestPaymentStatus.PAID_FULL) {
+            throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
+        }
+
+        if (tourRequest.isDisputed()) {
+            throw new AppException(ErrorCode.ALREADY_DISPUTED);
+        }
+
+        // Verify timing: must be before payoutAt
+        if (Instant.now().isAfter(tourRequest.getPayoutAt())) {
+            throw new AppException(ErrorCode.DISPUTE_WINDOW_EXPIRED);
+        }
+
+        tourRequest.setDisputed(true);
+        tourRequest.setDisputeReason(reason);
+        
+        // Similar evidence handling as BookingService
+        if (files != null && !files.isEmpty()) {
+            // Placeholder: actually saving evidence url if desired
+            // Using same logic as BookingService if evidence storage is needed
+            // For now, simple text reason is usually enough but we can add paths
+            List<String> paths = new java.util.ArrayList<>();
+            for (MultipartFile file : files) {
+                if (file != null && !file.isEmpty()) {
+                    String evidencePath = storageService.saveFile(file, "disputes/req_" + tourRequest.getId());
+                    paths.add(evidencePath);
+                }
+            }
+            if (!paths.isEmpty()) {
+                tourRequest.setDisputeEvidenceUrl(String.join(";", paths));
+            }
+        }
+        
+        tourRequest.setDisputedAt(Instant.now());
+        
+        notificationService.sendNotification(tourRequest.getGuide().getId(),
+                "Khiếu nại mới từ khách hàng",
+                "Yêu cầu " + tourRequest.getRequestCode() + " bị khiếu nại. Thanh toán đang bị tạm dừng để Admin kiểm tra.",
+                "TOUR_REQUEST_DISPUTED");
+
+        // Notify Admins
+        List<User> admins = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN);
+        for (User admin : admins) {
+            notificationService.sendNotification(admin.getId(), 
+                "Khiếu nại mới cần xử lý (Custom)", 
+                "Khách hàng đã gửi khiếu nại cho yêu cầu: " + tourRequest.getTitle(), 
+                "NEW_DISPUTE");
+        }
+
+        return mapToResponse(tourRequestRepository.save(tourRequest));
+    }
+
+    public List<TourRequestResponse> getDisputedTourRequests() {
+        return tourRequestRepository.findAllByIsDisputedTrue().stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Transactional
+    public TourRequestResponse resolveDispute(String id, String action, int refundPercentage, String adminNote) {
+        TourRequest tourRequest = tourRequestRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.TOUR_REQUEST_NOT_FOUND));
+
+        if (!tourRequest.isDisputed()) {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+
+        if ("RELEASE".equalsIgnoreCase(action)) {
+            // Admin favors Guide: Un-freeze
+            tourRequest.setDisputed(false);
+            
+            notificationService.sendNotification(tourRequest.getUser().getId(),
+                    "Phán quyết khiếu nại (Custom)",
+                    "Khiếu nại yêu cầu " + tourRequest.getRequestCode() + " của bạn đã được Admin bác bỏ."
+                        + (adminNote != null && !adminNote.isEmpty() ? " Ghi chú: " + adminNote : ""),
+                    "DISPUTE_REJECTED");
+                    
+            notificationService.sendNotification(tourRequest.getGuide().getId(),
+                    "Khiếu nại đã được bác bỏ (Custom)",
+                    "Chúc mừng! Khiếu nại yêu cầu " + tourRequest.getRequestCode() + " đã được Admin bác bỏ. Bạn sẽ nhận được thanh toán sớm.",
+                    "DISPUTE_RESOLVED_RELEASE");
+        } else if ("REFUND".equalsIgnoreCase(action)) {
+            if (refundPercentage < 1 || refundPercentage > 100) {
+                refundPercentage = 100;
+            }
+            
+            BigDecimal refundAmount = tourRequest.getPaidAmount()
+                    .multiply(BigDecimal.valueOf(refundPercentage))
+                    .divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP);
+            
+            User user = tourRequest.getUser();
+            user.setBalance((user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO).add(refundAmount));
+            userRepository.save(user);
+
+            String txNote = "Hoàn tiền " + refundPercentage + "% từ phán quyết khiếu nại (Custom): " + tourRequest.getRequestCode();
+            if (adminNote != null && !adminNote.isEmpty()) {
+                txNote += " — " + adminNote;
+            }
+
+            transactionRepository.save(com.mtritran.travelplatform.entity.Transaction.builder()
+                    .tourRequest(tourRequest)
+                    .user(user)
+                    .amount(refundAmount)
+                    .type(com.mtritran.travelplatform.enums.TransactionType.REFUND)
+                    .note(txNote)
+                    .build());
+
+            tourRequest.setDisputed(false);
+            tourRequest.setPaidOut(true); 
+            tourRequest.setRefundAmount(refundAmount);
+            
+            // DISBURSE REMAINING TO GUIDE IMMEDIATELY
+            BigDecimal remainingAmount = tourRequest.getPaidAmount().subtract(refundAmount);
+            if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal guideIncome = remainingAmount.multiply(BigDecimal.valueOf(0.8))
+                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                
+                User guide = tourRequest.getGuide();
+                guide.setBalance((guide.getBalance() != null ? guide.getBalance() : BigDecimal.ZERO).add(guideIncome));
+                userRepository.save(guide);
+
+                transactionRepository.save(com.mtritran.travelplatform.entity.Transaction.builder()
+                        .tourRequest(tourRequest)
+                        .user(guide)
+                        .amount(guideIncome)
+                        .type(com.mtritran.travelplatform.enums.TransactionType.INCOME)
+                        .note("Thanh toán 80% số tiền còn lại sau khi bồi hoàn " + refundPercentage + "% cho khách (Custom): " + (tourRequest.getRequestCode() != null ? tourRequest.getRequestCode() : tourRequest.getId()))
+                        .build());
+
+                // DISBURSE PLATFORM FEE (20%) TO ADMIN
+                BigDecimal platformFee = remainingAmount.subtract(guideIncome);
+                if (platformFee.compareTo(BigDecimal.ZERO) > 0) {
+                    List<User> admins = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN);
+                    if (!admins.isEmpty()) {
+                        User admin = admins.get(0);
+                        admin.setBalance((admin.getBalance() != null ? admin.getBalance() : BigDecimal.ZERO).add(platformFee));
+                        userRepository.save(admin);
+
+                        transactionRepository.save(com.mtritran.travelplatform.entity.Transaction.builder()
+                                .tourRequest(tourRequest)
+                                .user(admin)
+                                .amount(platformFee)
+                                .type(com.mtritran.travelplatform.enums.TransactionType.COMMISSION)
+                                .note("Thu phí sàn (20% của phần còn lại) từ yêu cầu: " + (tourRequest.getRequestCode() != null ? tourRequest.getRequestCode() : tourRequest.getTitle()))
+                                .build());
+                    }
+                }
+            }
+
+            notificationService.sendNotification(user.getId(),
+                    "Bồi hoàn thành công (Custom)",
+                    "Bạn đã được hoàn " + refundPercentage + "% (" + refundAmount + " VND) cho yêu cầu " + (tourRequest.getRequestCode() != null ? tourRequest.getRequestCode() : tourRequest.getTitle()) + " theo phán quyết của Admin."
+                        + (adminNote != null && !adminNote.isEmpty() ? " Lý do: " + adminNote : ""),
+                    "DISPUTE_RESOLVED_REFUND");
+                    
+            notificationService.sendNotification(tourRequest.getGuide().getId(),
+                    "Kết quả phân xử khiếu nại (Custom)",
+                    "Khiếu nại yêu cầu " + (tourRequest.getRequestCode() != null ? tourRequest.getRequestCode() : tourRequest.getTitle()) + " đã được chấp thuận. Hệ thống đã hoàn " + refundPercentage + "% cho khách hàng. Số tiền còn lại đã được cộng vào ví của bạn.",
+                    "DISPUTE_RESOLVED_REFUND_GUIDE");
+        }
+
+        return mapToResponse(tourRequestRepository.save(tourRequest));
     }
 }

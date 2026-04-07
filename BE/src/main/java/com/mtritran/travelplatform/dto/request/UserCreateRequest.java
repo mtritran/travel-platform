@@ -20,8 +20,8 @@ public class UserCreateRequest {
     @NotBlank(message = "INVALID_EMAIL")
     String email;
 
-    @NotBlank(message = "INVALID_PHONE")
-    String phone;
+    @NotBlank(message = "Mã xác thực OTP không được để trống")
+    String otpCode;
 
     @NotBlank(message = "EMPTY_FULLNAME")
     @Size(min = 3, message = "INVALID_FULLNAME")

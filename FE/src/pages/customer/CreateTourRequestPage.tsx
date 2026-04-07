@@ -9,6 +9,8 @@ import { ENDPOINTS } from '../../constants/endpoints';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import LocationPicker from '../../components/common/LocationPicker';
 import type { TourRequest } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import IdentityUpgradeBanner from '../../components/common/IdentityUpgradeBanner';
 
 type EditableTourRequest = TourRequest & {
   latitude?: number;
@@ -85,6 +87,7 @@ const getInitialFormData = (editMode?: boolean, existingReq?: EditableTourReques
 };
 
 const CreateTourRequestPage: React.FC = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as { editMode?: boolean; request?: EditableTourRequest } | null;
@@ -291,28 +294,37 @@ const CreateTourRequestPage: React.FC = () => {
           </div>
         </section>
 
-        <div className="tour-request-stepper glass-panel">
-          {requestSteps.map((item) => {
-            const isActive = step === item.id;
-            const isDone = step > item.id;
+        {(!user?.phone || !user?.hasPaymentPin) ? (
+          <div style={{ marginTop: '40px' }}>
+            <IdentityUpgradeBanner 
+              title="Định danh để đăng yêu cầu"
+              message="Để đảm bảo an toàn và bảo mật thanh toán, vui lòng hoàn thiện Số điện thoại và Mã PIN trước khi đăng yêu cầu chuyến đi mới."
+            />
+          </div>
+        ) : (
+          <>
+            <div className="tour-request-stepper glass-panel">
+              {requestSteps.map((item) => {
+                const isActive = step === item.id;
+                const isDone = step > item.id;
 
-            return (
-              <div
-                key={item.id}
-                className={`tour-request-step ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`}
-              >
-                <span className="tour-request-step-index">{item.id}</span>
-                <div>
-                  <p className="tour-request-step-title">{item.title}</p>
-                  <p className="tour-request-step-meta">{item.meta}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                return (
+                  <div
+                    key={item.id}
+                    className={`tour-request-step ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`}
+                  >
+                    <span className="tour-request-step-index">{item.id}</span>
+                    <div>
+                      <p className="tour-request-step-title">{item.title}</p>
+                      <p className="tour-request-step-meta">{item.meta}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-        <div className="glass-panel tour-request-shell">
-          {step === 1 && (
+            <div className="glass-panel tour-request-shell">
+              {step === 1 && (
             <form className="tour-request-form">
               <section className="tour-request-section">
                 <div className="tour-request-section-head">
@@ -508,12 +520,13 @@ const CreateTourRequestPage: React.FC = () => {
                 <button
                   type="button"
                   className="btn-primary"
+                  disabled={!user?.phone || !user?.hasPaymentPin}
                   onClick={() => {
                     if (validateStep1()) setStep(2);
                     else alert('Vui lòng kiểm tra lại các trường đang báo lỗi.');
                   }}
                 >
-                  Tiếp tục: Chọn bản đồ
+                  {(!user?.phone || !user?.hasPaymentPin) ? 'Vui lòng nâng cấp định danh để tiếp tục' : 'Tiếp tục: Chọn bản đồ'}
                 </button>
               </div>
             </form>
@@ -638,8 +651,10 @@ const CreateTourRequestPage: React.FC = () => {
             </section>
           )}
         </div>
-      </div>
-    </DashboardLayout>
+      </>
+    ) }
+  </div>
+</DashboardLayout>
   );
 };
 

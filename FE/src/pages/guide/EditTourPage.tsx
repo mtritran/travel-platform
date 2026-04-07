@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   FileText, Image as ImageIcon, 
-  MapPin, CheckCircle2, Navigation, Calendar, Clock, Clock3
+  MapPin, CheckCircle2, Navigation, Calendar, Clock, Clock3, Users
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import { format, parse } from 'date-fns';
@@ -43,6 +43,32 @@ const EditTourPage: React.FC = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const toIsoDateString = (val: any) => {
+    if (Array.isArray(val)) {
+      const [y, m, d] = val;
+      return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+    return typeof val === 'string' ? val.split('T')[0] : '';
+  };
+
+  const toIsoTimeString = (val: any) => {
+    if (Array.isArray(val)) {
+      const [h, m] = val;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+    return typeof val === 'string' ? val.substring(0, 5) : '';
+  };
+
+  const safeParse = (val: string, fmt: string) => {
+    if (!val) return null;
+    try {
+      const d = parse(val, fmt, new Date());
+      return isNaN(d.getTime()) ? null : d;
+    } catch (e) {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const fetchTour = async () => {
       if (!id) return;
@@ -50,11 +76,11 @@ const EditTourPage: React.FC = () => {
         const response = await api.get<ApiResponse<Tour>>(ENDPOINTS.TOUR.GET_BY_ID(id));
         const tour = response.data.result;
         setFormData({
-          title: tour.title,
-          description: tour.description,
-          price: String(tour.price),
-          imageUrl: tour.imageUrl,
-          locationName: tour.locationName,
+          title: tour.title || '',
+          description: tour.description || '',
+          price: tour.price ? new Intl.NumberFormat('en-US').format(tour.price) : '0',
+          imageUrl: tour.imageUrl || '',
+          locationName: tour.locationName || '',
           address: tour.locationAddress || '',
           latitude: tour.latitude || 0,
           longitude: tour.longitude || 0,
@@ -62,10 +88,10 @@ const EditTourPage: React.FC = () => {
           meetingAddress: tour.meetingLocationAddress || '',
           meetingLatitude: tour.meetingLatitude || 0,
           meetingLongitude: tour.meetingLongitude || 0,
-          startDate: tour.startDate || '',
-          endDate: tour.endDate || '',
-          startTime: tour.startTime || '08:00',
-          endTime: tour.endTime || '12:00',
+          startDate: toIsoDateString(tour.startDate),
+          endDate: toIsoDateString(tour.endDate),
+          startTime: toIsoTimeString(tour.startTime) || '08:00',
+          endTime: toIsoTimeString(tour.endTime) || '12:00',
           maxGuests: String(tour.maxGuests || 1),
           depositPercentage: String(tour.depositPercentage || 30),
           bookingCutoffMinutes: String(tour.bookingCutoffMinutes || 60)
@@ -80,6 +106,20 @@ const EditTourPage: React.FC = () => {
     };
     fetchTour();
   }, [id, navigate]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    
+    if (name === 'price') {
+      const numericValue = value.replace(/\D/g, '');
+      const formattedValue = numericValue ? new Intl.NumberFormat('en-US').format(parseInt(numericValue)) : '';
+      setFormData(prev => ({ ...prev, price: formattedValue }));
+      validateField('price', numericValue);
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+      validateField(name, value);
+    }
+  };
 
   const validateField = (name: string, value: any) => {
     let error = '';
@@ -216,7 +256,7 @@ const EditTourPage: React.FC = () => {
         meetingLocationId,
         title: formData.title,
         description: formData.description,
-        price: Number(formData.price),
+        price: Number(formData.price.replace(/,/g, '')),
         imageUrl: formData.imageUrl,
         startDate: formData.startDate,
         endDate: formData.startDate, // Single day tour
@@ -267,17 +307,15 @@ const EditTourPage: React.FC = () => {
                 <div className="input-group">
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Tiêu đề Tour</label>
                   <div style={{ position: 'relative', width: '100%' }}>
-                    <FileText size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.7 }} />
+                    <FileText size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} />
                     <input 
                       type="text" 
+                      name="title"
                       className={errors.title ? 'error' : ''}
                       placeholder="Ví dụ: Khám phá Phố cổ Hội An về đêm" 
                       style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
                       value={formData.title}
-                      onChange={e => {
-                         setFormData({...formData, title: e.target.value});
-                         validateField('title', e.target.value);
-                      }}
+                      onChange={handleChange}
                     />
                   </div>
                   {errors.title && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px', fontWeight: 600 }}>{errors.title}</p>}
@@ -285,17 +323,15 @@ const EditTourPage: React.FC = () => {
                 <div className="input-group">
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giá tour (VND)</label>
                   <div style={{ position: 'relative', width: '100%' }}>
-                    <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: 'var(--primary)' }}>₫</span>
+                    <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: 'var(--primary)', opacity: 0.5 }}>₫</span>
                     <input 
-                      type="number" 
+                      type="text" 
+                      name="price"
                       className={errors.price ? 'error' : ''}
                       placeholder="500,000" 
                       style={{ padding: '16px 16px 16px 40px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1.1rem', fontWeight: 700 }} 
                       value={formData.price}
-                      onChange={e => {
-                         setFormData({...formData, price: e.target.value});
-                         validateField('price', e.target.value);
-                      }}
+                      onChange={handleChange}
                     />
                   </div>
                   {errors.price && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px', fontWeight: 600 }}>{errors.price}</p>}
@@ -306,9 +342,9 @@ const EditTourPage: React.FC = () => {
                 <div className="input-group">
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Ngày diễn ra Tour</label>
                   <div className="input-shell tour-request-picker-shell">
-                    <Calendar size={18} />
+                    <Calendar size={18} style={{ opacity: 0.5 }} />
                     <DatePicker
-                      selected={formData.startDate ? parse(formData.startDate, 'yyyy-MM-dd', new Date()) : null}
+                      selected={safeParse(formData.startDate, 'yyyy-MM-dd')}
                       onChange={(date: Date | null) => {
                         const val = date ? format(date, 'yyyy-MM-dd') : '';
                         setFormData({ ...formData, startDate: val });
@@ -324,19 +360,19 @@ const EditTourPage: React.FC = () => {
                 </div>
                 <div className="input-group">
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Số khách tối đa</label>
-                  <input 
-                    type="number" 
-                    min="1"
-                    className={errors.maxGuests ? 'error' : ''}
-                    placeholder="8" 
-                    style={{ padding: '16px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
-                    value={formData.maxGuests}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setFormData({...formData, maxGuests: val});
-                      validateField('maxGuests', val);
-                    }}
-                  />
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <Users size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} />
+                    <input 
+                      type="number" 
+                      name="maxGuests"
+                      min="1"
+                      className={errors.maxGuests ? 'error' : ''}
+                      placeholder="8" 
+                      style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
+                      value={formData.maxGuests}
+                      onChange={handleChange}
+                    />
+                  </div>
                   {errors.maxGuests && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.maxGuests}</p>}
                 </div>
               </div>
@@ -345,9 +381,9 @@ const EditTourPage: React.FC = () => {
                 <div className="input-group">
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giờ bắt đầu</label>
                   <div className="input-shell tour-request-picker-shell">
-                    <Clock3 size={18} />
+                    <Clock3 size={18} style={{ opacity: 0.5 }} />
                     <DatePicker
-                      selected={formData.startTime ? parse(formData.startTime, 'HH:mm', new Date()) : null}
+                      selected={safeParse(formData.startTime, 'HH:mm')}
                       onChange={(date: Date | null) => {
                         const val = date ? format(date, 'HH:mm') : '';
                         setFormData({ ...formData, startTime: val });
@@ -366,9 +402,9 @@ const EditTourPage: React.FC = () => {
                 <div className="input-group">
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giờ kết thúc</label>
                   <div className="input-shell tour-request-picker-shell">
-                    <Clock size={18} />
+                    <Clock size={18} style={{ opacity: 0.5 }} />
                     <DatePicker
-                      selected={formData.endTime ? parse(formData.endTime, 'HH:mm', new Date()) : null}
+                      selected={safeParse(formData.endTime, 'HH:mm')}
                       onChange={(date: Date | null) => {
                         const val = date ? format(date, 'HH:mm') : '';
                         setFormData({ ...formData, endTime: val });
@@ -389,16 +425,18 @@ const EditTourPage: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
                 <div className="input-group">
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Thời gian chuẩn bị tối thiểu (phút)</label>
-                  <input 
-                    type="number" 
-                    min="0"
-                    placeholder="60" 
-                    style={{ padding: '16px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
-                    value={formData.bookingCutoffMinutes}
-                    onChange={e => {
-                      setFormData({...formData, bookingCutoffMinutes: e.target.value});
-                    }}
-                  />
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <Clock3 size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} />
+                    <input 
+                      type="number" 
+                      name="bookingCutoffMinutes"
+                      min="0"
+                      placeholder="60" 
+                      style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
+                      value={formData.bookingCutoffMinutes}
+                      onChange={handleChange}
+                    />
+                  </div>
                   <p style={{ color: 'var(--text-soft)', fontSize: '0.8rem', marginTop: '6px' }}>Hệ thống sẽ đóng đặt chỗ trước giờ khởi hành X phút.</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', paddingTop: '20px' }}>
@@ -413,17 +451,15 @@ const EditTourPage: React.FC = () => {
               <div className="input-group">
                 <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Mô tả chuyến đi</label>
                 <div style={{ position: 'relative', width: '100%' }}>
-                  <FileText size={20} style={{ position: 'absolute', left: '16px', top: '18px', color: 'var(--primary)', opacity: 0.7 }} />
+                  <FileText size={20} style={{ position: 'absolute', left: '16px', top: '18px', color: 'var(--primary)', opacity: 0.5 }} />
                   <textarea 
                     rows={6} 
+                    name="description"
                     className={errors.description ? 'error' : ''}
                     placeholder="Bạn sẽ dẫn khách đi những đâu? Những điểm thú vị của tour này là gì?" 
                     style={{ padding: '16px 16px 16px 48px', width: '100%', resize: 'none', borderRadius: '20px', border: '2px solid var(--glass-border)', fontSize: '1rem', lineHeight: 1.6 }} 
                     value={formData.description}
-                    onChange={e => {
-                       setFormData({...formData, description: e.target.value});
-                       validateField('description', e.target.value);
-                    }}
+                    onChange={handleChange}
                   />
                 </div>
                 {errors.description && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.description}</p>}
@@ -432,16 +468,14 @@ const EditTourPage: React.FC = () => {
               <div className="input-group">
                 <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Hình ảnh minh họa (URL)</label>
                 <div style={{ position: 'relative', width: '100%' }}>
-                  <ImageIcon size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.7 }} />
+                  <ImageIcon size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} />
                   <input 
                     type="text" 
+                    name="imageUrl"
                     placeholder="Dán link ảnh tại đây..." 
                     style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
                     value={formData.imageUrl}
-                    onChange={e => {
-                      setFormData({...formData, imageUrl: e.target.value});
-                      validateField('imageUrl', e.target.value);
-                    }}
+                    onChange={handleChange}
                   />
                 </div>
                 {errors.imageUrl && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginTop: '6px' }}>{errors.imageUrl}</p>}

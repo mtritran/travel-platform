@@ -5,5 +5,6 @@ public enum TransactionType {
     COMMISSION,   // Sàn thu phí dịch vụ (20%) — ghi vào ví admin
     INCOME,       // Tiền Guide thực nhận được (80%) — ghi vào ví guide
     WITHDRAW,      // Guide rút tiền từ ví
-    REFUND        // Sàn hoàn tiền cho khách
+    REFUND,        // Sàn hoàn tiền cho khách
+    PENALTY       // Tiền phạt hoặc bồi thường (80/20)
 }
