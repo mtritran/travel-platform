@@ -5,19 +5,20 @@ import com.mtritran.travelplatform.dto.response.BookingResponse;
 import com.mtritran.travelplatform.entity.Booking;
 import com.mtritran.travelplatform.entity.Location;
 import com.mtritran.travelplatform.entity.Tour;
+import com.mtritran.travelplatform.entity.Transaction;
 import com.mtritran.travelplatform.entity.User;
 import com.mtritran.travelplatform.enums.BookingStatus;
+import com.mtritran.travelplatform.enums.RoleName;
+import com.mtritran.travelplatform.enums.TransactionType;
 import com.mtritran.travelplatform.exception.AppException;
 import com.mtritran.travelplatform.exception.ErrorCode;
 import com.mtritran.travelplatform.mapper.BookingMapper;
 import com.mtritran.travelplatform.repository.BookingRepository;
 import com.mtritran.travelplatform.repository.LocationRepository;
-import com.mtritran.travelplatform.repository.TourRepository;
-import com.mtritran.travelplatform.repository.UserRepository;
 import com.mtritran.travelplatform.repository.ReviewRepository;
 import com.mtritran.travelplatform.repository.TransactionRepository;
-import com.mtritran.travelplatform.entity.Transaction;
-import com.mtritran.travelplatform.enums.TransactionType;
+import com.mtritran.travelplatform.repository.UserRepository;
+import com.mtritran.travelplatform.repository.TourRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -28,12 +29,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
-
-import com.mtritran.travelplatform.enums.RoleName;
 
 @Service
 @RequiredArgsConstructor
@@ -78,9 +81,9 @@ public class BookingService {
         // Ensure payoutAt is provided for frontend dispute logic
         if (response.getPayoutAt() == null && booking.getTour().getEndDate() != null) {
             LocalDateTime endDateTime = LocalDateTime.of(booking.getTour().getEndDate(),
-                    booking.getTour().getEndTime() != null ? booking.getTour().getEndTime() : java.time.LocalTime.of(23, 59));
-            response.setPayoutAt(endDateTime.atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toInstant()
-                    .plus(24, java.time.temporal.ChronoUnit.HOURS));
+                    booking.getTour().getEndTime() != null ? booking.getTour().getEndTime() : LocalTime.of(23, 59));
+            response.setPayoutAt(endDateTime.atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toInstant()
+                    .plus(24, ChronoUnit.HOURS));
         }
         
         return response;
@@ -108,7 +111,7 @@ public class BookingService {
         ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
         LocalDateTime now = LocalDateTime.now(vnZone);
         // Use guide-defined cutoff minutes (defaulting to 60 if null)
-        Integer cutoff = tour.getBookingCutoffMinutes() != null ? tour.getBookingCutoffMinutes() : 60;
+        int cutoff = tour.getBookingCutoffMinutes() != null ? tour.getBookingCutoffMinutes() : 60;
         // Technical 5-minute buffer still applied under the hood
         LocalDateTime cutoffPoint = LocalDateTime.of(request.getBookingDate(), tour.getStartTime())
                 .minusMinutes(cutoff + 5);
@@ -125,7 +128,7 @@ public class BookingService {
 
         // Capacity check: count confirmed AND active reservations (within 10 mins)
         if (tour.getMaxGuests() != null) {
-            Instant expiryTime = Instant.now().minus(java.time.Duration.ofMinutes(10));
+            Instant expiryTime = Instant.now().minus(Duration.ofMinutes(10));
             Integer currentlyOccupied = bookingRepository.sumOccupiedSlots(tour.getId(),
                     request.getBookingDate(), tour.getStartTime(), expiryTime);
             if (currentlyOccupied == null)
@@ -238,9 +241,9 @@ public class BookingService {
             return mapToResponse(booking);
         }
 
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        java.time.LocalDateTime tourStart = java.time.LocalDateTime.of(booking.getTour().getStartDate(),
-                booking.getTour().getStartTime() != null ? booking.getTour().getStartTime() : java.time.LocalTime.of(0, 0));
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime tourStart = LocalDateTime.of(booking.getBookingDate(),
+                booking.getTour().getStartTime() != null ? booking.getTour().getStartTime() : LocalTime.of(0, 0));
 
         BigDecimal refundAmount = BigDecimal.ZERO;
         BigDecimal penaltyFee = BigDecimal.ZERO;
@@ -258,7 +261,7 @@ public class BookingService {
                     "BOOKING_CANCELLED");
         } else {
             // Customer cancels -> 3-tier refund policy per system report
-            java.time.Duration timeUntilTour = java.time.Duration.between(now, tourStart);
+            Duration timeUntilTour = Duration.between(now, tourStart);
             long hoursLeft = timeUntilTour.toHours();
 
             if (hoursLeft >= 48) {
@@ -267,18 +270,18 @@ public class BookingService {
             } else if (hoursLeft >= 24) {
                 // Mid cancellation (24-48h): 50% refund, 50% penalty
                 penaltyFee = booking.getPaidAmount().multiply(new BigDecimal("0.50"))
-                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                        .setScale(0, RoundingMode.HALF_UP);
                 refundAmount = booking.getPaidAmount().subtract(penaltyFee);
 
                 user.setCancellationCount((user.getCancellationCount() != null ? user.getCancellationCount() : 0) + 1);
-                booking.setPayoutAt(java.time.Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS));
+                booking.setPayoutAt(Instant.now().plus(24, ChronoUnit.HOURS));
             } else {
                 // Late cancellation (< 24h): 0% refund, hold 24h for dispute window
                 penaltyFee = booking.getPaidAmount();
                 refundAmount = BigDecimal.ZERO;
 
                 user.setCancellationCount((user.getCancellationCount() != null ? user.getCancellationCount() : 0) + 1);
-                booking.setPayoutAt(java.time.Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS));
+                booking.setPayoutAt(Instant.now().plus(24, ChronoUnit.HOURS));
             }
 
             notificationService.sendNotification(booking.getTour().getGuide().getId(), 
@@ -338,10 +341,10 @@ public class BookingService {
         booking.setPaidAmount(booking.getDepositAmount());
         booking.setStatus(BookingStatus.CONFIRMED);
         // Set Payout time: Tour end time + 24 hours (Dispute window)
-        java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(booking.getTour().getEndDate(),
+        LocalDateTime endDateTime = LocalDateTime.of(booking.getTour().getEndDate(),
                 booking.getTour().getEndTime());
-        booking.setPayoutAt(endDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant()
-                .plus(24, java.time.temporal.ChronoUnit.HOURS));
+        booking.setPayoutAt(endDateTime.atZone(ZoneId.systemDefault()).toInstant()
+                .plus(24, ChronoUnit.HOURS));
         
         Booking saved = bookingRepository.save(booking);
 
@@ -373,14 +376,14 @@ public class BookingService {
         booking.setStatus(BookingStatus.CONFIRMED);
         
         // Set Payout time: Tour end time + 24 hours (Dispute window)
-        java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(booking.getTour().getEndDate(),
+        LocalDateTime endDateTime = LocalDateTime.of(booking.getTour().getEndDate(),
                 booking.getTour().getEndTime());
-        booking.setPayoutAt(endDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant()
-                .plus(24, java.time.temporal.ChronoUnit.HOURS));
+        booking.setPayoutAt(endDateTime.atZone(ZoneId.systemDefault()).toInstant()
+                .plus(24, ChronoUnit.HOURS));
 
         Booking saved = bookingRepository.save(booking);
         // Log REVENUE to Admin (Platform intermediary)
-        User admin = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN).get(0);
+        User admin = userRepository.findAllByRoleName(RoleName.ADMIN).get(0);
         transactionRepository.save(Transaction.builder()
                 .booking(saved)
                 .user(admin)
@@ -409,7 +412,7 @@ public class BookingService {
         booking.setStatus(BookingStatus.PAID_FULL);
         Booking saved = bookingRepository.save(booking);
         // Log REVENUE to Admin (Platform intermediary)
-        User admin = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN).get(0);
+        User admin = userRepository.findAllByRoleName(RoleName.ADMIN).get(0);
         transactionRepository.save(Transaction.builder()
                 .booking(saved)
                 .user(admin)
@@ -443,7 +446,7 @@ public class BookingService {
         Booking saved = bookingRepository.save(booking);
 
         // Log REVENUE to Admin (Platform intermediary)
-        User admin = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN).get(0);
+        User admin = userRepository.findAllByRoleName(RoleName.ADMIN).get(0);
         transactionRepository.save(Transaction.builder()
                 .booking(saved)
                 .user(admin)
@@ -477,15 +480,15 @@ public class BookingService {
         }
 
         // Use Vietnam timezone to avoid UTC mismatch on cloud servers
-        java.time.ZoneId vnZone = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
-        java.time.LocalDateTime now = java.time.LocalDateTime.now(vnZone);
+        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDateTime now = LocalDateTime.now(vnZone);
 
         // Determine the end time of the tour
-        java.time.LocalTime timeToCheck = booking.getTour().getEndTime() != null
+        LocalTime timeToCheck = booking.getTour().getEndTime() != null
                 ? booking.getTour().getEndTime()
-                : (booking.getStartTime() != null ? booking.getStartTime() : java.time.LocalTime.of(23, 59));
+                : (booking.getStartTime() != null ? booking.getStartTime() : LocalTime.of(23, 59));
 
-        java.time.LocalDateTime tourEnd = java.time.LocalDateTime.of(booking.getBookingDate(), timeToCheck);
+        LocalDateTime tourEnd = LocalDateTime.of(booking.getBookingDate(), timeToCheck);
 
         if (now.isBefore(tourEnd)) {
             throw new AppException(ErrorCode.TOUR_NOT_STARTED_YET); // The message correctly translates to "Chưa bắt
@@ -496,10 +499,10 @@ public class BookingService {
         
         // Ensure payoutAt is set (24h after tour end) if not already set
         if (booking.getPayoutAt() == null) {
-            java.time.LocalDateTime endTime = java.time.LocalDateTime.of(booking.getBookingDate(), 
-                booking.getTour().getEndTime() != null ? booking.getTour().getEndTime() : java.time.LocalTime.of(23, 59));
-            booking.setPayoutAt(endTime.atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toInstant()
-                .plus(24, java.time.temporal.ChronoUnit.HOURS));
+            LocalDateTime endTime = LocalDateTime.of(booking.getBookingDate(), 
+                booking.getTour().getEndTime() != null ? booking.getTour().getEndTime() : LocalTime.of(23, 59));
+            booking.setPayoutAt(endTime.atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toInstant()
+                .plus(24, ChronoUnit.HOURS));
         }
 
         Booking saved = bookingRepository.save(booking);
@@ -551,7 +554,7 @@ public class BookingService {
 
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User adminUser = userRepository.findByEmail(email).orElseThrow();
-        boolean isAdmin = adminUser.getRoles().stream().anyMatch(r -> r.getName() == com.mtritran.travelplatform.enums.RoleName.ADMIN);
+        boolean isAdmin = adminUser.getRoles().stream().anyMatch(r -> r.getName() == RoleName.ADMIN);
         
         if (!isAdmin) {
              throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -563,7 +566,7 @@ public class BookingService {
 
         BigDecimal refund = booking.getPaidAmount()
                 .multiply(BigDecimal.valueOf(refundPercentage))
-                .divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP);
+                .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
 
         booking.setRefundAmount(refund);
         booking.setStatus(BookingStatus.CANCELLED);
@@ -619,7 +622,7 @@ public class BookingService {
         booking.setDisputeReason(reason);
         
         if (files != null && !files.isEmpty()) {
-            List<String> paths = new java.util.ArrayList<>();
+            List<String> paths = new ArrayList<>();
             for (MultipartFile file : files) {
                 if (file != null && !file.isEmpty()) {
                     String evidencePath = storageService.saveFile(file, "disputes/" + booking.getId());
@@ -687,7 +690,7 @@ public class BookingService {
             
             BigDecimal refundAmount = booking.getPaidAmount()
                     .multiply(BigDecimal.valueOf(refundPercentage))
-                    .divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP);
+                    .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
             
             User user = booking.getUser();
             user.setBalance((user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO).add(refundAmount));
@@ -714,7 +717,7 @@ public class BookingService {
             BigDecimal remainingAmount = booking.getPaidAmount().subtract(refundAmount);
             if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
                 BigDecimal guideIncome = remainingAmount.multiply(BigDecimal.valueOf(0.8))
-                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                        .setScale(0, RoundingMode.HALF_UP);
                 
                 User guide = booking.getTour().getGuide();
                 guide.setBalance((guide.getBalance() != null ? guide.getBalance() : BigDecimal.ZERO).add(guideIncome));
@@ -731,7 +734,7 @@ public class BookingService {
                 // DISBURSE PLATFORM FEE (20%) TO ADMIN
                 BigDecimal platformFee = remainingAmount.subtract(guideIncome);
                 if (platformFee.compareTo(BigDecimal.ZERO) > 0) {
-                    List<User> admins = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN);
+                    List<User> admins = userRepository.findAllByRoleName(RoleName.ADMIN);
                     if (!admins.isEmpty()) {
                         User admin = admins.get(0);
                         admin.setBalance((admin.getBalance() != null ? admin.getBalance() : BigDecimal.ZERO).add(platformFee));

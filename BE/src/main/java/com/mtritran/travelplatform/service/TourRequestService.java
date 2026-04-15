@@ -1,18 +1,24 @@
 package com.mtritran.travelplatform.service;
 
 import com.mtritran.travelplatform.dto.request.TourRequestCreateRequest;
+import com.mtritran.travelplatform.dto.response.TourRequestInterestResponse;
 import com.mtritran.travelplatform.dto.response.TourRequestResponse;
 import com.mtritran.travelplatform.entity.Location;
-import java.math.BigDecimal;
 import com.mtritran.travelplatform.entity.TourRequest;
+import com.mtritran.travelplatform.entity.TourRequestInterest;
+import com.mtritran.travelplatform.entity.Transaction;
 import com.mtritran.travelplatform.entity.User;
-import com.mtritran.travelplatform.enums.TourRequestStatus;
+import com.mtritran.travelplatform.enums.RoleName;
 import com.mtritran.travelplatform.enums.TourRequestPaymentStatus;
+import com.mtritran.travelplatform.enums.TourRequestStatus;
+import com.mtritran.travelplatform.enums.TransactionType;
 import com.mtritran.travelplatform.exception.AppException;
 import com.mtritran.travelplatform.exception.ErrorCode;
 import com.mtritran.travelplatform.mapper.TourRequestMapper;
 import com.mtritran.travelplatform.repository.LocationRepository;
+import com.mtritran.travelplatform.repository.TourRequestInterestRepository;
 import com.mtritran.travelplatform.repository.TourRequestRepository;
+import com.mtritran.travelplatform.repository.TransactionRepository;
 import com.mtritran.travelplatform.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -20,24 +26,33 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class TourRequestService {
     TourRequestRepository tourRequestRepository;
-    com.mtritran.travelplatform.repository.TourRequestInterestRepository tourRequestInterestRepository;
+    TourRequestInterestRepository tourRequestInterestRepository;
     UserRepository userRepository;
     LocationRepository locationRepository;
     TourRequestMapper tourRequestMapper;
     NotificationService notificationService;
-    final com.mtritran.travelplatform.repository.TransactionRepository transactionRepository;
-    final PenaltyService penaltyService;
-    final StorageService storageService;
+    TransactionRepository transactionRepository;
+    PenaltyService penaltyService;
+    StorageService storageService;
 
     public TourRequestResponse createRequest(TourRequestCreateRequest request) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -64,13 +79,13 @@ public class TourRequestService {
                 .numberOfGuests(request.getNumberOfGuests() != null ? request.getNumberOfGuests() : 1)
                 .description(request.getDescription())
                 .status(TourRequestStatus.OPEN)
-                .expiresAt(java.time.Instant.now().plus(expiryHrs, java.time.temporal.ChronoUnit.HOURS))
+                .expiresAt(Instant.now().plus(expiryHrs, ChronoUnit.HOURS))
                 .meetingLocationName(request.getMeetingLocationName())
                 .meetingLatitude(request.getMeetingLatitude())
                 .meetingLongitude(request.getMeetingLongitude())
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
-                .depositPercentage(request.getDepositPercentage() != null ? request.getDepositPercentage() : java.math.BigDecimal.valueOf(30))
+                .depositPercentage(request.getDepositPercentage() != null ? request.getDepositPercentage() : BigDecimal.valueOf(30))
                 .paymentStatus(TourRequestPaymentStatus.PENDING)
                 .build();
 
@@ -78,7 +93,7 @@ public class TourRequestService {
 
         // Broadcast to all guides about new request
         notificationService.broadcastNotification("requests", 
-            java.util.Map.of(
+            Map.of(
                 "type", "NEW_TOUR_REQUEST",
                 "message", "Có một yêu cầu tour mới: " + tourRequest.getTitle()
             ));
@@ -116,16 +131,16 @@ public class TourRequestService {
         // Check for expiry status override
         if (TourRequestStatus.OPEN.equals(tourRequest.getStatus()) && 
             tourRequest.getExpiresAt() != null && 
-            tourRequest.getExpiresAt().isBefore(java.time.Instant.now())) {
+            tourRequest.getExpiresAt().isBefore(Instant.now())) {
             response.setStatus(TourRequestStatus.EXPIRED);
         }
 
         // Populate interest list
-        List<com.mtritran.travelplatform.entity.TourRequestInterest> interests = 
+        List<TourRequestInterest> interests = 
             tourRequestInterestRepository.findByTourRequestIdOrderByCreatedAtAsc(tourRequest.getId());
         
         response.setInterestedGuides(interests.stream().map(interest -> 
-            com.mtritran.travelplatform.dto.response.TourRequestInterestResponse.builder()
+            TourRequestInterestResponse.builder()
                 .id(interest.getId())
                 .guideId(interest.getGuide().getId())
                 .guideName(interest.getGuide().getFullName())
@@ -142,7 +157,7 @@ public class TourRequestService {
 
     public List<TourRequestResponse> getAllOpenRequests() {
         return tourRequestRepository.findAllByStatusOrderByCreatedAtDesc(TourRequestStatus.OPEN).stream()
-                .filter(req -> req.getExpiresAt() == null || req.getExpiresAt().isAfter(java.time.Instant.now()))
+                .filter(req -> req.getExpiresAt() == null || req.getExpiresAt().isAfter(Instant.now()))
                 .map(this::mapToResponse)
                 .toList();
     }
@@ -167,7 +182,7 @@ public class TourRequestService {
 
     public List<TourRequestResponse> getNearbyRequests(double lat, double lng, double radius) {
         return tourRequestRepository.findNearbyRequests(lat, lng, radius).stream()
-                .filter(req -> req.getExpiresAt() == null || req.getExpiresAt().isAfter(java.time.Instant.now()))
+                .filter(req -> req.getExpiresAt() == null || req.getExpiresAt().isAfter(Instant.now()))
                 .map(this::mapToResponse)
                 .toList();
     }
@@ -186,7 +201,7 @@ public class TourRequestService {
         }
 
         // Penalty Check: Block banned guides
-        if (guide.getGuideBannedUntil() != null && guide.getGuideBannedUntil().isAfter(java.time.Instant.now())) {
+        if (guide.getGuideBannedUntil() != null && guide.getGuideBannedUntil().isAfter(Instant.now())) {
             throw new AppException(ErrorCode.UNAUTHORIZED); // Or customize error: GUIDE_BANNED
         }
 
@@ -198,7 +213,7 @@ public class TourRequestService {
              throw new AppException(ErrorCode.ALREADY_EXPRESSED_INTEREST); // Already interested
         }
 
-        com.mtritran.travelplatform.entity.TourRequestInterest interest = com.mtritran.travelplatform.entity.TourRequestInterest.builder()
+        TourRequestInterest interest = TourRequestInterest.builder()
                 .tourRequest(tourRequest)
                 .guide(guide)
                 .message(message)
@@ -273,7 +288,7 @@ public class TourRequestService {
         }
 
         TourRequest saved = tourRequestRepository.save(tourRequest);
- 
+  
         // Notify Customer
         notificationService.sendNotification(tourRequest.getUser().getId(), 
                 "HDV đã xác nhận", 
@@ -301,9 +316,9 @@ public class TourRequestService {
                 .ifPresent(tourRequestInterestRepository::delete);
 
         // Refund if necessary
-        if (tourRequest.getPaidAmount() != null && tourRequest.getPaidAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+        if (tourRequest.getPaidAmount() != null && tourRequest.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
             User customer = tourRequest.getUser();
-            java.math.BigDecimal currentBalance = customer.getBalance() != null ? customer.getBalance() : java.math.BigDecimal.ZERO;
+            BigDecimal currentBalance = customer.getBalance() != null ? customer.getBalance() : BigDecimal.ZERO;
             customer.setBalance(currentBalance.add(tourRequest.getPaidAmount()));
             userRepository.save(customer);
 
@@ -316,7 +331,7 @@ public class TourRequestService {
 
         tourRequest.setStatus(TourRequestStatus.OPEN);
         tourRequest.setGuide(null);
-        tourRequest.setPaidAmount(java.math.BigDecimal.ZERO);
+        tourRequest.setPaidAmount(BigDecimal.ZERO);
         tourRequest.setPaymentStatus(TourRequestPaymentStatus.PENDING);
 
         TourRequest saved = tourRequestRepository.save(tourRequest);
@@ -345,14 +360,14 @@ public class TourRequestService {
 
         // Refund Logic with 80/20 rule if cancelled < 24h before tour
         if (tourRequest.getPaidAmount() != null && tourRequest.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
-            java.time.LocalDateTime tourStart = java.time.LocalDateTime.of(tourRequest.getPlannedDate(), 
-                    tourRequest.getStartTime() != null ? tourRequest.getStartTime() : java.time.LocalTime.of(0, 0));
-            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            LocalDateTime tourStart = LocalDateTime.of(tourRequest.getPlannedDate(), 
+                    tourRequest.getStartTime() != null ? tourRequest.getStartTime() : LocalTime.of(0, 0));
+            LocalDateTime now = LocalDateTime.now();
             
             BigDecimal refundAmount;
             BigDecimal platformFee = BigDecimal.ZERO;
 
-            java.time.Duration timeUntilTour = java.time.Duration.between(now, tourStart);
+            Duration timeUntilTour = Duration.between(now, tourStart);
             long hoursLeft = timeUntilTour.toHours();
 
             if (hoursLeft >= 48) {
@@ -361,18 +376,18 @@ public class TourRequestService {
             } else if (hoursLeft >= 24) {
                 // Mid cancellation (24-48h): 50% refund, 50% penalty
                 platformFee = tourRequest.getPaidAmount().multiply(new BigDecimal("0.50"))
-                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                        .setScale(0, RoundingMode.HALF_UP);
                 refundAmount = tourRequest.getPaidAmount().subtract(platformFee);
 
                 user.setCancellationCount((user.getCancellationCount() != null ? user.getCancellationCount() : 0) + 1);
-                tourRequest.setPayoutAt(java.time.Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS));
+                tourRequest.setPayoutAt(Instant.now().plus(24, ChronoUnit.HOURS));
             } else {
                 // Late cancellation (< 24h): 0% refund, hold 24h for dispute window
                 platformFee = tourRequest.getPaidAmount();
                 refundAmount = BigDecimal.ZERO;
 
                 user.setCancellationCount((user.getCancellationCount() != null ? user.getCancellationCount() : 0) + 1);
-                tourRequest.setPayoutAt(java.time.Instant.now().plus(24, java.time.temporal.ChronoUnit.HOURS));
+                tourRequest.setPayoutAt(Instant.now().plus(24, ChronoUnit.HOURS));
             }
 
             BigDecimal currentBalance = user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO;
@@ -441,7 +456,7 @@ public class TourRequestService {
         }
 
         if (request.getExpiryHours() != null) {
-            tourRequest.setExpiresAt(java.time.Instant.now().plus(request.getExpiryHours(), java.time.temporal.ChronoUnit.HOURS));
+            tourRequest.setExpiresAt(Instant.now().plus(request.getExpiryHours(), ChronoUnit.HOURS));
         }
 
         return mapToResponse(tourRequestRepository.save(tourRequest));
@@ -481,10 +496,10 @@ public class TourRequestService {
 
         // Set Payout time: Tour end time + 24 hours (Dispute window)
         // Since TourRequestplannedDate is used as date and startTime as time
-        java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(tourRequest.getPlannedDate(),
-                tourRequest.getEndTime() != null ? tourRequest.getEndTime() : java.time.LocalTime.of(23, 59));
-        tourRequest.setPayoutAt(endDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant()
-                .plus(24, java.time.temporal.ChronoUnit.HOURS));
+        LocalDateTime endDateTime = LocalDateTime.of(tourRequest.getPlannedDate(),
+                tourRequest.getEndTime() != null ? tourRequest.getEndTime() : LocalTime.of(23, 59));
+        tourRequest.setPayoutAt(endDateTime.atZone(ZoneId.systemDefault()).toInstant()
+                .plus(24, ChronoUnit.HOURS));
 
         TourRequest saved = tourRequestRepository.save(tourRequest);
 
@@ -544,20 +559,20 @@ public class TourRequestService {
         tourReq.setStatus(TourRequestStatus.CONFIRMED);
         
         // Set Payout time
-        java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(tourReq.getPlannedDate(),
-                tourReq.getEndTime() != null ? tourReq.getEndTime() : java.time.LocalTime.of(23, 59));
-        tourReq.setPayoutAt(endDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant()
-                .plus(24, java.time.temporal.ChronoUnit.HOURS));
+        LocalDateTime endDateTime = LocalDateTime.of(tourReq.getPlannedDate(),
+                tourReq.getEndTime() != null ? tourReq.getEndTime() : LocalTime.of(23, 59));
+        tourReq.setPayoutAt(endDateTime.atZone(ZoneId.systemDefault()).toInstant()
+                .plus(24, ChronoUnit.HOURS));
 
         TourRequest saved = tourRequestRepository.save(tourReq);
 
         // Log REVENUE to Admin (Platform intermediary)
-        User admin = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN).get(0);
-        transactionRepository.save(com.mtritran.travelplatform.entity.Transaction.builder()
+        User admin = userRepository.findAllByRoleName(RoleName.ADMIN).get(0);
+        transactionRepository.save(Transaction.builder()
                 .tourRequest(saved)
                 .user(admin)
                 .amount(deposit)
-                .type(com.mtritran.travelplatform.enums.TransactionType.REVENUE)
+                .type(TransactionType.REVENUE)
                 .note("Thanh toán tiền cọc cho yêu cầu: " + tourReq.getTitle())
                 .build());
 
@@ -584,12 +599,12 @@ public class TourRequestService {
         TourRequest saved = tourRequestRepository.save(tourReq);
 
         // Log REVENUE to Admin (Platform intermediary)
-        User admin = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN).get(0);
-        transactionRepository.save(com.mtritran.travelplatform.entity.Transaction.builder()
+        User admin = userRepository.findAllByRoleName(RoleName.ADMIN).get(0);
+        transactionRepository.save(Transaction.builder()
                 .tourRequest(saved)
                 .user(admin)
                 .amount(payAmount)
-                .type(com.mtritran.travelplatform.enums.TransactionType.REVENUE)
+                .type(TransactionType.REVENUE)
                 .note("Thanh toán nốt số tiền còn lại cho yêu cầu: " + tourReq.getTitle())
                 .build());
     }
@@ -612,8 +627,8 @@ public class TourRequestService {
         }
 
         // Logic check: only allow completion after the tour has started
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        java.time.LocalDateTime tourStart = java.time.LocalDateTime.of(tourRequest.getPlannedDate(), tourRequest.getStartTime());
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime tourStart = LocalDateTime.of(tourRequest.getPlannedDate(), tourRequest.getStartTime());
         if (now.isBefore(tourStart)) {
             throw new AppException(ErrorCode.TOUR_NOT_STARTED_YET);
         }
@@ -639,7 +654,7 @@ public class TourRequestService {
 
         // Status check: Only allow deleting if OPEN or EXPIRED
         boolean isOpen = TourRequestStatus.OPEN.equals(tourRequest.getStatus());
-        boolean isExpired = tourRequest.getExpiresAt() != null && tourRequest.getExpiresAt().isBefore(java.time.Instant.now());
+        boolean isExpired = tourRequest.getExpiresAt() != null && tourRequest.getExpiresAt().isBefore(Instant.now());
 
         if (!isOpen && !isExpired) {
              throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
@@ -685,10 +700,7 @@ public class TourRequestService {
         
         // Similar evidence handling as BookingService
         if (files != null && !files.isEmpty()) {
-            // Placeholder: actually saving evidence url if desired
-            // Using same logic as BookingService if evidence storage is needed
-            // For now, simple text reason is usually enough but we can add paths
-            List<String> paths = new java.util.ArrayList<>();
+            List<String> paths = new ArrayList<>();
             for (MultipartFile file : files) {
                 if (file != null && !file.isEmpty()) {
                     String evidencePath = storageService.saveFile(file, "disputes/req_" + tourRequest.getId());
@@ -708,7 +720,7 @@ public class TourRequestService {
                 "TOUR_REQUEST_DISPUTED");
 
         // Notify Admins
-        List<User> admins = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN);
+        List<User> admins = userRepository.findAllByRoleName(RoleName.ADMIN);
         for (User admin : admins) {
             notificationService.sendNotification(admin.getId(), 
                 "Khiếu nại mới cần xử lý (Custom)", 
@@ -755,7 +767,7 @@ public class TourRequestService {
             
             BigDecimal refundAmount = tourRequest.getPaidAmount()
                     .multiply(BigDecimal.valueOf(refundPercentage))
-                    .divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP);
+                    .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
             
             User user = tourRequest.getUser();
             user.setBalance((user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO).add(refundAmount));
@@ -766,11 +778,11 @@ public class TourRequestService {
                 txNote += " — " + adminNote;
             }
 
-            transactionRepository.save(com.mtritran.travelplatform.entity.Transaction.builder()
+            transactionRepository.save(Transaction.builder()
                     .tourRequest(tourRequest)
                     .user(user)
                     .amount(refundAmount)
-                    .type(com.mtritran.travelplatform.enums.TransactionType.REFUND)
+                    .type(TransactionType.REFUND)
                     .note(txNote)
                     .build());
 
@@ -782,34 +794,34 @@ public class TourRequestService {
             BigDecimal remainingAmount = tourRequest.getPaidAmount().subtract(refundAmount);
             if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
                 BigDecimal guideIncome = remainingAmount.multiply(BigDecimal.valueOf(0.8))
-                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                        .setScale(0, RoundingMode.HALF_UP);
                 
                 User guide = tourRequest.getGuide();
                 guide.setBalance((guide.getBalance() != null ? guide.getBalance() : BigDecimal.ZERO).add(guideIncome));
                 userRepository.save(guide);
 
-                transactionRepository.save(com.mtritran.travelplatform.entity.Transaction.builder()
+                transactionRepository.save(Transaction.builder()
                         .tourRequest(tourRequest)
                         .user(guide)
                         .amount(guideIncome)
-                        .type(com.mtritran.travelplatform.enums.TransactionType.INCOME)
+                        .type(TransactionType.INCOME)
                         .note("Thanh toán 80% số tiền còn lại sau khi bồi hoàn " + refundPercentage + "% cho khách (Custom): " + (tourRequest.getRequestCode() != null ? tourRequest.getRequestCode() : tourRequest.getId()))
                         .build());
 
                 // DISBURSE PLATFORM FEE (20%) TO ADMIN
                 BigDecimal platformFee = remainingAmount.subtract(guideIncome);
                 if (platformFee.compareTo(BigDecimal.ZERO) > 0) {
-                    List<User> admins = userRepository.findAllByRoleName(com.mtritran.travelplatform.enums.RoleName.ADMIN);
+                    List<User> admins = userRepository.findAllByRoleName(RoleName.ADMIN);
                     if (!admins.isEmpty()) {
                         User admin = admins.get(0);
                         admin.setBalance((admin.getBalance() != null ? admin.getBalance() : BigDecimal.ZERO).add(platformFee));
                         userRepository.save(admin);
 
-                        transactionRepository.save(com.mtritran.travelplatform.entity.Transaction.builder()
+                        transactionRepository.save(Transaction.builder()
                                 .tourRequest(tourRequest)
                                 .user(admin)
                                 .amount(platformFee)
-                                .type(com.mtritran.travelplatform.enums.TransactionType.COMMISSION)
+                                .type(TransactionType.COMMISSION)
                                 .note("Thu phí sàn (20% của phần còn lại) từ yêu cầu: " + (tourRequest.getRequestCode() != null ? tourRequest.getRequestCode() : tourRequest.getTitle()))
                                 .build());
                     }
