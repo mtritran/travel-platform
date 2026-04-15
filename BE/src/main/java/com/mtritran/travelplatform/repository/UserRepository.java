@@ -1,6 +1,7 @@
 package com.mtritran.travelplatform.repository;
 
 import com.mtritran.travelplatform.entity.User;
+import com.mtritran.travelplatform.enums.RoleName;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -15,5 +16,5 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByEmail(String email);
 
     @Query("SELECT u FROM User u JOIN u.roles r WHERE r.name = :roleName")
-    List<User> findAllByRoleName(com.mtritran.travelplatform.enums.RoleName roleName);
+    List<User> findAllByRoleName(RoleName roleName);
 }

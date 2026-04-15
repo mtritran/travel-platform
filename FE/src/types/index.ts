@@ -96,6 +96,8 @@ export interface Booking {
   tourTitle: string;
   guideName: string;
   guideAvatarUrl?: string;
+  guidePhone?: string;
+  userPhone?: string;
   bookingDate: string;
   numberOfGuests: number;
   totalPrice: number;

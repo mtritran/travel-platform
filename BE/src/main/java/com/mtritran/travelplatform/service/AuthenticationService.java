@@ -1,8 +1,6 @@
 package com.mtritran.travelplatform.service;
 
-import com.mtritran.travelplatform.dto.request.AuthenticationRequest;
-import com.mtritran.travelplatform.dto.request.IntrospectRequest;
-import com.mtritran.travelplatform.dto.request.RefreshRequest;
+import com.mtritran.travelplatform.dto.request.*;
 import com.mtritran.travelplatform.dto.response.AuthenticationResponse;
 import com.mtritran.travelplatform.dto.response.IntrospectResponse;
 import com.mtritran.travelplatform.entity.InvalidatedToken;
@@ -41,6 +39,7 @@ public class AuthenticationService {
     UserRepository userRepository;
     InvalidatedTokenRepository invalidatedTokenRepository;
     PasswordEncoder passwordEncoder;
+    OtpService otpService;
 
     @NonFinal
     @Value("${jwt.signer-key}")
@@ -133,6 +132,27 @@ public class AuthenticationService {
                 .refreshToken(refreshToken)
                 .authenticated(true)
                 .build();
+    }
+
+    public void forgotPassword(ForgotPasswordRequest request) {
+        userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        otpService.generateAndSendOtp(request.getEmail());
+    }
+
+    public void resetPassword(ResetPasswordRequest request) {
+        var user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (!otpService.verifyOtp(request.getEmail(), request.getCode()))
+            throw new AppException(ErrorCode.INVALID_OTP);
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword()))
+            throw new AppException(ErrorCode.CONFIRM_PASSWORD_INVALID);
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 
     private String generateToken(User user) {

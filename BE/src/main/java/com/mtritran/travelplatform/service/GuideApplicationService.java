@@ -100,18 +100,21 @@ public class GuideApplicationService {
 
         String userFolder = "applications/" + user.getEmail().replaceAll("[^a-zA-Z0-9.-]", "_");
 
+        String oldIdCardUrl = null;
         if (request.getIdCardFile() != null && !request.getIdCardFile().isEmpty()) {
-            storageService.deleteFile(application.getIdCardUrl());
+            oldIdCardUrl = application.getIdCardUrl();
             application.setIdCardUrl(storageService.saveFile(request.getIdCardFile(), userFolder));
         }
 
+        String oldGuideCardUrl = null;
         if (request.getGuideCardFile() != null && !request.getGuideCardFile().isEmpty()) {
-            storageService.deleteFile(application.getGuideCardUrl());
+            oldGuideCardUrl = application.getGuideCardUrl();
             application.setGuideCardUrl(storageService.saveFile(request.getGuideCardFile(), userFolder));
         }
 
+        String oldCertificateUrl = null;
         if (request.getCertificateFile() != null && !request.getCertificateFile().isEmpty()) {
-            storageService.deleteFile(application.getCertificateUrl());
+            oldCertificateUrl = application.getCertificateUrl();
             application.setCertificateUrl(storageService.saveFile(request.getCertificateFile(), userFolder));
         }
 
@@ -126,7 +129,20 @@ public class GuideApplicationService {
         application.setStatus(ApplicationStatus.PENDING);
         application.setRejectionReason(null);
 
-        return applicationMapper.toResponse(applicationRepository.save(application));
+        GuideApplicationResponse response = applicationMapper.toResponse(applicationRepository.save(application));
+
+        // Delete old files only after database is successfully updated
+        if (oldIdCardUrl != null) {
+            storageService.deleteFile(oldIdCardUrl);
+        }
+        if (oldGuideCardUrl != null) {
+            storageService.deleteFile(oldGuideCardUrl);
+        }
+        if (oldCertificateUrl != null) {
+            storageService.deleteFile(oldCertificateUrl);
+        }
+
+        return response;
     }
 
     @Transactional

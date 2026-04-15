@@ -8,6 +8,7 @@ import {
   MapPin,
   AlertCircle,
   Info,
+  Phone,
 } from 'lucide-react';
 import api from '../../services/api';
 import type { ApiResponse, Booking } from '../../types';
@@ -199,12 +200,19 @@ const GuideBookingsPage: React.FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={16} /> <strong>Ngày đi:</strong> {new Date(booking.bookingDate).toLocaleDateString('vi-VN')}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={16} /> <strong>Ngày đặt:</strong> {new Date(booking.createdAt).toLocaleDateString('vi-VN')}</div>
                     </div>
-                    <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '16px', color: 'var(--text-secondary)', fontSize: '0.875rem', flexWrap: 'wrap' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f1f5f9', padding: '6px 12px', borderRadius: '8px', color: 'var(--text-primary)' }}>
                         <MapPin size={16} style={{ color: 'var(--primary)' }} />
                         <strong>Điểm đón:</strong> {booking.pickupLocationName || 'Điểm mặc định'}
                         {booking.pickupLocationAddress && <span style={{ color: 'var(--text-secondary)', marginLeft: '4px' }}>({booking.pickupLocationAddress})</span>}
                       </div>
+
+                      {['CONFIRMED', 'PAID_FULL', 'COMPLETED'].includes(booking.status) && booking.userPhone && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: 700 }}>
+                          <Phone size={16} />
+                          <span>Liên hệ khách: <a href={`tel:${booking.userPhone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{booking.userPhone}</a></span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>

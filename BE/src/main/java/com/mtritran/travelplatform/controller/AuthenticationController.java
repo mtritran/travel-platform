@@ -1,8 +1,6 @@
 package com.mtritran.travelplatform.controller;
 
-import com.mtritran.travelplatform.dto.request.AuthenticationRequest;
-import com.mtritran.travelplatform.dto.request.IntrospectRequest;
-import com.mtritran.travelplatform.dto.request.RefreshRequest;
+import com.mtritran.travelplatform.dto.request.*;
 import com.mtritran.travelplatform.dto.response.ApiResponse;
 import com.mtritran.travelplatform.dto.response.AuthenticationResponse;
 import com.mtritran.travelplatform.dto.response.IntrospectResponse;
@@ -56,5 +54,23 @@ public class AuthenticationController {
     @PostMapping("/logout")
     public void logout(@RequestBody RefreshRequest request) throws ParseException, JOSEException {
         authenticationService.logout(request);
+    }
+
+    @Operation(summary = "Request a password reset OTP")
+    @PostMapping("/forgot-password")
+    public ApiResponse<Void> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        authenticationService.forgotPassword(request);
+        return ApiResponse.<Void>builder()
+                .message("Mã OTP đã được gửi đến email của bạn.")
+                .build();
+    }
+
+    @Operation(summary = "Reset password using OTP")
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@RequestBody ResetPasswordRequest request) {
+        authenticationService.resetPassword(request);
+        return ApiResponse.<Void>builder()
+                .message("Đổi mật khẩu thành công.")
+                .build();
     }
 }

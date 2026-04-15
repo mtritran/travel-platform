@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { ENDPOINTS } from '../constants/endpoints';
 import { useAuth } from '../context/AuthContext';
+import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 
 type ApiError = {
   response?: {
@@ -18,6 +19,7 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
 
@@ -101,9 +103,18 @@ const LoginPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="field-label" htmlFor="password">
-                Mật khẩu
-              </label>
+              <div className="flex-between">
+                <label className="field-label" htmlFor="password">
+                  Mật khẩu
+                </label>
+                <button
+                  type="button"
+                  className="subtle-link text-xs"
+                  onClick={() => setIsForgotModalOpen(true)}
+                >
+                  Quên mật khẩu?
+                </button>
+              </div>
               <div className="input-shell">
                 <Lock size={18} />
                 <input
@@ -134,6 +145,11 @@ const LoginPage: React.FC = () => {
           </p>
         </section>
       </div>
+
+      <ForgotPasswordModal
+        isOpen={isForgotModalOpen}
+        onClose={() => setIsForgotModalOpen(false)}
+      />
     </div>
   );
 };

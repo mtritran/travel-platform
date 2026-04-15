@@ -11,6 +11,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -35,11 +38,11 @@ public class UserController {
     @Operation(summary = "Get all users", description = "Admin only")
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<org.springframework.data.domain.Page<UserResponse>> getAllUsers(
+    public ApiResponse<Page<UserResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
-        return ApiResponse.<org.springframework.data.domain.Page<UserResponse>>builder()
+        Pageable pageable = PageRequest.of(page, size);
+        return ApiResponse.<Page<UserResponse>>builder()
                 .result(userService.getAllUsers(pageable))
                 .build();
     }

@@ -31,7 +31,7 @@ public class Notification {
     @Column(columnDefinition = "TEXT", nullable = false)
     String message;
 
-    String type; // e.g., "PAYMENT", "BOOKING_UPDATE", "PENALTY", "SYSTEM"
+    String type;
 
     @Column(nullable = false)
     @Builder.Default

@@ -23,9 +23,9 @@ public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     String id;
-    
+
     @Column(unique = true)
-    String bookingCode; // Ví dụ: TX-BH12345
+    String bookingCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -55,7 +55,7 @@ public class Booking {
 
     @Column
     BigDecimal depositAmount;
-    
+
     @Column
     @Builder.Default
     BigDecimal paidAmount = BigDecimal.ZERO;

@@ -19,6 +19,8 @@ public interface BookingMapper {
     @Mapping(target = "tourStartTime", source = "tour.startTime")
     @Mapping(target = "userAvatarUrl", source = "user.avatarUrl")
     @Mapping(target = "guideAvatarUrl", source = "tour.guide.avatarUrl")
+    @Mapping(target = "userPhone", source = "user.phone")
+    @Mapping(target = "guidePhone", source = "tour.guide.phone")
     @Mapping(target = "reviewed", ignore = true)
     BookingResponse toResponse(Booking booking);
 }

@@ -5,6 +5,8 @@ export const ENDPOINTS = {
     INTROSPECT: '/auth/introspect',
     LOGOUT: '/auth/logout',
     REFRESH: '/auth/refresh',
+    FORGOT_PASSWORD: '/auth/forgot-password',
+    RESET_PASSWORD: '/auth/reset-password',
   },
   OTP: {
     SEND: '/otp/send',

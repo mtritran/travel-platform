@@ -12,6 +12,5 @@ import java.util.Optional;
 @Repository
 public interface GuideApplicationRepository extends JpaRepository<GuideApplication, String> {
     List<GuideApplication> findAllByStatus(ApplicationStatus status);
-    List<GuideApplication> findAllByUser(User user);
     Optional<GuideApplication> findByUser(User user);
 }

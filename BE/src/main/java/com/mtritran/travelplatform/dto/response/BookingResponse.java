@@ -25,6 +25,8 @@ public class BookingResponse {
     Integer numberOfGuests;
     BigDecimal totalPrice;
     BookingStatus status;
+    String guidePhone;
+    String userPhone;
 
     String pickupLocationName;
     String pickupLocationAddress;

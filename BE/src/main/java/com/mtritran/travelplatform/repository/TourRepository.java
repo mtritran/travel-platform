@@ -1,29 +1,37 @@
 package com.mtritran.travelplatform.repository;
 
-import com.mtritran.travelplatform.entity.Location;
 import com.mtritran.travelplatform.entity.Tour;
 import com.mtritran.travelplatform.entity.User;
+import com.mtritran.travelplatform.enums.TourStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TourRepository extends JpaRepository<Tour, String> {
     List<Tour> findAllByGuide(User guide);
-    List<Tour> findAllByLocation(Location location);
-    List<Tour> findAllByStatus(com.mtritran.travelplatform.enums.TourStatus status);
+
+    List<Tour> findAllByStatus(TourStatus status);
     
-    @org.springframework.data.jpa.repository.Modifying
-    @org.springframework.transaction.annotation.Transactional
+    @Modifying
+    @Transactional
     @Query(value = "UPDATE tours SET status = 'ACTIVE' WHERE status IS NULL", nativeQuery = true)
     void updateNullStatuses();
 
-    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM Tour t WHERE t.id = :id")
-    java.util.Optional<Tour> findByIdWithLock(@Param("id") String id);
+    Optional<Tour> findByIdWithLock(@Param("id") String id);
 
     @Query("SELECT t FROM Tour t WHERE t.status = 'ACTIVE' " +
            "AND (t.startDate > :date OR (t.startDate = :date AND t.startTime > :time)) " +
@@ -31,9 +39,9 @@ public interface TourRepository extends JpaRepository<Tour, String> {
            "AND (b.status IN ('CONFIRMED', 'PAID_FULL', 'COMPLETED') " +
            "OR (b.status = 'AWAITING_DEPOSIT' AND b.createdAt > :expiryTime)) " +
            "AND b.bookingDate = t.startDate AND b.startTime = t.startTime) < t.maxGuests")
-    List<Tour> findAvailableTours(@Param("date") java.time.LocalDate date, 
-                                 @Param("time") java.time.LocalTime time,
-                                 @Param("expiryTime") java.time.Instant expiryTime);
+    List<Tour> findAvailableTours(@Param("date") LocalDate date,
+                                 @Param("time") LocalTime time,
+                                 @Param("expiryTime") Instant expiryTime);
 
     @Query(value = "SELECT t.* FROM tours t " +
             "JOIN locations l ON t.location_id = l.id " +
@@ -52,7 +60,7 @@ public interface TourRepository extends JpaRepository<Tour, String> {
     List<Tour> findNearbyTours(@Param("lat") double lat, 
                                @Param("lng") double lng, 
                                @Param("radius") double radius,
-                               @Param("date") java.time.LocalDate date,
-                               @Param("time") java.time.LocalTime time,
-                               @Param("expiryTime") java.time.Instant expiryTime);
+                               @Param("date") LocalDate date,
+                               @Param("time") LocalTime time,
+                               @Param("expiryTime") Instant expiryTime);
 }

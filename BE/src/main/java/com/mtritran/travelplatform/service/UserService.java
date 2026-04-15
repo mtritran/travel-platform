@@ -14,6 +14,8 @@ import com.mtritran.travelplatform.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -35,14 +37,13 @@ public class UserService {
     StorageService storageService;
 
     public UserResponse createUser(UserCreateRequest request) {
-        // Verify OTP first
-        if (!otpService.verifyOtp(request.getEmail(), request.getOtpCode())) {
-            throw new AppException(ErrorCode.INVALID_OTP);
-        }
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
 
+        if (!otpService.verifyOtp(request.getEmail(), request.getOtpCode())) {
+            throw new AppException(ErrorCode.INVALID_OTP);
+        }
 
         User user = userMapper.toUser(request);
 
@@ -55,8 +56,8 @@ public class UserService {
         return userMapper.toResponse(userRepository.save(user));
     }
 
-    public org.springframework.data.domain.Page<UserResponse> getAllUsers(
-            org.springframework.data.domain.Pageable pageable) {
+    //OFFSET = PageNumber x Limit
+    public Page<UserResponse> getAllUsers(Pageable pageable) {
         return userRepository.findAll(pageable)
                 .map(userMapper::toResponse);
     }
@@ -116,16 +117,21 @@ public class UserService {
         User user = userRepository.findByEmail(name).orElseThrow(
                 () -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-        // Delete old avatar if exists
-        if (user.getAvatarUrl() != null) {
-            storageService.deleteFile(user.getAvatarUrl());
+        String oldAvatarUrl = user.getAvatarUrl();
+
+        // 1. Save new avatar to avatars/{userId}/ namespace
+        String newPath = storageService.saveFile(file, "avatars/" + user.getId());
+
+        // 2. Update database
+        user.setAvatarUrl(newPath);
+        UserResponse response = userMapper.toResponse(userRepository.save(user));
+
+        // 3. Delete old avatar if exists
+        if (oldAvatarUrl != null) {
+            storageService.deleteFile(oldAvatarUrl);
         }
 
-        // Save new avatar to avatars/{userId}/ namespace
-        String path = storageService.saveFile(file, "avatars/" + user.getId());
-        user.setAvatarUrl(path);
-
-        return userMapper.toResponse(userRepository.save(user));
+        return response;
     }
 
     public UserResponse updateMyInfo(UserUpdateRequest request) {

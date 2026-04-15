@@ -4,7 +4,9 @@ import com.mtritran.travelplatform.enums.Gender;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Set;
 
 @Getter
 @Builder
@@ -17,8 +19,8 @@ public class UserResponse {
     String fullName;
     Gender gender;
     LocalDate dob;
-    java.util.Set<RoleResponse> roles;
-    java.math.BigDecimal balance;
+    Set<RoleResponse> roles;
+    BigDecimal balance;
     String biography;
     String languages;
     Integer yearsOfExperience;

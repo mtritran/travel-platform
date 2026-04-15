@@ -27,7 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import com.mtritran.travelplatform.enums.RoleName;
@@ -74,7 +77,7 @@ public class BookingService {
         
         // Ensure payoutAt is provided for frontend dispute logic
         if (response.getPayoutAt() == null && booking.getTour().getEndDate() != null) {
-            java.time.LocalDateTime endDateTime = java.time.LocalDateTime.of(booking.getTour().getEndDate(),
+            LocalDateTime endDateTime = LocalDateTime.of(booking.getTour().getEndDate(),
                     booking.getTour().getEndTime() != null ? booking.getTour().getEndTime() : java.time.LocalTime.of(23, 59));
             response.setPayoutAt(endDateTime.atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toInstant()
                     .plus(24, java.time.temporal.ChronoUnit.HOURS));
@@ -102,12 +105,12 @@ public class BookingService {
         }
 
         // Validate booking date and time: cannot book past tours or tours past cutoff
-        java.time.ZoneId vnZone = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
-        java.time.LocalDateTime now = java.time.LocalDateTime.now(vnZone);
+        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDateTime now = LocalDateTime.now(vnZone);
         // Use guide-defined cutoff minutes (defaulting to 60 if null)
         Integer cutoff = tour.getBookingCutoffMinutes() != null ? tour.getBookingCutoffMinutes() : 60;
         // Technical 5-minute buffer still applied under the hood
-        java.time.LocalDateTime cutoffPoint = java.time.LocalDateTime.of(request.getBookingDate(), tour.getStartTime())
+        LocalDateTime cutoffPoint = LocalDateTime.of(request.getBookingDate(), tour.getStartTime())
                 .minusMinutes(cutoff + 5);
 
         if (now.isAfter(cutoffPoint)) {
@@ -122,7 +125,7 @@ public class BookingService {
 
         // Capacity check: count confirmed AND active reservations (within 10 mins)
         if (tour.getMaxGuests() != null) {
-            java.time.Instant expiryTime = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
+            Instant expiryTime = Instant.now().minus(java.time.Duration.ofMinutes(10));
             Integer currentlyOccupied = bookingRepository.sumOccupiedSlots(tour.getId(),
                     request.getBookingDate(), tour.getStartTime(), expiryTime);
             if (currentlyOccupied == null)
@@ -145,7 +148,7 @@ public class BookingService {
         BigDecimal depositPerc = tour.getDepositPercentage() != null ? tour.getDepositPercentage()
                 : BigDecimal.valueOf(30);
         BigDecimal depositAmount = total.multiply(depositPerc).divide(BigDecimal.valueOf(100), 0,
-                java.math.RoundingMode.HALF_UP);
+                RoundingMode.HALF_UP);
 
         Booking booking = Booking.builder()
                 .user(user)

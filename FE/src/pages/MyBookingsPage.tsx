@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, CheckCircle2, ChevronRight, Clock, AlertCircle, MapPin, Wallet, XCircle, AlertTriangle, Camera, Trash2 } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronRight, Clock, AlertCircle, Wallet, XCircle, AlertTriangle, Camera, Trash2, Phone, User } from 'lucide-react';
 import api from '../services/api';
 import type { ApiResponse, Booking } from '../types';
 import { ENDPOINTS } from '../constants/endpoints';
@@ -213,9 +213,15 @@ const MyBookingsPage: React.FC = () => {
                   <div className="booking-history-main">
                     <h3 className="tour-title" style={{ fontSize: '1.15rem' }}>{booking.tourTitle}</h3>
                     <div className="info-pair" style={{ marginTop: '8px' }}>
-                      <MapPin size={14} />
-                      Hướng dẫn viên: {booking.guideName}
+                      <User size={14} />
+                      Hướng dẫn viên: <strong>{booking.guideName}</strong>
                     </div>
+                    {['CONFIRMED', 'PAID_FULL', 'COMPLETED'].includes(booking.status) && booking.guidePhone && (
+                      <div className="info-pair" style={{ marginTop: '6px', color: 'var(--primary)', fontWeight: 700 }}>
+                        <Phone size={14} />
+                        Liên hệ HDV: <a href={`tel:${booking.guidePhone}`} style={{ color: 'inherit', textDecoration: 'none' }}>{booking.guidePhone}</a>
+                      </div>
+                    )}
                     <div className="info-pair" style={{ marginTop: '6px' }}>
                       <Calendar size={14} />
                       {new Date(booking.tourStartDate).toLocaleDateString('vi-VN')} - {booking.numberOfGuests} khách

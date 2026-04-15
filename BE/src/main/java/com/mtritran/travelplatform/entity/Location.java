@@ -6,6 +6,8 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "locations")
 @Getter
@@ -25,9 +27,11 @@ public class Location {
     @Column(columnDefinition = "TEXT")
     String address;
 
+    //Vi do
     @Column(nullable = false)
     Double latitude;
 
+    //Kinh do
     @Column(nullable = false)
     Double longitude;
 
@@ -35,8 +39,8 @@ public class Location {
     String imageUrl;
 
     @CreationTimestamp
-    java.time.Instant createdAt;
+    Instant createdAt;
 
     @UpdateTimestamp
-    java.time.Instant updatedAt;
+    Instant updatedAt;
 }
