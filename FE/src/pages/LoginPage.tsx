@@ -22,6 +22,20 @@ const LoginPage: React.FC = () => {
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
+  const [emailError, setEmailError] = useState('');
+
+  React.useEffect(() => {
+    if (!email) {
+      setEmailError('');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Định dạng email không hợp lệ.');
+    } else {
+      setEmailError('');
+    }
+  }, [email]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +106,7 @@ const LoginPage: React.FC = () => {
                 <Mail size={18} />
                 <input
                   id="email"
-                  className="input-field"
+                  className={`input-field ${emailError ? 'error-border' : ''}`}
                   type="email"
                   placeholder="mail@example.com"
                   value={email}
@@ -100,6 +114,11 @@ const LoginPage: React.FC = () => {
                   required
                 />
               </div>
+              {emailError && (
+                <div className="field-error-msg" style={{ color: '#ff4d4f', fontSize: '0.8rem', marginTop: '4px' }}>
+                  {emailError}
+                </div>
+              )}
             </div>
 
             <div>
@@ -131,7 +150,7 @@ const LoginPage: React.FC = () => {
 
             {error ? <div className="status-message error">{error}</div> : null}
 
-            <button type="submit" className="btn-primary" disabled={loading}>
+            <button type="submit" className="btn-primary" disabled={loading || !!emailError}>
               {loading ? 'Đang xác thực...' : 'Đăng nhập'}
               {!loading ? <ArrowRight size={18} /> : null}
             </button>

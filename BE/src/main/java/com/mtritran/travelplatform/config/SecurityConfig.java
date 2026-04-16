@@ -36,7 +36,10 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui/index.html",
-            "/otp/**"
+            "/otp/**",
+            "/users/check-email",
+            "/auth/forgot-password",
+            "/auth/reset-password"
     };
 
     @Value("${jwt.signer-key}")
@@ -50,7 +53,7 @@ public class SecurityConfig {
                 .permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/payment/vnpay-callback").permitAll()
-                .requestMatchers(HttpMethod.GET, "/users/profile/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/files", "/files/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/users/profile/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/files", "/files/**", "/users/check-email").permitAll()
                 .anyRequest().authenticated());
 
         httpSecurity.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer -> jwtConfigurer.decoder(jwtDecoder())

@@ -16,11 +16,26 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+
+  React.useEffect(() => {
+    if (!email) {
+      setEmailError('');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Định dạng email không hợp lệ.');
+    } else {
+      setEmailError('');
+    }
+  }, [email]);
 
   if (!isOpen) return null;
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (emailError) return;
     setLoading(true);
     setError('');
     try {
@@ -66,9 +81,6 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
         {step === 1 && (
           <div className="auth-step">
             <div className="modal-head">
-              <div className="icon-badge primary">
-                <ShieldCheck size={24} />
-              </div>
               <h3>Quên mật khẩu?</h3>
               <p>Nhập email của bạn để nhận mã xác thực OTP.</p>
             </div>
@@ -80,18 +92,23 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
                   <Mail size={18} />
                   <input
                     type="email"
-                    className="input-field"
+                    className={`input-field ${emailError ? 'error-border' : ''}`}
                     placeholder="mail@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
+                {emailError && (
+                  <div className="field-error-msg" style={{ color: '#ff4d4f', fontSize: '0.8rem', marginTop: '4px' }}>
+                    {emailError}
+                  </div>
+                )}
               </div>
 
               {error && <div className="status-message error mt-4">{error}</div>}
 
-              <button type="submit" className="btn-primary w-full mt-6" disabled={loading}>
+              <button type="submit" className="btn-primary w-full mt-6" disabled={loading || !!emailError}>
                 {loading ? 'Đang gửi...' : 'Gửi mã xác thực'}
                 {!loading && <ArrowRight size={18} />}
               </button>
@@ -102,9 +119,6 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
         {step === 2 && (
           <div className="auth-step">
             <div className="modal-head">
-              <div className="icon-badge primary">
-                <ShieldCheck size={24} />
-              </div>
               <h3>Xác thực OTP</h3>
               <p>Mã OTP đã được gửi đến <strong>{email}</strong>.</p>
             </div>
@@ -120,7 +134,10 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
                     placeholder="123456"
                     maxLength={6}
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setOtp(val);
+                    }}
                     required
                   />
                 </div>
@@ -147,28 +164,25 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
                   <Lock size={18} />
                   <input
                     type="password"
-                    className="input-field"
+                    className={`input-field ${confirmPassword && newPassword !== confirmPassword ? 'error-border' : ''}`}
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
                   />
                 </div>
+                {confirmPassword && newPassword !== confirmPassword && (
+                  <div className="field-error-msg" style={{ color: '#ff4d4f', fontSize: '0.8rem', marginTop: '4px' }}>
+                    Mật khẩu nhập lại không khớp.
+                  </div>
+                )}
               </div>
 
               {error && <div className="status-message error mt-4">{error}</div>}
 
-              <button type="submit" className="btn-primary w-full mt-6" disabled={loading}>
+              <button type="submit" className="btn-primary w-full mt-6" disabled={loading || (confirmPassword !== '' && newPassword !== confirmPassword)}>
                 {loading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
                 {!loading && <ArrowRight size={18} />}
-              </button>
-              
-              <button 
-                type="button" 
-                className="subtle-link w-full mt-4 text-center"
-                onClick={() => setStep(1)}
-              >
-                Quay lại nhập email
               </button>
             </form>
           </div>
@@ -176,9 +190,6 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
 
         {step === 3 && (
           <div className="auth-step text-center py-8">
-            <div className="icon-badge success mx-auto mb-4">
-              <CheckCircle2 size={32} />
-            </div>
             <h3>Thành công!</h3>
             <p className="mt-2 text-muted">Mật khẩu của bạn đã được cập nhật.</p>
             <button className="btn-primary w-full mt-8" onClick={onClose}>
@@ -192,6 +203,25 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClo
         .auth-modal {
           max-width: 420px;
           padding: 2.5rem;
+        }
+        .modal-close {
+          position: absolute;
+          top: 1.25rem;
+          right: 1.25rem;
+          background: transparent !important;
+          color: var(--text-secondary);
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          border: none;
+        }
+        .modal-close:hover {
+          background: rgba(0, 0, 0, 0.05) !important;
+          color: var(--text-primary);
         }
         .modal-head {
           text-align: center;

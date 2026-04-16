@@ -35,6 +35,14 @@ public class UserController {
                 .build();
     }
 
+    @Operation(summary = "Check if email exists")
+    @GetMapping("/check-email")
+    public ApiResponse<Boolean> checkEmail(@RequestParam String email) {
+        return ApiResponse.<Boolean>builder()
+                .result(userService.checkEmailExisted(email))
+                .build();
+    }
+
     @Operation(summary = "Get all users", description = "Admin only")
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")

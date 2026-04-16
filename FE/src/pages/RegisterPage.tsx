@@ -18,6 +18,7 @@ const RegisterPage: React.FC = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    confirmPassword: '',
     fullName: '',
     otpCode: '',
     dob: '',
@@ -28,10 +29,55 @@ const RegisterPage: React.FC = () => {
   const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [isEmailValidating, setIsEmailValidating] = useState(false);
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const validateEmail = async () => {
+      const email = formData.email;
+      if (!email) {
+        setEmailError('');
+        return;
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setEmailError('Định dạng email không hợp lệ.');
+        return;
+      }
+
+      setIsEmailValidating(true);
+      try {
+        const response = await api.get(`${ENDPOINTS.USER.CHECK_EMAIL}?email=${encodeURIComponent(email)}`);
+        if (response.data.result) {
+          setEmailError('Email này đã được sử dụng trong hệ thống.');
+        } else {
+          setEmailError('');
+        }
+      } catch (err) {
+        console.error('Email check failed', err);
+      } finally {
+        setIsEmailValidating(false);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      validateEmail();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.email]);
  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'otpCode') {
+      // Chỉ cho phép nhập số và giới hạn 6 ký tự
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 6);
+      setFormData({ ...formData, [name]: digitsOnly });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
  
   const handleSendOtp = async () => {
@@ -66,6 +112,10 @@ const RegisterPage: React.FC = () => {
     e.preventDefault();
     if (!isOtpSent) {
       setError('Vui lòng xác thực Email trước khi đăng ký.');
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Mật khẩu nhập lại không khớp.');
       return;
     }
     setLoading(true);
@@ -146,7 +196,7 @@ const RegisterPage: React.FC = () => {
                 <Mail size={18} />
                 <input
                   id="email"
-                  className="input-field"
+                  className={`input-field ${emailError ? 'error-border' : ''}`}
                   name="email"
                   type="email"
                   placeholder="name@example.com"
@@ -158,11 +208,16 @@ const RegisterPage: React.FC = () => {
                   type="button"
                   className="btn-text-action"
                   onClick={handleSendOtp}
-                  disabled={otpLoading || countdown > 0}
+                  disabled={otpLoading || countdown > 0 || !!emailError || isEmailValidating || !formData.email}
                 >
-                  {otpLoading ? '...' : countdown > 0 ? `${countdown}s` : 'Gửi mã'}
+                  {otpLoading || isEmailValidating ? '...' : countdown > 0 ? `${countdown}s` : 'Gửi mã'}
                 </button>
               </div>
+              {emailError && (
+                <div className="field-error-msg" style={{ color: '#ff4d4f', fontSize: '0.8rem', marginTop: '4px' }}>
+                  {emailError}
+                </div>
+              )}
             </div>
  
             <div className={`otp-field-wrap ${isOtpSent ? 'active' : ''}`}>
@@ -178,6 +233,7 @@ const RegisterPage: React.FC = () => {
                   placeholder="Nhập 6 chữ số"
                   value={formData.otpCode}
                   onChange={handleChange}
+                  maxLength={6}
                   required={isOtpSent}
                 />
               </div>
@@ -194,11 +250,36 @@ const RegisterPage: React.FC = () => {
                   className="input-field"
                   name="password"
                   type="password"
+                  placeholder="Nhập mật khẩu"
                   value={formData.password}
                   onChange={handleChange}
                   required
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="field-label" htmlFor="confirmPassword">
+                Nhập lại mật khẩu
+              </label>
+              <div className="input-shell">
+                <Lock size={18} />
+                <input
+                  id="confirmPassword"
+                  className={`input-field ${formData.confirmPassword && formData.password !== formData.confirmPassword ? 'error-border' : ''}`}
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="Xác nhận lại mật khẩu"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <div className="field-error-msg" style={{ color: '#ff4d4f', fontSize: '0.8rem', marginTop: '4px' }}>
+                  Mật khẩu nhập lại không khớp.
+                </div>
+              )}
             </div>
  
             <div className="split-fields">

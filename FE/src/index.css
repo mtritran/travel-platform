@@ -4287,6 +4287,30 @@ img {
   color: var(--primary);
   text-decoration: none;
   font-weight: 700;
+  outline: none;
+  background: transparent !important;
+  border: none;
+}
+
+.subtle-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+  background: transparent !important;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.modal-content {
+  pointer-events: auto;
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -5116,4 +5140,32 @@ input.error:focus,
 .avatar-large {
   width: 100px;
   height: 100px;
+}
+
+.error-border {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 4px var(--danger-soft) !important;
+}
+
+.field-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--danger);
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-top: 6px;
+  animation: slide-in-top 0.2s ease;
+}
+
+@keyframes slide-in-top {
+  from {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }

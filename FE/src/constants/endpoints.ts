@@ -20,6 +20,7 @@ export const ENDPOINTS = {
     UPDATE: (id: string) => `/users/${id}`,
     DELETE: (id: string) => `/users/${id}`,
     AVATAR: '/users/avatar',
+    CHECK_EMAIL: '/users/check-email',
   },
   TOUR: {
     BASE: '/tours',

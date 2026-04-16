@@ -56,6 +56,10 @@ public class UserService {
         return userMapper.toResponse(userRepository.save(user));
     }
 
+    public boolean checkEmailExisted(String email) {
+        return userRepository.existsByEmail(email);
+    }
+
     //OFFSET = PageNumber x Limit
     public Page<UserResponse> getAllUsers(Pageable pageable) {
         return userRepository.findAll(pageable)
