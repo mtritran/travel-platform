@@ -15,7 +15,7 @@ import api from '../../services/api';
 import { ENDPOINTS } from '../../constants/endpoints';
 import type { Booking, TourRequest, ApiResponse } from '../../types';
 import { useNotification } from '../../context/NotificationContext';
-import { formatVND } from '../../utils/format';
+import { formatVND, getFileUrl } from '../../utils/format';
 import { type UnifiedDispute } from './AdminDisputesPage';
 
 interface DisputeDetailModalProps {
@@ -212,13 +212,13 @@ const DisputeDetailModal: React.FC<DisputeDetailModalProps> = ({ dispute, onClos
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
                 {evidenceImages.map((url: string, i: number) => (
-                  <a key={i} href={url} target="_blank" rel="noreferrer" style={{
+                  <a key={i} href={getFileUrl(url)} target="_blank" rel="noreferrer" style={{
                     display: 'block', borderRadius: '14px', overflow: 'hidden',
                     border: '1px solid #e2e8f0', transition: 'all 0.2s',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
                   }}>
                     <img 
-                      src={url} 
+                      src={getFileUrl(url)} 
                       alt={`Evidence ${i+1}`} 
                       style={{ width: '100%', height: '120px', objectFit: 'cover' }}
                     />

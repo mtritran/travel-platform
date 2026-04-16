@@ -43,7 +43,7 @@ const TripRequestsPage: React.FC = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<TourRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'OPEN' | 'MY' | 'ACCEPTED'>('OPEN');
+  const [activeTab, setActiveTab] = useState<'OPEN' | 'MY' | 'ACCEPTED' | 'HISTORY'>('OPEN');
   const [interestLoading, setInterestLoading] = useState<string | null>(null);
   const [selectedRequestForReview, setSelectedRequestForReview] = useState<TourRequest | null>(null);
   
@@ -82,11 +82,19 @@ const TripRequestsPage: React.FC = () => {
     if (!silent) setLoading(true);
     try {
       let url = ENDPOINTS.TOUR_REQUEST.GET_ALL;
-      if (activeTab === 'MY') url = ENDPOINTS.TOUR_REQUEST.GET_MY;
+      if (activeTab === 'MY' || activeTab === 'HISTORY') url = ENDPOINTS.TOUR_REQUEST.GET_MY;
       if (activeTab === 'ACCEPTED') url = ENDPOINTS.TOUR_REQUEST.GET_ACCEPTED;
 
       const response = await api.get<ApiResponse<TourRequest[]>>(url);
-      setRequests(response.data.result);
+      let data = response.data.result;
+      
+      if (activeTab === 'MY') {
+        data = data.filter(r => !['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(r.status));
+      } else if (activeTab === 'HISTORY') {
+        data = data.filter(r => ['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(r.status));
+      }
+      
+      setRequests(data);
     } catch (err) {
       console.error('Failed to fetch tour requests:', err);
     } finally {
@@ -428,7 +436,10 @@ const TripRequestsPage: React.FC = () => {
                 </button>
               ) : null}
               <button type="button" className={`tab-button${activeTab === 'MY' ? ' active' : ''}`} onClick={() => setActiveTab('MY')}>
-                {isGuide ? 'Yêu cầu của tôi' : 'Yêu cầu của tôi'}
+                {isGuide ? 'Yêu cầu của tôi' : 'Đang xử lý'}
+              </button>
+              <button type="button" className={`tab-button${activeTab === 'HISTORY' ? ' active' : ''}`} onClick={() => setActiveTab('HISTORY')}>
+                Lịch sử yêu cầu
               </button>
               {isGuide ? (
                 <button
@@ -1380,12 +1391,13 @@ const TripRequestsPage: React.FC = () => {
                 }}
               >
                 <div 
-                  className="glass-panel" 
+                  className="glass-panel modal-content" 
                   style={{
                     maxWidth: '600px',
                     width: '100%',
                     padding: '40px',
                     position: 'relative',
+                    pointerEvents: 'auto',
                     animation: 'slideUp 0.4s cubic-bezier(0, 0, 0.2, 1)'
                   }}
                 >

@@ -95,6 +95,7 @@ export interface Booking {
   userAvatarUrl?: string;
   tourTitle: string;
   guideName: string;
+  guideId: string;
   guideAvatarUrl?: string;
   guidePhone?: string;
   userPhone?: string;
@@ -132,6 +133,7 @@ export interface Review {
   userAvatarUrl: string;
   userPhone: string;
   tourTitle: string;
+  tourId?: string;
   rating: number;
   comment: string;
   imagesUrl?: string;
@@ -164,6 +166,11 @@ export interface TourRequest {
   customerAvatarUrl?: string;
   locationName?: string;
   customLocationName?: string;
+  latitude?: number;
+  longitude?: number;
+  meetingLatitude?: number;
+  meetingLongitude?: number;
+  meetingLocationName?: string;
   plannedDate: string;
   budget: number;
   numberOfGuests: number;

@@ -19,6 +19,7 @@ public class ReviewResponse {
     int rating;
     String comment;
     String imagesUrl;
+    String tourId;
     String tourRequestId;
     boolean active;
     LocalDateTime createdAt;

@@ -36,6 +36,8 @@ public class TourRequestResponse {
     java.time.Instant expiresAt;
     
     String meetingLocationName;
+    Double latitude;
+    Double longitude;
     Double meetingLatitude;
     Double meetingLongitude;
     java.time.LocalTime startTime;

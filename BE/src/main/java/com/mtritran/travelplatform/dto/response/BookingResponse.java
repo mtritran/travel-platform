@@ -20,6 +20,7 @@ public class BookingResponse {
     String userAvatarUrl;
     String tourTitle;
     String guideName;
+    String guideId;
     String guideAvatarUrl;
     LocalDate bookingDate;
     Integer numberOfGuests;

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Calendar, CheckCircle2, ChevronRight, Clock, AlertCircle, Wallet, XCircle, AlertTriangle, Camera, Trash2, Phone, User } from 'lucide-react';
 import api from '../services/api';
 import type { ApiResponse, Booking } from '../types';
@@ -214,7 +215,7 @@ const MyBookingsPage: React.FC = () => {
                     <h3 className="tour-title" style={{ fontSize: '1.15rem' }}>{booking.tourTitle}</h3>
                     <div className="info-pair" style={{ marginTop: '8px' }}>
                       <User size={14} />
-                      Hướng dẫn viên: <strong>{booking.guideName}</strong>
+                      Hướng dẫn viên: <Link to={`/profile/${booking.guideId}`} style={{ fontWeight: 800, color: 'var(--primary)', textDecoration: 'none' }}>{booking.guideName}</Link>
                     </div>
                     {['CONFIRMED', 'PAID_FULL', 'COMPLETED'].includes(booking.status) && booking.guidePhone && (
                       <div className="info-pair" style={{ marginTop: '6px', color: 'var(--primary)', fontWeight: 700 }}>

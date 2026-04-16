@@ -43,6 +43,30 @@ type ApiError = {
   };
 };
 
+const toIsoDateString = (val: any) => {
+  if (Array.isArray(val)) {
+    const [y, m, d] = val;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  if (!val) return '';
+  if (typeof val === 'string') return val.split('T')[0];
+  try {
+    return new Date(val).toISOString().split('T')[0];
+  } catch (e) {
+    return '';
+  }
+};
+
+const toIsoTimeString = (val: any) => {
+  if (Array.isArray(val)) {
+    const [h, m] = val;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+  if (!val) return '08:00';
+  if (typeof val === 'string') return val.substring(0, 5);
+  return '08:00';
+};
+
 const getInitialFormData = (editMode?: boolean, existingReq?: EditableTourRequest): RequestFormData => {
   if (editMode && existingReq) {
     return {
@@ -53,14 +77,14 @@ const getInitialFormData = (editMode?: boolean, existingReq?: EditableTourReques
       address: existingReq.locationName || existingReq.customLocationName || '',
       latitude: existingReq.latitude || 0,
       longitude: existingReq.longitude || 0,
-      plannedDate: new Date(existingReq.plannedDate).toISOString().split('T')[0],
+      plannedDate: toIsoDateString(existingReq.plannedDate),
       numberOfGuests: existingReq.numberOfGuests.toString(),
       expiryHours: '24',
       meetingLocationName: existingReq.meetingLocationName || '',
       meetingLatitude: existingReq.meetingLatitude || 0,
       meetingLongitude: existingReq.meetingLongitude || 0,
-      startTime: existingReq.startTime || '08:00',
-      endTime: existingReq.endTime || '17:00',
+      startTime: toIsoTimeString(existingReq.startTime),
+      endTime: toIsoTimeString(existingReq.endTime),
     };
   }
 
@@ -558,6 +582,8 @@ const CreateTourRequestPage: React.FC = () => {
                 </div>
 
                 <LocationPicker
+                  initialLat={formData.latitude || undefined}
+                  initialLng={formData.longitude || undefined}
                   onLocationSelect={(lat, lng, addr) => {
                     setFormData({ ...formData, latitude: lat, longitude: lng, address: addr, locationName: addr });
                     setErrors((prev) => ({ ...prev, location: '' }));
@@ -594,6 +620,8 @@ const CreateTourRequestPage: React.FC = () => {
                 </div>
 
                 <LocationPicker
+                  initialLat={formData.meetingLatitude || undefined}
+                  initialLng={formData.meetingLongitude || undefined}
                   onLocationSelect={(lat, lng, addr) => {
                     setFormData({
                       ...formData,

@@ -11,6 +11,11 @@ import {
   Calendar,
   Clock,
   DollarSign,
+  Camera,
+  CalendarDays,
+  Pencil,
+  ArrowUpRight,
+  Trash2,
 } from 'lucide-react';
 import api from '../../services/api';
 import type { ApiResponse, Tour } from '../../types';
@@ -187,68 +192,84 @@ const AdminToursPage: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="admin-tours-list">
+          <div className="guide-tour-grid">
             {filteredTours.map((tour) => {
               const state = getTourState(tour);
+              const tourDate = tour.startDate ? new Date(toIsoDateString(tour.startDate)) : null;
 
               return (
-                <article key={tour.id} className="glass-card admin-tour-card">
-                  <div className="admin-tour-card-media">
-                    <img src={getFileUrl(tour.imageUrl)} alt={tour.title} className="admin-tour-card-image" />
-                    <div className="admin-tour-card-overlay" />
-                    <div className={`admin-tour-card-status ${state.toneClass}`}>{state.label}</div>
+                <article key={tour.id} className="guide-tour-card glass-card">
+                  <div className="guide-tour-card-media">
+                    <img
+                      src={
+                        tour.imageUrl
+                          ? tour.imageUrl.startsWith('http')
+                            ? tour.imageUrl
+                            : getFileUrl(tour.imageUrl)
+                          : 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80'
+                      }
+                      alt={tour.title}
+                      className="guide-tour-card-image"
+                    />
+                    <div className="guide-tour-card-overlay" />
+                    <div className="guide-tour-card-media-copy">
+                      <p className="guide-tour-card-kicker">Tour hệ thống</p>
+                      <h3 className="guide-tour-card-title">{tour.title}</h3>
+                    </div>
                   </div>
 
-                  <div className="admin-tour-card-body">
-                    <div className="admin-tour-card-main">
-                      <div className="admin-tour-card-copy">
-                        <h3 className="admin-tour-card-title">{tour.title}</h3>
-                        <div className="admin-tour-card-meta">
-                          <span>
-                            <User size={14} /> {tour.guideName}
-                          </span>
-                          <span>
-                            <MapPin size={14} /> {tour.locationName}
-                          </span>
-                        </div>
-                        {tour.status === 'INACTIVE' && tour.hiddenReason ? (
-                          <p className="admin-tour-card-note">Lý do ẩn: {tour.hiddenReason}</p>
-                        ) : (
-                          <p className="admin-tour-card-note admin-tour-card-note-muted">
-                            Tour đang được hệ thống theo dõi về nội dung, thời gian và trạng thái
-                            hiển thị.
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="admin-tour-card-side">
-                        <div className="admin-tour-price">{formatVND(tour.price)}</div>
-                        <span className="admin-tour-price-caption">mỗi khách</span>
-                      </div>
+                  <div className="guide-tour-card-content">
+                    <div className="guide-tour-card-location">
+                      <MapPin size={16} />
+                      <span>{tour.locationName}</span>
                     </div>
 
-                    <div className="admin-tour-card-footer">
-                      <div className="admin-tour-facts">
-                        <span className="admin-tour-fact">
-                          <Calendar size={15} />
-                          {tour.startDate
-                            ? new Date(toIsoDateString(tour.startDate)).toLocaleDateString('vi-VN')
-                            : 'Chưa có ngày'}
-                        </span>
-                        <span className="admin-tour-fact">
-                          <Clock size={15} />
-                          {tour.startTime || 'Chưa có giờ'}
-                        </span>
+                    <div className="guide-tour-meta-row" style={{ marginTop: '4px' }}>
+                       <div className="guide-tour-meta-card">
+                          <span className="guide-tour-meta-label">Hướng dẫn viên</span>
+                          <div className="guide-tour-meta-value">
+                            <User size={15} />
+                            <span style={{ fontSize: '0.82rem' }}>{tour.guideName}</span>
+                          </div>
+                        </div>
+                        <div className="guide-tour-meta-card">
+                          <span className="guide-tour-meta-label">Trạng thái</span>
+                          <div className={`guide-tour-meta-value ${state.toneClass}`} style={{ color: state.toneClass === 'is-active' ? '#0f766e' : state.toneClass === 'is-hidden' ? '#dc2626' : 'var(--text-secondary)' }}>
+                            {state.label}
+                          </div>
+                        </div>
+                    </div>
+
+                    <div className="guide-tour-meta-row">
+                        <div className="guide-tour-meta-card">
+                          <span className="guide-tour-meta-label">Khởi hành</span>
+                          <div className="guide-tour-meta-value">
+                            <CalendarDays size={15} />
+                            <span>{tourDate ? tourDate.toLocaleDateString('vi-VN') : 'N/A'}</span>
+                          </div>
+                        </div>
+                        <div className="guide-tour-meta-card">
+                          <span className="guide-tour-meta-label">Giá (VND)</span>
+                          <div className="guide-tour-meta-value" style={{ color: 'var(--primary)' }}>
+                            {formatVND(tour.price)}
+                          </div>
+                        </div>
+                    </div>
+
+                    <div className="guide-tour-card-footer">
+                      <div className="guide-tour-quick-note">
+                        <Clock size={15} />
+                        <span>Hệ thống theo dõi & quản trị</span>
                       </div>
 
-                      <div className="admin-tour-actions">
+                      <div className="guide-tour-actions">
                         <button
                           type="button"
                           onClick={() => {
                             setSelectedTour(tour);
                             setShowHideModal(false);
                           }}
-                          className="icon-button"
+                          className="guide-tour-action"
                           title="Xem chi tiết"
                         >
                           <Eye size={18} />
@@ -261,7 +282,7 @@ const AdminToursPage: React.FC = () => {
                               setSelectedTour(tour);
                               setShowHideModal(true);
                             }}
-                            className="icon-button admin-tour-action-danger"
+                            className="guide-tour-action guide-tour-action-danger"
                             title="Ẩn tour"
                           >
                             <Slash size={18} />
@@ -270,8 +291,9 @@ const AdminToursPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleUpdateStatus(tour.id, 'ACTIVE')}
-                            className="icon-button admin-tour-action-success"
+                            className="guide-tour-action"
                             title="Kích hoạt lại"
+                            style={{ color: '#059669' }}
                           >
                             <CheckCircle size={18} />
                           </button>
@@ -363,7 +385,16 @@ const AdminToursPage: React.FC = () => {
 
               <div className="admin-tour-detail-grid">
                 <div className="admin-tour-detail-media">
-                  <img src={getFileUrl(selectedTour.imageUrl)} alt={selectedTour.title} />
+                  <img
+                    src={
+                      selectedTour.imageUrl
+                        ? selectedTour.imageUrl.startsWith('http')
+                          ? selectedTour.imageUrl
+                          : getFileUrl(selectedTour.imageUrl)
+                        : 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&q=80'
+                    }
+                    alt={selectedTour.title}
+                  />
                 </div>
 
                 <div className="admin-tour-detail-summary">

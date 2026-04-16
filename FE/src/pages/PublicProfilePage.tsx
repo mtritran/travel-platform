@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Mail, Phone, User, Globe, Award, Briefcase, Star } from 'lucide-react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import api from '../services/api';
@@ -161,7 +161,15 @@ const PublicProfilePage: React.FC = () => {
                             <article key={review.id} className="review-card">
                               <div className="review-head">
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                  <span className="avatar-review">{review.userName.charAt(0)}</span>
+                                  <span className="avatar-review" style={{ overflow: 'hidden' }}>
+                                    {review.userAvatarUrl ? (
+                                      <img 
+                                        src={getFileUrl(review.userAvatarUrl)} 
+                                        alt={review.userName} 
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                      />
+                                    ) : review.userName.charAt(0)}
+                                  </span>
                                   <div>
                                     <div style={{ fontWeight: 800 }}>{review.userName}</div>
                                     <div className="muted-text" style={{ fontSize: '0.8rem' }}>
@@ -183,7 +191,17 @@ const PublicProfilePage: React.FC = () => {
                               <p style={{ lineHeight: 1.7, fontStyle: 'italic' }}>"{review.comment}"</p>
                               {review.tourTitle && (
                                 <div style={{ marginTop: '12px', fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600 }}>
-                                    Tour: {review.tourTitle}
+                                    Tour: {review.tourId ? (
+                                      <Link to={`/tours/${review.tourId}`} className="tour-link-inline">
+                                        {review.tourTitle}
+                                      </Link>
+                                    ) : review.tourRequestId ? (
+                                      <Link to="/requests" className="tour-link-inline">
+                                        {review.tourTitle}
+                                      </Link>
+                                    ) : (
+                                      review.tourTitle
+                                    )}
                                 </div>
                               )}
                             </article>
