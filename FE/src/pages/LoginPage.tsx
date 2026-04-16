@@ -29,6 +29,10 @@ const LoginPage: React.FC = () => {
       setEmailError('');
       return;
     }
+    if (email === 'admin@admin') {
+      setEmailError('');
+      return;
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setEmailError('Định dạng email không hợp lệ.');

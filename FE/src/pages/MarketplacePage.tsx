@@ -110,8 +110,8 @@ const MarketplacePage: React.FC = () => {
                   />
                   <div className="media-overlay" />
                   <span className="badge badge-secondary tour-rating">
-                    <Star size={14} fill="currentColor" />
-                    {tour.rating !== 0 ? tour.rating.toFixed(1) : '5.0'}
+                    <Star size={14} fill={tour.reviewCount > 0 ? 'currentColor' : 'transparent'} />
+                    {tour.reviewCount > 0 ? tour.rating.toFixed(1) : 'Chưa có'}
                   </span>
                 </div>
 

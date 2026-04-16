@@ -64,9 +64,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   const guideLinks: NavItem[] = isGuide
     ? [
-        { to: '/guide/bookings', label: 'Đơn khách đặt', icon: <Calendar size={16} /> },
-        { to: '/guide/tours', label: 'Quản lý tour', icon: <Briefcase size={16} /> },
-      ]
+      { to: '/guide/bookings', label: 'Đơn khách đặt', icon: <Calendar size={16} /> },
+      { to: '/guide/tours', label: 'Quản lý tour', icon: <Briefcase size={16} /> },
+    ]
     : [{ to: '/become-guide', label: 'Trở thành HDV', icon: <ShieldCheck size={16} /> }];
 
   const navLinks = isAdmin ? adminLinks : [...customerLinks, ...guideLinks];
@@ -112,8 +112,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               </button>
 
               <div style={{ position: 'relative' }} ref={menuRef}>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="profile-chip"
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   style={{ cursor: 'pointer', border: 'none', background: 'var(--surface-hover)' }}
@@ -124,10 +124,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </div>
                   <span className="avatar-pill" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {user?.avatarUrl ? (
-                      <img 
-                        src={getFileUrl(user.avatarUrl)} 
-                        alt="Avatar" 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      <img
+                        src={getFileUrl(user.avatarUrl)}
+                        alt="Avatar"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     ) : (
                       <User size={18} />
@@ -160,9 +160,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '4px 0' }} />
                       </>
                     )}
-                    <button 
-                      onClick={handleLogout} 
-                      className="nav-link" 
+                    <button
+                      onClick={handleLogout}
+                      className="nav-link"
                       style={{ border: 'none', background: 'none', cursor: 'pointer', width: '100%', color: 'var(--error)', margin: 0, padding: '10px 12px' }}
                     >
                       <LogOut size={16} /> <span>Đăng xuất</span>

@@ -43,8 +43,8 @@ const MiniTourCard: React.FC<{ tour: Tour; onClick: () => void }> = ({ tour, onC
         className="chat-tour-card-img"
       />
       <span className="chat-tour-card-rating">
-        <Star size={11} fill="currentColor" />
-        {tour.rating > 0 ? tour.rating.toFixed(1) : '5.0'}
+        <Star size={11} fill={tour.reviewCount > 0 ? 'currentColor' : 'transparent'} />
+        {tour.reviewCount > 0 ? tour.rating.toFixed(1) : 'Chưa có'}
       </span>
     </div>
     <div className="chat-tour-card-body">

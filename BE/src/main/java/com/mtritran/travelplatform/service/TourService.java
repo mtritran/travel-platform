@@ -1,30 +1,33 @@
 package com.mtritran.travelplatform.service;
 
-import com.mtritran.travelplatform.enums.TourStatus;
-
 import com.mtritran.travelplatform.dto.request.TourCreateRequest;
 import com.mtritran.travelplatform.dto.response.TourResponse;
 import com.mtritran.travelplatform.entity.Location;
+import com.mtritran.travelplatform.entity.Review;
 import com.mtritran.travelplatform.entity.Tour;
 import com.mtritran.travelplatform.entity.User;
+import com.mtritran.travelplatform.enums.RoleName;
+import com.mtritran.travelplatform.enums.TourStatus;
 import com.mtritran.travelplatform.exception.AppException;
 import com.mtritran.travelplatform.exception.ErrorCode;
 import com.mtritran.travelplatform.mapper.TourMapper;
+import com.mtritran.travelplatform.repository.BookingRepository;
 import com.mtritran.travelplatform.repository.LocationRepository;
+import com.mtritran.travelplatform.repository.ReviewRepository;
 import com.mtritran.travelplatform.repository.TourRepository;
 import com.mtritran.travelplatform.repository.UserRepository;
-import com.mtritran.travelplatform.repository.BookingRepository;
-import com.mtritran.travelplatform.repository.ReviewRepository;
-import com.mtritran.travelplatform.entity.Review;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.time.*;
 import java.util.List;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.context.annotation.Bean;
 
 @Service
 @RequiredArgsConstructor
@@ -53,7 +56,7 @@ public class TourService {
         }
 
         // Calculate occupied guests for the specific tour slot
-        java.time.Instant expiryTime = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
+        Instant expiryTime = Instant.now().minus(Duration.ofMinutes(10));
         Integer occupied = bookingRepository.sumOccupiedSlots(tour.getId(), tour.getStartDate(), tour.getStartTime(), expiryTime);
         response.setOccupiedGuests(occupied != null ? occupied : 0);
 
@@ -66,7 +69,7 @@ public class TourService {
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
         // Penalty Check: Block banned guides
-        if (guide.getGuideBannedUntil() != null && guide.getGuideBannedUntil().isAfter(java.time.Instant.now())) {
+        if (guide.getGuideBannedUntil() != null && guide.getGuideBannedUntil().isAfter(Instant.now())) {
             throw new AppException(ErrorCode.UNAUTHORIZED); // Or customize error: GUIDE_BANNED
         }
 
@@ -78,11 +81,10 @@ public class TourService {
 
         // Validate date and time accounting for booking cutoff
         int cutoff = request.getBookingCutoffMinutes() != null ? request.getBookingCutoffMinutes() : 60;
-        java.time.LocalDateTime startDateTime = java.time.LocalDateTime.of(request.getStartDate(), request.getStartTime());
-        java.time.LocalDateTime cutoffDateTime = startDateTime.minusMinutes(cutoff);
-        
-        // Use a 5-minute buffer for network/server delay
-        if (cutoffDateTime.isBefore(java.time.LocalDateTime.now().plusMinutes(5))) {
+        LocalDateTime startDateTime = LocalDateTime.of(request.getStartDate(), request.getStartTime());
+        LocalDateTime cutoffDateTime = startDateTime.minusMinutes(cutoff);
+
+        if (cutoffDateTime.isBefore(LocalDateTime.now())) {
             throw new AppException(ErrorCode.INVALID_TOUR_DATE);
         }
 
@@ -116,13 +118,13 @@ public class TourService {
     }
 
     public List<TourResponse> getAllActiveTours() {
-        java.time.ZoneId zoneId = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
-        java.time.Instant expiryTime = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
-        java.time.LocalDateTime vnNow = java.time.LocalDateTime.now(zoneId);
-        return tourRepository.findAvailableTours(java.time.LocalDate.now(zoneId), java.time.LocalTime.now(zoneId), expiryTime).stream()
+        ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
+        Instant expiryTime = Instant.now().minus(Duration.ofMinutes(10));
+        LocalDateTime vnNow = LocalDateTime.now(zoneId);
+        return tourRepository.findAvailableTours(LocalDate.now(zoneId), LocalTime.now(zoneId), expiryTime).stream()
                 .filter(t -> {
                     Integer cutoff = t.getBookingCutoffMinutes() != null ? t.getBookingCutoffMinutes() : 60;
-                    java.time.LocalDateTime cutoffPoint = java.time.LocalDateTime.of(t.getStartDate(), t.getStartTime()).minusMinutes(cutoff);
+                    LocalDateTime cutoffPoint = LocalDateTime.of(t.getStartDate(), t.getStartTime()).minusMinutes(cutoff);
                     return vnNow.isBefore(cutoffPoint);
                 })
                 .map(this::mapWithRating)
@@ -130,13 +132,13 @@ public class TourService {
     }
 
     public List<TourResponse> getNearbyTours(double lat, double lng, double radius) {
-        java.time.ZoneId zoneId = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
-        java.time.Instant expiryTime = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
-        java.time.LocalDateTime vnNow = java.time.LocalDateTime.now(zoneId);
-        return tourRepository.findNearbyTours(lat, lng, radius, java.time.LocalDate.now(zoneId), java.time.LocalTime.now(zoneId), expiryTime).stream()
+        ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
+        Instant expiryTime = Instant.now().minus(Duration.ofMinutes(10));
+        LocalDateTime vnNow = LocalDateTime.now(zoneId);
+        return tourRepository.findNearbyTours(lat, lng, radius, LocalDate.now(zoneId), LocalTime.now(zoneId), expiryTime).stream()
                 .filter(t -> {
                     Integer cutoff = t.getBookingCutoffMinutes() != null ? t.getBookingCutoffMinutes() : 60;
-                    java.time.LocalDateTime cutoffPoint = java.time.LocalDateTime.of(t.getStartDate(), t.getStartTime()).minusMinutes(cutoff);
+                    LocalDateTime cutoffPoint = LocalDateTime.of(t.getStartDate(), t.getStartTime()).minusMinutes(cutoff);
                     return vnNow.isBefore(cutoffPoint);
                 })
                 .map(this::mapWithRating)
@@ -149,7 +151,7 @@ public class TourService {
                 .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
     }
 
-    public org.springframework.data.domain.Page<TourResponse> getAllTours(org.springframework.data.domain.Pageable pageable) {
+    public Page<TourResponse> getAllTours(Pageable pageable) {
         return tourRepository.findAll(pageable)
                 .map(this::mapWithRating);
     }
@@ -165,16 +167,16 @@ public class TourService {
         }
 
         // Logic check: If have active bookings and not finished, block critical changes
-        java.time.Instant tenMinsAgo = java.time.Instant.now().minus(java.time.Duration.ofMinutes(10));
+        Instant tenMinsAgo = Instant.now().minus(Duration.ofMinutes(10));
         long activeCount = bookingRepository.countActiveBookings(id, tenMinsAgo);
 
-        java.time.ZoneId vnZone = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
-        java.time.LocalDateTime vnNow = java.time.LocalDateTime.now(vnZone);
+        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDateTime vnNow = LocalDateTime.now(vnZone);
         
         // Use endDate and endTime to determine completion. Fallback to start if end missing.
-        java.time.LocalDate effectiveEndDate = tour.getEndDate() != null ? tour.getEndDate() : tour.getStartDate();
-        java.time.LocalTime effectiveEndTime = tour.getEndTime() != null ? tour.getEndTime() : tour.getStartTime().plusHours(4); // default 4h if missing
-        java.time.LocalDateTime tourEnd = java.time.LocalDateTime.of(effectiveEndDate, effectiveEndTime);
+        LocalDate effectiveEndDate = tour.getEndDate() != null ? tour.getEndDate() : tour.getStartDate();
+        LocalTime effectiveEndTime = tour.getEndTime() != null ? tour.getEndTime() : tour.getStartTime().plusHours(4); // default 4h if missing
+        LocalDateTime tourEnd = LocalDateTime.of(effectiveEndDate, effectiveEndTime);
 
         if (activeCount > 0 && vnNow.isBefore(tourEnd)) {
             // Check if critical fields changed
@@ -218,10 +220,10 @@ public class TourService {
 
         // Validate new timing
         int newCutoff = request.getBookingCutoffMinutes() != null ? request.getBookingCutoffMinutes() : 60;
-        java.time.LocalDateTime newStart = java.time.LocalDateTime.of(request.getStartDate(), request.getStartTime());
-        java.time.LocalDateTime newCutoffPoint = newStart.minusMinutes(newCutoff);
+        LocalDateTime newStart = LocalDateTime.of(request.getStartDate(), request.getStartTime());
+        LocalDateTime newCutoffPoint = newStart.minusMinutes(newCutoff);
         
-        if (newCutoffPoint.isBefore(java.time.LocalDateTime.now().plusMinutes(5))) {
+        if (newCutoffPoint.isBefore(LocalDateTime.now())) {
             throw new AppException(ErrorCode.INVALID_TOUR_DATE);
         }
 
@@ -237,7 +239,7 @@ public class TourService {
         User currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
         
-        boolean isAdmin = currentUser.getRoles().stream().anyMatch(r -> r.getName() == com.mtritran.travelplatform.enums.RoleName.ADMIN);
+        boolean isAdmin = currentUser.getRoles().stream().anyMatch(r -> r.getName() == RoleName.ADMIN);
         boolean isOwner = tour.getGuide().getId().equals(currentUser.getId());
 
         if (isAdmin) {

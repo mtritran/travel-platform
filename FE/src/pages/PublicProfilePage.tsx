@@ -39,7 +39,7 @@ const PublicProfilePage: React.FC = () => {
   
   const averageRating = reviews.length > 0 
     ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
-    : '5.0';
+    : null;
 
   return (
     <DashboardLayout>
@@ -69,8 +69,8 @@ const PublicProfilePage: React.FC = () => {
                   ))}
                   {isGuide && (
                     <span className="badge badge-secondary">
-                        <Star size={14} fill="currentColor" />
-                        {averageRating} ({reviews.length})
+                        <Star size={14} fill={averageRating ? 'currentColor' : 'transparent'} />
+                        {averageRating ? `${averageRating} (${reviews.length})` : 'Chưa có'}
                     </span>
                   )}
                 </div>

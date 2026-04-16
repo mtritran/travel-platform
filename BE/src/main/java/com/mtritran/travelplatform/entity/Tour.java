@@ -1,14 +1,16 @@
 package com.mtritran.travelplatform.entity;
 
+import com.mtritran.travelplatform.enums.TourStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import com.mtritran.travelplatform.enums.TourStatus;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "tours")
@@ -53,16 +55,16 @@ public class Tour {
     String imageUrl;
 
     @Column
-    java.time.LocalDate startDate;
+    LocalDate startDate;
 
     @Column
-    java.time.LocalDate endDate;
+    LocalDate endDate;
 
     @Column
-    java.time.LocalTime startTime;
+    LocalTime startTime;
 
     @Column
-    java.time.LocalTime endTime;
+    LocalTime endTime;
 
     @Column
     @Builder.Default

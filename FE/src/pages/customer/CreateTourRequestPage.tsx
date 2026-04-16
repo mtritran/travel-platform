@@ -48,7 +48,7 @@ const getInitialFormData = (editMode?: boolean, existingReq?: EditableTourReques
     return {
       title: existingReq.title,
       description: existingReq.description,
-      budget: existingReq.budget.toString(),
+      budget: existingReq.budget.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','),
       locationName: existingReq.locationName || existingReq.customLocationName || '',
       address: existingReq.locationName || existingReq.customLocationName || '',
       latitude: existingReq.latitude || 0,
@@ -232,7 +232,7 @@ const CreateTourRequestPage: React.FC = () => {
       const payload = {
         title: formData.title,
         description: formData.description,
-        budget: Number(formData.budget),
+        budget: Number(formData.budget.replace(/,/g, '')),
         plannedDate: formData.plannedDate,
         numberOfGuests: Number(formData.numberOfGuests),
         expiryHours: Number(formData.expiryHours),
@@ -307,11 +307,21 @@ const CreateTourRequestPage: React.FC = () => {
               {requestSteps.map((item) => {
                 const isActive = step === item.id;
                 const isDone = step > item.id;
+                const isClickable = item.id < 3 && (item.id < step || (item.id === 2 && step === 1));
 
                 return (
                   <div
                     key={item.id}
-                    className={`tour-request-step ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`}
+                    className={`tour-request-step ${isActive ? 'active' : ''} ${isDone ? 'done' : ''} ${isClickable ? 'clickable' : ''}`}
+                    onClick={() => {
+                      if (!isClickable) return;
+                      if (item.id === 2 && step === 1) {
+                        if (validateStep1()) setStep(2);
+                      } else {
+                        setStep(item.id);
+                      }
+                    }}
+                    style={{ cursor: isClickable ? 'pointer' : 'default' }}
                   >
                     <span className="tour-request-step-index">{item.id}</span>
                     <div>
@@ -359,13 +369,15 @@ const CreateTourRequestPage: React.FC = () => {
                     <div className="input-shell tour-request-money-shell">
                       <Banknote size={18} />
                       <input
-                        type="number"
+                        type="text"
                         className="input-field"
-                        placeholder="500000"
+                        placeholder="500,000"
                         value={formData.budget}
                         onChange={(e) => {
-                          setFormData({ ...formData, budget: e.target.value });
-                          validateField('budget', e.target.value);
+                          const rawValue = e.target.value.replace(/\D/g, '');
+                          const formattedValue = rawValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                          setFormData({ ...formData, budget: formattedValue });
+                          validateField('budget', rawValue);
                         }}
                       />
                     </div>

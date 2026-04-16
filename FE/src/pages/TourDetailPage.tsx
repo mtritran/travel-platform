@@ -174,7 +174,7 @@ const TourDetailPage: React.FC = () => {
   const averageRating =
     reviews.length > 0
       ? (reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length).toFixed(1)
-      : '5.0';
+      : null;
 
   const remainingSlots = (tour.maxGuests || 0) - (tour.occupiedGuests || 0);
 
@@ -266,8 +266,8 @@ const TourDetailPage: React.FC = () => {
                 <h1 className="page-title">{tour.title}</h1>
                 <div className="meta-row">
                   <span className="badge badge-secondary">
-                    <Star size={14} fill="currentColor" />
-                    {averageRating} ({reviews.length} đánh giá)
+                    <Star size={14} fill={averageRating ? 'currentColor' : 'transparent'} />
+                    {averageRating ? `${averageRating} (${reviews.length} đánh giá)` : 'Chưa có đánh giá'}
                   </span>
                   <span className="badge badge-success">
                     <ShieldCheck size={14} />
@@ -329,8 +329,8 @@ const TourDetailPage: React.FC = () => {
                   </p>
                 </div>
                 <span className="badge badge-secondary">
-                  <Star size={14} fill="currentColor" />
-                  {averageRating} / 5.0
+                  <Star size={14} fill={averageRating ? 'currentColor' : 'transparent'} />
+                  {averageRating ? `${averageRating} / 5.0` : 'Chưa có đánh giá'}
                 </span>
               </div>
 

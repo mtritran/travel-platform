@@ -125,7 +125,7 @@ const ProfilePage: React.FC = () => {
             Quản lý thông tin tài khoản và cập nhật các chi tiết quan trọng trong một không gian trực quan, dễ
             theo dõi hơn.
           </p>
-          <IdentityUpgradeBanner 
+          <IdentityUpgradeBanner
             title="Nâng cấp định danh tài khoản"
             message="Bạn cần cập nhật Số điện thoại và Mã PIN thanh toán để bảo mật."
           />
@@ -134,12 +134,12 @@ const ProfilePage: React.FC = () => {
         <div className="profile-grid">
           <aside className="glass-panel profile-sidebar">
             <div className="profile-sidebar-hero">
-              <div 
-                className="avatar-large profile-avatar" 
+              <div
+                className="avatar-large profile-avatar"
                 onClick={handleAvatarClick}
-                style={{ 
-                  cursor: 'pointer', 
-                  position: 'relative', 
+                style={{
+                  cursor: 'pointer',
+                  position: 'relative',
                   overflow: 'hidden',
                   background: 'var(--surface-hover)',
                   border: '2px solid var(--primary-muted)'
@@ -148,10 +148,10 @@ const ProfilePage: React.FC = () => {
                 {avatarLoading ? (
                   <Loader2 size={32} className="animate-spin" style={{ color: 'var(--primary)' }} />
                 ) : user?.avatarUrl ? (
-                  <img 
-                    src={getFileUrl(user.avatarUrl)} 
-                    alt="Avatar" 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  <img
+                    src={getFileUrl(user.avatarUrl)}
+                    alt="Avatar"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
                   <User size={54} />
@@ -169,12 +169,12 @@ const ProfilePage: React.FC = () => {
                 }}>
                   <Camera size={24} />
                 </div>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  style={{ display: 'none' }} 
-                  accept="image/*" 
-                  onChange={handleAvatarChange} 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  accept="image/*"
+                  onChange={handleAvatarChange}
                 />
               </div>
               <div>
@@ -269,7 +269,7 @@ const ProfilePage: React.FC = () => {
                       />
                     </div>
                   </div>
- 
+
 
                   <div className="profile-field-full">
                     <label className="field-label" htmlFor="email-view">

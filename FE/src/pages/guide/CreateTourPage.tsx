@@ -255,11 +255,21 @@ const CreateTourPage: React.FC = () => {
               {tourSteps.map((item) => {
                 const isActive = step === item.id;
                 const isDone = step > item.id;
+                const isClickable = item.id < 3 && (item.id < step || (item.id === 2 && step === 1));
 
                 return (
                   <div
                     key={item.id}
-                    className={`tour-request-step ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`}
+                    className={`tour-request-step ${isActive ? 'active' : ''} ${isDone ? 'done' : ''} ${isClickable ? 'clickable' : ''}`}
+                    onClick={() => {
+                      if (!isClickable) return;
+                      if (item.id === 2 && step === 1) {
+                        if (validateStep1()) setStep(2);
+                      } else {
+                        setStep(item.id);
+                      }
+                    }}
+                    style={{ cursor: isClickable ? 'pointer' : 'default' }}
                   >
                     <span className="tour-request-step-index">{item.id}</span>
                     <div>

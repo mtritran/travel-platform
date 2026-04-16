@@ -25,18 +25,34 @@ const IdentityUpgradeBanner: React.FC<IdentityUpgradeBannerProps> = ({
     confirmPin: ''
   });
   const [error, setError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [loading, setLoading] = useState(false);
+ 
+  React.useEffect(() => {
+    if (!upgradeData.phone) {
+      setPhoneError('');
+      return;
+    }
+    const phoneRegex = /^(0|84)(3|5|7|8|9)([0-9]{8})$/;
+    if (!phoneRegex.test(upgradeData.phone)) {
+      setPhoneError('Số điện thoại không hợp lệ');
+    } else {
+      setPhoneError('');
+    }
+  }, [upgradeData.phone]);
 
   if (!user || (user.phone && user.hasPaymentPin)) return null;
 
   const handleUpgrade = async () => {
     setError('');
-    if (!upgradeData.phone.trim()) {
-      setError('Vui lòng nhập số điện thoại');
+    const phoneRegex = /^(0|84)(3|5|7|8|9)([0-9]{8})$/;
+    
+    if (!phoneRegex.test(upgradeData.phone)) {
+      setError('Số điện thoại không hợp lệ (ví dụ: 0912345678)');
       return;
     }
-    if (upgradeData.paymentPin.length < 6) {
-      setError('Mã PIN phải có ít nhất 6 chữ số');
+    if (upgradeData.paymentPin.length !== 6) {
+      setError('Mã PIN phải có đúng 6 chữ số');
       return;
     }
     if (upgradeData.paymentPin !== upgradeData.confirmPin) {
@@ -141,13 +157,19 @@ const IdentityUpgradeBanner: React.FC<IdentityUpgradeBannerProps> = ({
           <div className="input-shell">
             <Phone size={18} style={{ opacity: 0.5 }} />
             <input
-              className="input-field"
+              className={`input-field ${phoneError ? 'error-border' : ''}`}
               type="text"
               value={upgradeData.phone}
-              onChange={e => setUpgradeData({...upgradeData, phone: e.target.value})}
+              onChange={e => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                setUpgradeData({...upgradeData, phone: val});
+              }}
               placeholder="Nhập số điện thoại"
             />
           </div>
+          {phoneError && (
+            <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '4px' }}>{phoneError}</p>
+          )}
         </div>
         <div>
           <label className="field-label" style={{ fontSize: '0.8rem' }}>Mã PIN thanh toán (6 số)</label>
@@ -157,7 +179,10 @@ const IdentityUpgradeBanner: React.FC<IdentityUpgradeBannerProps> = ({
               className="input-field"
               type="password"
               value={upgradeData.paymentPin}
-              onChange={e => setUpgradeData({...upgradeData, paymentPin: e.target.value})}
+              onChange={e => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                setUpgradeData({...upgradeData, paymentPin: val});
+              }}
               placeholder="Thiết lập mã PIN mới"
               maxLength={6}
             />
@@ -170,14 +195,20 @@ const IdentityUpgradeBanner: React.FC<IdentityUpgradeBannerProps> = ({
         <div className="input-shell">
           <ShieldCheck size={18} style={{ opacity: 0.5 }} />
           <input
-            className="input-field"
+            className={`input-field ${upgradeData.confirmPin && upgradeData.paymentPin !== upgradeData.confirmPin ? 'error-border' : ''}`}
             type="password"
             value={upgradeData.confirmPin}
-            onChange={e => setUpgradeData({...upgradeData, confirmPin: e.target.value})}
+            onChange={e => {
+              const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+              setUpgradeData({...upgradeData, confirmPin: val});
+            }}
             placeholder="Nhập lại mã PIN xác nhận"
             maxLength={6}
           />
         </div>
+        {upgradeData.confirmPin && upgradeData.paymentPin !== upgradeData.confirmPin && (
+          <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '4px' }}>Mã PIN nhập lại không khớp</p>
+        )}
       </div>
 
       {error && <p style={{ color: 'var(--error)', fontSize: '0.875rem', marginBottom: '16px', fontWeight: '600' }}>{error}</p>}
@@ -186,7 +217,7 @@ const IdentityUpgradeBanner: React.FC<IdentityUpgradeBannerProps> = ({
         onClick={handleUpgrade}
         className="btn-primary"
         style={{ width: '100%', padding: '14px', borderRadius: '14px' }}
-        disabled={loading}
+        disabled={loading || !!phoneError || (upgradeData.confirmPin !== '' && upgradeData.paymentPin !== upgradeData.confirmPin)}
       >
         {loading ? 'Đang lưu...' : 'Lưu thông tin định danh'}
       </button>
@@ -242,12 +273,18 @@ const IdentityUpgradeBanner: React.FC<IdentityUpgradeBannerProps> = ({
               <Phone size={18} style={{ opacity: 0.5 }} />
               <input 
                 type="text" 
-                className="input-field" 
+                className={`input-field ${phoneError ? 'error-border' : ''}`}
                 placeholder="0912345678"
                 value={upgradeData.phone}
-                onChange={e => setUpgradeData({...upgradeData, phone: e.target.value})}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  setUpgradeData({...upgradeData, phone: val});
+                }}
               />
             </div>
+            {phoneError && (
+              <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '4px' }}>{phoneError}</p>
+            )}
           </div>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -260,7 +297,10 @@ const IdentityUpgradeBanner: React.FC<IdentityUpgradeBannerProps> = ({
                   className="input-field" 
                   placeholder="6 số"
                   value={upgradeData.paymentPin}
-                  onChange={e => setUpgradeData({...upgradeData, paymentPin: e.target.value})}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setUpgradeData({...upgradeData, paymentPin: val});
+                  }}
                   maxLength={6}
                 />
               </div>
@@ -271,13 +311,19 @@ const IdentityUpgradeBanner: React.FC<IdentityUpgradeBannerProps> = ({
                 <ShieldCheck size={18} style={{ opacity: 0.5 }} />
                 <input 
                   type="password" 
-                  className="input-field" 
+                  className={`input-field ${upgradeData.confirmPin && upgradeData.paymentPin !== upgradeData.confirmPin ? 'error-border' : ''}`}
                   placeholder="Nhập lại"
                   value={upgradeData.confirmPin}
-                  onChange={e => setUpgradeData({...upgradeData, confirmPin: e.target.value})}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setUpgradeData({...upgradeData, confirmPin: val});
+                  }}
                   maxLength={6}
                 />
               </div>
+              {upgradeData.confirmPin && upgradeData.paymentPin !== upgradeData.confirmPin && (
+                <p style={{ color: 'var(--error)', fontSize: '0.75rem', marginTop: '4px' }}>Không khớp</p>
+              )}
             </div>
           </div>
 
@@ -288,7 +334,7 @@ const IdentityUpgradeBanner: React.FC<IdentityUpgradeBannerProps> = ({
             className="btn-primary" 
             style={{ width: '100%', padding: '16px', borderRadius: '16px', marginTop: '8px' }}
             onClick={handleUpgrade}
-            disabled={loading}
+            disabled={loading || !!phoneError || (upgradeData.confirmPin !== '' && upgradeData.paymentPin !== upgradeData.confirmPin)}
           >
             {loading ? 'Đang lưu...' : 'Hoàn tất cập nhật'}
           </button>

@@ -289,10 +289,34 @@ const EditTourPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', background: 'var(--surface)', padding: '8px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
-          <div style={{ flex: 1, padding: '16px', background: step === 1 ? 'var(--primary)' : 'transparent', borderRadius: '16px', color: step === 1 ? 'white' : 'var(--text-secondary)', fontWeight: '700', textAlign: 'center', transition: 'all 0.3s ease' }}>
+          <div 
+            onClick={() => step < 3 && setStep(1)}
+            style={{ 
+              flex: 1, padding: '16px', 
+              background: step === 1 ? 'var(--primary)' : 'transparent', 
+              borderRadius: '16px', 
+              color: step === 1 ? 'white' : 'var(--text-secondary)', 
+              fontWeight: '700', textAlign: 'center', 
+              transition: 'all 0.3s ease',
+              cursor: step === 2 ? 'pointer' : 'default'
+            }}
+          >
             1. Thông tin cơ bản
           </div>
-          <div style={{ flex: 1, padding: '16px', background: step === 2 ? 'var(--primary)' : 'transparent', borderRadius: '16px', color: step === 2 ? 'white' : 'var(--text-secondary)', fontWeight: '700', textAlign: 'center', transition: 'all 0.3s ease' }}>
+          <div 
+            onClick={() => {
+              if (step === 1 && validateStep1()) setStep(2);
+            }}
+            style={{ 
+              flex: 1, padding: '16px', 
+              background: step === 2 ? 'var(--primary)' : 'transparent', 
+              borderRadius: '16px', 
+              color: step === 2 ? 'white' : 'var(--text-secondary)', 
+              fontWeight: '700', textAlign: 'center', 
+              transition: 'all 0.3s ease',
+              cursor: step === 1 ? 'pointer' : 'default'
+            }}
+          >
             2. Vị trí trên bản đồ
           </div>
           <div style={{ flex: 1, padding: '16px', background: step === 3 ? 'var(--success)' : 'transparent', borderRadius: '16px', color: step === 3 ? 'white' : 'var(--text-secondary)', fontWeight: '700', textAlign: 'center', transition: 'all 0.3s ease' }}>

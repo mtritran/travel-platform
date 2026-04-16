@@ -114,7 +114,7 @@ public class BookingService {
         int cutoff = tour.getBookingCutoffMinutes() != null ? tour.getBookingCutoffMinutes() : 60;
         // Technical 5-minute buffer still applied under the hood
         LocalDateTime cutoffPoint = LocalDateTime.of(request.getBookingDate(), tour.getStartTime())
-                .minusMinutes(cutoff + 5);
+                .minusMinutes(cutoff);
 
         if (now.isAfter(cutoffPoint)) {
             throw new AppException(ErrorCode.INVALID_TOUR_DATE);
@@ -139,17 +139,21 @@ public class BookingService {
             }
         }
 
-        BigDecimal pricePerGuest = tour.getPrice();
-        BigDecimal total = pricePerGuest.multiply(BigDecimal.valueOf(request.getNumberOfGuests()));
-
         Location pickupLocation = null;
         if (request.getPickupLocationId() != null && !request.getPickupLocationId().isBlank()) {
             pickupLocation = locationRepository.findById(request.getPickupLocationId())
                     .orElseThrow(() -> new AppException(ErrorCode.LOCATION_NOT_FOUND));
         }
 
+        //Tong tien can thanh toan
+        BigDecimal pricePerGuest = tour.getPrice();
+        BigDecimal total = pricePerGuest.multiply(BigDecimal.valueOf(request.getNumberOfGuests()));
+
+        //Phan tram giu cho
         BigDecimal depositPerc = tour.getDepositPercentage() != null ? tour.getDepositPercentage()
                 : BigDecimal.valueOf(30);
+
+        //Tinh tien coc
         BigDecimal depositAmount = total.multiply(depositPerc).divide(BigDecimal.valueOf(100), 0,
                 RoundingMode.HALF_UP);
 
@@ -252,7 +256,7 @@ public class BookingService {
             // Guide cancels -> 100% refund of paid amount
             refundAmount = booking.getPaidAmount();
             // Penalty for guide
-            penaltyService.addPenalty(booking.getTour().getGuide().getId(), 2, 
+            penaltyService.addPenalty(booking.getTour().getGuide().getId(), 1,
                     "Bạn đã hủy tour '" + booking.getTour().getTitle() + "' mà khách đã đặt.");
             
             notificationService.sendNotification(booking.getUser().getId(), 
@@ -324,6 +328,7 @@ public class BookingService {
 
     // Payout and Penalty distribution logic moved to ScheduledTasks.java using payoutAt
 
+    //Thanh toan coc
     @Transactional
     public BookingResponse payDeposit(String bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
