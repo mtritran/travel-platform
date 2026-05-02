@@ -48,7 +48,9 @@ const LoginPage: React.FC = () => {
 
     try {
       const response = await api.post(ENDPOINTS.AUTH.LOGIN, { email, password });
-      localStorage.setItem('token', response.data.result.token);
+      const { token, refreshToken } = response.data.result;
+      localStorage.setItem('token', token);
+      localStorage.setItem('refreshToken', refreshToken);
 
       const userRes = await api.get(ENDPOINTS.USER.GET_MY_INFO);
       const user = userRes.data.result;

@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class TourResponse {
     String id;
+    String guideId;
     String guideName;
     String guideAvatarUrl;
     String locationName;
@@ -45,5 +46,6 @@ public class TourResponse {
     Integer occupiedGuests;
     Integer bookingCutoffMinutes;
     String hiddenReason;
+    Double distance;
     LocalDateTime createdAt;
 }

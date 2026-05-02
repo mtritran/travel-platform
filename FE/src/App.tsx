@@ -23,8 +23,10 @@ import WalletPage from './pages/WalletPage';
 import PaymentCallbackPage from './pages/PaymentCallbackPage';
 import CreateTourRequestPage from './pages/customer/CreateTourRequestPage';
 import PublicProfilePage from './pages/PublicProfilePage';
+import MessagesPage from './pages/MessagesPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { LocationProvider } from './context/LocationContext';
 
 // Improved Protected Route component with role support
 const ProtectedRoute = ({ children, role }: { children: React.ReactNode, role?: string }) => {
@@ -55,23 +57,16 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <NotificationProvider>
-          <Routes>
+        <LocationProvider>
+          <NotificationProvider>
+            <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             
-            {/* Marketplace - Protected Route */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                <MarketplacePage />
-              </ProtectedRoute>
-            } />
+            {/* Marketplace - Public Route */}
+            <Route path="/" element={<MarketplacePage />} />
 
-            <Route path="/tours/:id" element={
-              <ProtectedRoute>
-                <TourDetailPage />
-              </ProtectedRoute>
-            } />
+            <Route path="/tours/:id" element={<TourDetailPage />} />
 
             <Route path="/bookings" element={
               <ProtectedRoute>
@@ -187,10 +182,17 @@ function App() {
               </ProtectedRoute>
             } />
 
+            <Route path="/messages" element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            } />
+
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </NotificationProvider>
-      </AuthProvider>
+      </LocationProvider>
+    </AuthProvider>
     </Router>
   );
 }

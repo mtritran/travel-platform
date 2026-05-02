@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Set;
 
@@ -26,4 +27,9 @@ public class UserResponse {
     Integer yearsOfExperience;
     String specialties;
     String avatarUrl;
+    String operatingAreas;
+    Double currentLat;
+    Double currentLong;
+    String currentAddress;
+    Instant lastLocationUpdate;
 }

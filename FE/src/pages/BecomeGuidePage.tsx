@@ -15,10 +15,23 @@ import { useAuth } from '../context/AuthContext';
 import IdentityUpgradeBanner from '../components/common/IdentityUpgradeBanner';
 
 interface GuideApplication {
+  id: string;
+  profilePhotoUrl: string;
   idCardUrl: string;
+  idCardExpiry: string;
   guideCardUrl: string;
+  guideCardExpiry: string;
   certificateUrl: string;
+  certificateExpiry: string;
+  criminalRecordUrl: string;
+  criminalRecordIssuedAt: string;
+  healthRecordUrl: string;
+  healthRecordDate: string;
+  drugTestResultUrl: string;
+  drugTestDate: string;
   languages: string;
+  specializations: string;
+  operatingAreas: string;
   yearsOfExperience: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason?: string;
@@ -30,12 +43,38 @@ const BecomeGuidePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [files, setFiles] = useState<{
+    profilePhoto: File | null;
     idCard: File | null;
     guideCard: File | null;
     certificate: File | null;
-  }>({ idCard: null, guideCard: null, certificate: null });
-  const [langs, setLangs] = useState('');
-  const [exp, setExp] = useState('');
+    criminalRecord: File | null;
+    healthRecord: File | null;
+    drugTest: File | null;
+  }>({
+    profilePhoto: null,
+    idCard: null,
+    guideCard: null,
+    certificate: null,
+    criminalRecord: null,
+    healthRecord: null,
+    drugTest: null,
+  });
+
+  const [formData, setFormData] = useState({
+    languages: '',
+    yearsOfExperience: '',
+    specializations: '',
+    operatingAreas: '',
+    idCardExpiry: '',
+    guideCardExpiry: '',
+    certificateExpiry: '',
+    criminalRecordIssuedAt: '',
+    healthRecordDate: '',
+    drugTestDate: '',
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const isAlreadyGuide = user?.roles?.some(r => r.name === 'GUIDE');
@@ -49,8 +88,18 @@ const BecomeGuidePage: React.FC = () => {
       const response = await api.get<ApiResponse<GuideApplication>>(ENDPOINTS.GUIDE_APPLICATION.MY_APPLICATION);
       const app = response.data.result;
       setApplication(app);
-      setLangs(app.languages || '');
-      setExp(app.yearsOfExperience?.toString() || '');
+      setFormData({
+        languages: app.languages || '',
+        yearsOfExperience: app.yearsOfExperience?.toString() || '',
+        specializations: app.specializations || '',
+        operatingAreas: app.operatingAreas || '',
+        idCardExpiry: app.idCardExpiry || '',
+        guideCardExpiry: app.guideCardExpiry || '',
+        certificateExpiry: app.certificateExpiry || '',
+        criminalRecordIssuedAt: app.criminalRecordIssuedAt || '',
+        healthRecordDate: app.healthRecordDate || '',
+        drugTestDate: app.drugTestDate || '',
+      });
     } catch (err: any) {
       if (err.response?.status !== 404) {
         console.error("Lỗi khi tải thông tin ứng tuyển:", err);
@@ -85,34 +134,79 @@ const BecomeGuidePage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // If first time applying, all fields are required
-    if (!application && (!files.idCard || !files.guideCard || !files.certificate || !langs || !exp)) {
-      alert("Vui lòng nhập đầy đủ thông tin và tải lên các tài liệu yêu cầu.");
+    // Verification logic
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.languages) newErrors.languages = 'Vui lòng nhập ngôn ngữ thông thạo';
+    if (!formData.yearsOfExperience) newErrors.yearsOfExperience = 'Vui lòng nhập số năm kinh nghiệm';
+
+    if (!application) {
+      if (!files.profilePhoto) newErrors.profilePhoto = 'Vui lòng tải lên ảnh chân dung';
+      if (!files.idCard) newErrors.idCard = 'Vui lòng tải lên CMND/CCCD';
+      if (!files.guideCard) newErrors.guideCard = 'Vui lòng tải lên thẻ HDV';
+      if (!files.certificate) newErrors.certificate = 'Vui lòng tải lên bằng cấp/chứng chỉ';
+    }
+
+    // Date validations
+    if (!formData.idCardExpiry) newErrors.idCardExpiry = 'Vui lòng nhập ngày hết hạn';
+    if (!formData.guideCardExpiry) newErrors.guideCardExpiry = 'Vui lòng nhập ngày hết hạn';
+    if (!formData.certificateExpiry) newErrors.certificateExpiry = 'Vui lòng nhập ngày hết hạn';
+    if (!formData.criminalRecordIssuedAt) newErrors.criminalRecordIssuedAt = 'Vui lòng nhập ngày cấp';
+    if (!formData.healthRecordDate) newErrors.healthRecordDate = 'Vui lòng nhập ngày khám';
+    if (!formData.drugTestDate) newErrors.drugTestDate = 'Vui lòng nhập ngày xét nghiệm';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      // Scroll to the first error
+      const firstErrorKey = Object.keys(newErrors)[0];
+      const errorElement = document.getElementsByName(firstErrorKey)[0] || document.getElementById(firstErrorKey);
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       return;
     }
 
+    setErrors({});
+
     setSubmitting(true);
-    const formData = new FormData();
-    if (files.idCard) formData.append('idCardFile', files.idCard);
-    if (files.guideCard) formData.append('guideCardFile', files.guideCard);
-    if (files.certificate) formData.append('certificateFile', files.certificate);
-    formData.append('languages', langs);
-    formData.append('yearsOfExperience', exp);
+    const data = new FormData();
+
+    // Files
+    if (files.profilePhoto) data.append('profilePhotoFile', files.profilePhoto);
+    if (files.idCard) data.append('idCardFile', files.idCard);
+    if (files.guideCard) data.append('guideCardFile', files.guideCard);
+    if (files.certificate) data.append('certificateFile', files.certificate);
+    if (files.criminalRecord) data.append('criminalRecordFile', files.criminalRecord);
+    if (files.healthRecord) data.append('healthRecordFile', files.healthRecord);
+    if (files.drugTest) data.append('drugTestFile', files.drugTest);
+
+    // Text data
+    Object.entries(formData).forEach(([key, value]) => {
+      if (value) data.append(key, value);
+    });
 
     try {
       if (application) {
-        // Update existing application
-        await api.put(ENDPOINTS.GUIDE_APPLICATION.MY_APPLICATION, formData, {
+        await api.put(ENDPOINTS.GUIDE_APPLICATION.MY_APPLICATION, data, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       } else {
-        // Initial application
-        await api.post(ENDPOINTS.GUIDE_APPLICATION.APPLY, formData, {
+        await api.post(ENDPOINTS.GUIDE_APPLICATION.APPLY, data, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       }
       setShowSuccessModal(true);
-      setFiles({ idCard: null, guideCard: null, certificate: null });
+      setFiles({
+        profilePhoto: null,
+        idCard: null,
+        guideCard: null,
+        certificate: null,
+        criminalRecord: null,
+        healthRecord: null,
+        drugTest: null,
+      });
       fetchApplicationStatus();
     } catch (err: any) {
       console.error("Submission error:", err);
@@ -168,10 +262,10 @@ const BecomeGuidePage: React.FC = () => {
         </div>
 
         {/* Title */}
-        <h3 style={{ 
-          fontSize: '1.5rem', 
-          fontWeight: '900', 
-          marginBottom: '16px', 
+        <h3 style={{
+          fontSize: '1.5rem',
+          fontWeight: '900',
+          marginBottom: '16px',
           color: '#1e293b',
           letterSpacing: '-0.02em'
         }}>
@@ -179,16 +273,16 @@ const BecomeGuidePage: React.FC = () => {
         </h3>
 
         {/* Description */}
-        <p style={{ 
-          color: '#64748b', 
-          lineHeight: '1.6', 
+        <p style={{
+          color: '#64748b',
+          lineHeight: '1.6',
           marginBottom: '32px',
           fontSize: '0.95rem',
           maxWidth: '85%',
           margin: '0 auto 32px'
         }}>
-          {application 
-            ? 'Thông tin ứng tuyển của bạn đã được cập nhật thành công hệ thống.' 
+          {application
+            ? 'Thông tin ứng tuyển của bạn đã được cập nhật thành công hệ thống.'
             : 'Đơn ứng tuyển của bạn đã được gửi đi. Vui lòng chờ quản trị viên phê duyệt trong thời gian sớm nhất.'}
         </p>
 
@@ -236,7 +330,7 @@ const BecomeGuidePage: React.FC = () => {
 
         {(!user?.phone || !user?.hasPaymentPin) ? (
           <div style={{ width: '100%', margin: '0 0 60px 0' }}>
-            <IdentityUpgradeBanner 
+            <IdentityUpgradeBanner
               title="Cần định danh để đăng ký HDV"
               message="Để đảm bảo an toàn cho cộng đồng TravelX, vui lòng thiết lập Số điện thoại và Mã PIN thanh toán trước khi bắt đầu quy trình trở thành Hướng dẫn viên."
             />
@@ -290,67 +384,224 @@ const BecomeGuidePage: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+              {/* --- Section 1: Competency --- */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', borderLeft: '4px solid var(--primary)', paddingLeft: '12px' }}>
+                  1. Năng lực & Kinh nghiệm
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div>
+                    <label className="field-label">Ngôn ngữ thông thạo</label>
+                    <input
+                      type="text"
+                      placeholder="Ví dụ: Tiếng Anh, Tiếng Pháp..."
+                      value={formData.languages}
+                      onChange={(e) => {
+                        setFormData({ ...formData, languages: e.target.value });
+                        if (errors.languages) setErrors({ ...errors, languages: '' });
+                      }}
+                      className="input-field"
+                      style={{ 
+                        padding: '12px 16px', 
+                        width: '100%', 
+                        borderRadius: '14px', 
+                        border: errors.languages ? '1px solid #ef4444' : '1px solid #e2e8f0',
+                        outline: 'none'
+                      }}
+                    />
+                    {errors.languages && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '6px', fontWeight: '600' }}>{errors.languages}</p>}
+                  </div>
+                  <div>
+                    <label className="field-label">Số năm kinh nghiệm</label>
+                    <input
+                      type="number"
+                      placeholder="Ví dụ: 3"
+                      value={formData.yearsOfExperience}
+                      onChange={(e) => {
+                        setFormData({ ...formData, yearsOfExperience: e.target.value });
+                        if (errors.yearsOfExperience) setErrors({ ...errors, yearsOfExperience: '' });
+                      }}
+                      className="input-field"
+                      style={{ 
+                        padding: '12px 16px', 
+                        width: '100%', 
+                        borderRadius: '14px', 
+                        border: errors.yearsOfExperience ? '1px solid #ef4444' : '1px solid #e2e8f0',
+                        outline: 'none'
+                      }}
+                    />
+                    {errors.yearsOfExperience && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '6px', fontWeight: '600' }}>{errors.yearsOfExperience}</p>}
+                  </div>
+                </div>
                 <div>
-                  <label className="field-label">Ngôn ngữ thông thạo</label>
-                  <input
-                    type="text"
-                    placeholder="Ví dụ: Tiếng Anh, Tiếng Pháp..."
-                    value={langs}
-                    onChange={(e) => setLangs(e.target.value)}
-                    required
+                  <label className="field-label">Chuyên môn đặc thù</label>
+                  <textarea
+                    placeholder="Ví dụ: Leo núi, Lặn biển, Lịch sử văn hóa..."
+                    value={formData.specializations}
+                    onChange={(e) => setFormData({ ...formData, specializations: e.target.value })}
                     className="input-field"
-                    style={{ padding: '12px 16px', width: '100%', borderRadius: '14px', border: '1px solid #e2e8f0', background: 'white' }}
+                    style={{ padding: '12px 16px', width: '100%', borderRadius: '14px', border: '1px solid #e2e8f0', minHeight: '80px', resize: 'none' }}
                   />
                 </div>
                 <div>
-                  <label className="field-label">Số năm kinh nghiệm</label>
+                  <label className="field-label">Khu vực hoạt động chính</label>
                   <input
-                    type="number"
-                    placeholder="Ví dụ: 3"
-                    value={exp}
-                    onChange={(e) => setExp(e.target.value)}
-                    required
+                    type="text"
+                    placeholder="Ví dụ: Quy Nhơn, Phố cổ Hội An, Tây Bắc..."
+                    value={formData.operatingAreas}
+                    onChange={(e) => setFormData({ ...formData, operatingAreas: e.target.value })}
                     className="input-field"
-                    style={{ padding: '12px 16px', width: '100%', borderRadius: '14px', border: '1px solid #e2e8f0', background: 'white' }}
+                    style={{ padding: '12px 16px', width: '100%', borderRadius: '14px', border: '1px solid #e2e8f0' }}
                   />
                 </div>
               </div>
 
-              <p style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '-16px' }}>Vui lòng tải lên các giấy tờ sau:</p>
+              {/* --- Section 2: Identification --- */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', borderLeft: '4px solid var(--primary)', paddingLeft: '12px' }}>
+                  2. Hồ sơ định danh & Đối chiếu
+                </h4>
+                <div style={{ display: 'grid', gap: '20px' }}>
+                  <FileUploader
+                    label="Ảnh chân dung đối chiếu"
+                    description="Ảnh chân dung chụp rõ mặt, không đeo kính râm/mũ"
+                    file={files.profilePhoto}
+                    currentUrl={application?.profilePhotoUrl}
+                    onView={() => handleViewFile(application?.profilePhotoUrl)}
+                    onChange={(e) => {
+                      handleFileChange(e, 'profilePhoto');
+                      if (errors.profilePhoto) setErrors({ ...errors, profilePhoto: '' });
+                    }}
+                    error={errors.profilePhoto}
+                  />
+                  <FileUploader
+                    label="Chứng minh nhân dân / CCCD"
+                    description="Mặt trước của giấy tờ định danh"
+                    file={files.idCard}
+                    currentUrl={application?.idCardUrl}
+                    onView={() => handleViewFile(application?.idCardUrl)}
+                    onChange={(e) => {
+                      handleFileChange(e, 'idCard');
+                      if (errors.idCard) setErrors({ ...errors, idCard: '' });
+                    }}
+                    dateValue={formData.idCardExpiry}
+                    onDateChange={(val) => {
+                      setFormData({ ...formData, idCardExpiry: val });
+                      if (errors.idCardExpiry) setErrors({ ...errors, idCardExpiry: '' });
+                    }}
+                    dateLabel="Ngày hết hạn"
+                    error={errors.idCard}
+                    dateError={errors.idCardExpiry}
+                  />
+                  <FileUploader
+                    label="Thẻ hướng dẫn viên"
+                    description="Thẻ HDV do cơ quan có thẩm quyền cấp"
+                    file={files.guideCard}
+                    currentUrl={application?.guideCardUrl}
+                    onView={() => handleViewFile(application?.guideCardUrl)}
+                    onChange={(e) => {
+                      handleFileChange(e, 'guideCard');
+                      if (errors.guideCard) setErrors({ ...errors, guideCard: '' });
+                    }}
+                    dateValue={formData.guideCardExpiry}
+                    onDateChange={(val) => {
+                      setFormData({ ...formData, guideCardExpiry: val });
+                      if (errors.guideCardExpiry) setErrors({ ...errors, guideCardExpiry: '' });
+                    }}
+                    dateLabel="Ngày hết hạn"
+                    error={errors.guideCard}
+                    dateError={errors.guideCardExpiry}
+                  />
+                  <FileUploader
+                    label="Chứng chỉ ngoại ngữ / Chuyên môn"
+                    description="Các bằng cấp, chứng chỉ liên quan"
+                    file={files.certificate}
+                    currentUrl={application?.certificateUrl}
+                    onView={() => handleViewFile(application?.certificateUrl)}
+                    onChange={(e) => {
+                      handleFileChange(e, 'certificate');
+                      if (errors.certificate) setErrors({ ...errors, certificate: '' });
+                    }}
+                    dateValue={formData.certificateExpiry}
+                    onDateChange={(val) => {
+                      setFormData({ ...formData, certificateExpiry: val });
+                      if (errors.certificateExpiry) setErrors({ ...errors, certificateExpiry: '' });
+                    }}
+                    dateLabel="Ngày hết hạn"
+                    error={errors.certificate}
+                    dateError={errors.certificateExpiry}
+                  />
+                </div>
+              </div>
 
-              <div style={{ display: 'grid', gap: '24px' }}>
-                <FileUploader
-                  label="Chứng minh nhân dân / CCCD"
-                  description="Ảnh rõ nét mặt trước"
-                  file={files.idCard}
-                  currentUrl={application?.idCardUrl}
-                  onView={() => handleViewFile(application?.idCardUrl)}
-                  onChange={(e) => handleFileChange(e, 'idCard')}
-                />
-                <FileUploader
-                  label="Thẻ hướng dẫn viên"
-                  description="Chứng chỉ hành nghề còn hạn"
-                  file={files.guideCard}
-                  currentUrl={application?.guideCardUrl}
-                  onView={() => handleViewFile(application?.guideCardUrl)}
-                  onChange={(e) => handleFileChange(e, 'guideCard')}
-                />
-                <FileUploader
-                  label="Chứng chỉ ngoại ngữ"
-                  description="Các chứng chỉ năng lực ngoại ngữ quốc tế hoặc trong nước"
-                  file={files.certificate}
-                  currentUrl={application?.certificateUrl}
-                  onView={() => handleViewFile(application?.certificateUrl)}
-                  onChange={(e) => handleFileChange(e, 'certificate')}
-                />
+              {/* --- Section 3: Health & Legal --- */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', borderLeft: '4px solid var(--primary)', paddingLeft: '12px' }}>
+                  3. Hồ sơ Pháp lý & Sức khỏe
+                </h4>
+                <div style={{ display: 'grid', gap: '20px' }}>
+                  <FileUploader
+                    label="Lý lịch tư pháp"
+                    description="Bản gốc hoặc bản sao có công chứng"
+                    file={files.criminalRecord}
+                    currentUrl={application?.criminalRecordUrl}
+                    onView={() => handleViewFile(application?.criminalRecordUrl)}
+                    onChange={(e) => {
+                      handleFileChange(e, 'criminalRecord');
+                      if (errors.criminalRecord) setErrors({ ...errors, criminalRecord: '' });
+                    }}
+                    dateValue={formData.criminalRecordIssuedAt}
+                    onDateChange={(val) => {
+                      setFormData({ ...formData, criminalRecordIssuedAt: val });
+                      if (errors.criminalRecordIssuedAt) setErrors({ ...errors, criminalRecordIssuedAt: '' });
+                    }}
+                    dateLabel="Ngày cấp"
+                    dateError={errors.criminalRecordIssuedAt}
+                  />
+                  <FileUploader
+                    label="Giấy khám sức khỏe"
+                    description="Bản chính còn hạn trong vòng 6 tháng"
+                    file={files.healthRecord}
+                    currentUrl={application?.healthRecordUrl}
+                    onView={() => handleViewFile(application?.healthRecordUrl)}
+                    onChange={(e) => {
+                      handleFileChange(e, 'healthRecord');
+                      if (errors.healthRecord) setErrors({ ...errors, healthRecord: '' });
+                    }}
+                    dateValue={formData.healthRecordDate}
+                    onDateChange={(val) => {
+                      setFormData({ ...formData, healthRecordDate: val });
+                      if (errors.healthRecordDate) setErrors({ ...errors, healthRecordDate: '' });
+                    }}
+                    dateLabel="Ngày khám"
+                    dateError={errors.healthRecordDate}
+                  />
+                  <FileUploader
+                    label="Xét nghiệm ma túy"
+                    description="Kết quả âm tính trong vòng 3 tháng"
+                    file={files.drugTest}
+                    currentUrl={application?.drugTestResultUrl}
+                    onView={() => handleViewFile(application?.drugTestResultUrl)}
+                    onChange={(e) => {
+                      handleFileChange(e, 'drugTest');
+                      if (errors.drugTest) setErrors({ ...errors, drugTest: '' });
+                    }}
+                    dateValue={formData.drugTestDate}
+                    onDateChange={(val) => {
+                      setFormData({ ...formData, drugTestDate: val });
+                      if (errors.drugTestDate) setErrors({ ...errors, drugTestDate: '' });
+                    }}
+                    dateLabel="Ngày xét nghiệm"
+                    dateError={errors.drugTestDate}
+                  />
+                </div>
               </div>
 
               <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                   Bằng việc nhấn "Gửi hồ sơ", bạn cam kết các thông tin và tài liệu cung cấp là chính xác và trung thực.
-                  TravelX có quyền thu hồi tư cách hướng dẫn viên nếu phát hiện gian lận.
+                  TravelX có quyền thu hồi tư cách hướng dẫn viên nếu phát hiện gian lận hoặc hồ sơ không đạt yêu cầu.
                 </p>
               </div>
 
@@ -370,7 +621,7 @@ const BecomeGuidePage: React.FC = () => {
                   cursor: submitting ? 'not-allowed' : 'pointer'
                 }}
               >
-                {submitting ? 'Đang xử lý...' : application ? 'Cập nhật hồ sơ ứng tuyển' : 'Gửi hồ sơ ứng tuyển'}
+                {submitting ? 'Đang xử lý...' : application ? 'Cập nhật hồ sơ ứng tuyển' : 'Gửi hồ sơ đăng ký'}
               </button>
             </form>
           </div>
@@ -387,49 +638,105 @@ interface FileUploaderProps {
   currentUrl?: string;
   onView?: () => void;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  dateLabel?: string;
+  dateValue?: string;
+  onDateChange?: (val: string) => void;
+  error?: string;
+  dateError?: string;
 }
 
-const FileUploader: React.FC<FileUploaderProps> = ({ label, description, file, currentUrl, onView, onChange }) => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px', background: 'white', border: '2px dashed #e2e8f0', borderRadius: '16px' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-      <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
-        <FileText size={24} />
+const FileUploader: React.FC<FileUploaderProps> = ({
+  label, description, file, currentUrl, onView, onChange, dateLabel, dateValue, onDateChange, error, dateError
+}) => (
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    padding: '20px',
+    background: 'white',
+    border: (error || dateError) ? '2px dashed #ef4444' : '2px dashed #e2e8f0',
+    borderRadius: '20px',
+    transition: 'border-color 0.2s'
+  }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ 
+          width: '48px', 
+          height: '48px', 
+          borderRadius: '14px', 
+          background: error ? '#fef2f2' : 'var(--surface-hover)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          color: error ? '#ef4444' : 'var(--primary)' 
+        }}>
+          <FileText size={24} />
+        </div>
+        <div>
+          <p style={{ fontWeight: '700', color: error ? '#ef4444' : 'var(--text-primary)' }}>{label}</p>
+          <p style={{ fontSize: '0.75rem', color: error ? '#ef4444' : 'var(--text-secondary)' }}>
+            {file ? <span style={{ color: '#059669', fontWeight: '600' }}>Tệp mới: {file.name}</span> : (error || description)}
+          </p>
+        </div>
       </div>
-      <div>
-        <p style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{label}</p>
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-          {file ? <span style={{ color: '#059669', fontWeight: '600' }}>Tệp mới đã chọn: {file.name}</span> : description}
-        </p>
+
+      <div style={{ display: 'flex', gap: '8px' }}>
+        {currentUrl && !file && (
+          <button
+            onClick={(e) => { e.preventDefault(); onView?.(); }}
+            style={{ padding: '10px 16px', background: '#f8fafc', color: 'var(--primary)', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '0.875rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Eye size={16} /> Xem cũ
+          </button>
+        )}
+
+        <label style={{
+          cursor: 'pointer',
+          padding: '10px 20px',
+          background: file ? '#ecfdf5' : (error ? '#ef4444' : 'var(--primary)'),
+          color: file ? '#059669' : 'white',
+          borderRadius: '12px',
+          fontSize: '0.875rem',
+          fontWeight: '600',
+          transition: 'all 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <input type="file" style={{ display: 'none' }} onChange={onChange} accept="image/*,.pdf" />
+          {file ? 'Đổi tệp' : <><Upload size={16} /> {currentUrl ? 'Cập nhật' : 'Chọn tệp'}</>}
+        </label>
       </div>
     </div>
 
-    <div style={{ display: 'flex', gap: '8px' }}>
-      {currentUrl && !file && (
-        <button
-          onClick={(e) => { e.preventDefault(); onView?.(); }}
-          style={{ padding: '10px 16px', background: '#f8fafc', color: 'var(--primary)', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '0.875rem', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
-          <Eye size={16} /> Xem cũ
-        </button>
-      )}
-
-      <label style={{
-        cursor: 'pointer',
-        padding: '10px 20px',
-        background: file ? '#ecfdf5' : 'var(--primary)',
-        color: file ? '#059669' : 'white',
-        borderRadius: '12px',
-        fontSize: '0.875rem',
-        fontWeight: '600',
-        transition: 'all 0.2s',
+    {onDateChange && (
+      <div style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: '6px'
+        flexDirection: 'column',
+        gap: '8px',
+        paddingTop: '12px',
+        borderTop: '1px solid #f1f5f9',
+        marginTop: '4px'
       }}>
-        <input type="file" style={{ display: 'none' }} onChange={onChange} accept="image/*,.pdf" />
-        {file ? 'Đổi tệp' : <><Upload size={16} /> {currentUrl ? 'Cập nhật' : 'Chọn tệp'}</>}
-      </label>
-    </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <label style={{ fontSize: '0.8125rem', fontWeight: '600', color: dateError ? '#ef4444' : '#64748b', minWidth: '100px' }}>{dateLabel}:</label>
+          <input
+            type="date"
+            value={dateValue || ''}
+            onChange={(e) => onDateChange(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '10px',
+              border: dateError ? '1px solid #ef4444' : '1px solid #e2e8f0',
+              fontSize: '0.875rem',
+              outline: 'none',
+              color: '#1e293b'
+            }}
+          />
+        </div>
+        {dateError && <p style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '600', marginLeft: '112px' }}>{dateError}</p>}
+      </div>
+    )}
   </div>
 );
 

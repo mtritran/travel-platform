@@ -20,6 +20,8 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     
     @Query("SELECT b FROM Booking b WHERE b.user = :user ORDER BY b.createdAt DESC")
     List<Booking> findAllByUserOrderByCreatedAtDesc(@Param("user") User user);
+
+    List<Booking> findAllByUser_EmailOrderByCreatedAtDesc(String email);
     
     // Find sessions for a guide (via Tour)
     List<Booking> findAllByTour_Guide(User guide);
@@ -72,4 +74,22 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
 
     @Query("SELECT b FROM Booking b WHERE b.isDisputed = true")
     List<Booking> findAllByIsDisputedTrue();
+
+    @Query("SELECT COUNT(b) > 0 FROM Booking b " +
+           "WHERE b.user = :user AND b.bookingDate = :date " +
+           "AND b.status IN ('CONFIRMED', 'PAID_FULL', 'AWAITING_DEPOSIT') " +
+           "AND b.tour.startTime < :endTime AND :startTime < b.tour.endTime")
+    boolean existsOverlappingBooking(@Param("user") User user, 
+                                     @Param("date") LocalDate date,
+                                     @Param("startTime") LocalTime startTime,
+                                     @Param("endTime") LocalTime endTime);
+
+    @Query("SELECT COUNT(b) > 0 FROM Booking b " +
+           "WHERE b.tour.guide = :guide AND b.bookingDate = :date " +
+           "AND b.status IN ('CONFIRMED', 'PAID_FULL', 'AWAITING_DEPOSIT') " +
+           "AND b.tour.startTime < :endTime AND :startTime < b.tour.endTime")
+    boolean existsOverlappingGuideBooking(@Param("guide") User guide, 
+                                          @Param("date") LocalDate date,
+                                          @Param("startTime") LocalTime startTime,
+                                          @Param("endTime") LocalTime endTime);
 }

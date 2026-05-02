@@ -724,11 +724,9 @@ const TripRequestsPage: React.FC = () => {
                             <div className="trip-request-payment-head" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                               <span className="muted-text">Tiến độ thanh toán</span>
                               <span style={{ fontWeight: 700 }}>
-                                {req.paymentStatus === 'PAID_FULL'
+                                {req.paymentStatus === 'PAID_FULL' || req.paymentStatus === 'PAID_DEPOSIT'
                                   ? 'Đã thanh toán 100%'
-                                  : req.paymentStatus === 'PAID_DEPOSIT'
-                                    ? 'Đã cọc 30%'
-                                    : 'Chưa thanh toán'}
+                                  : 'Chưa thanh toán'}
                               </span>
                             </div>
                             <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
@@ -737,11 +735,9 @@ const TripRequestsPage: React.FC = () => {
                                   height: '100%',
                                   background: 'linear-gradient(135deg, var(--primary), #0891b2)',
                                   width:
-                                    req.paymentStatus === 'PAID_FULL'
+                                    req.paymentStatus === 'PAID_FULL' || req.paymentStatus === 'PAID_DEPOSIT'
                                       ? '100%'
-                                      : req.paymentStatus === 'PAID_DEPOSIT'
-                                        ? '30%'
-                                        : '0%',
+                                      : '0%',
                                 }}
                               />
                             </div>
@@ -751,7 +747,7 @@ const TripRequestsPage: React.FC = () => {
                             {activeTab === 'MY' && req.status === 'WAITING_PAYMENT' ? (
                               <>
                                 <button type="button" className="btn-primary" onClick={() => handlePayDeposit(req)}>
-                                  Thanh toán tiền cọc
+                                  Thanh toán ngay
                                 </button>
                                 <button type="button" className="btn-ghost" style={{ color: 'var(--danger)' }} onClick={() => setShowCancelModal(req)}>
                                   Hủy yêu cầu
@@ -759,16 +755,7 @@ const TripRequestsPage: React.FC = () => {
                               </>
                             ) : null}
 
-                            {activeTab === 'MY' && req.status === 'CONFIRMED' && req.paymentStatus === 'PAID_DEPOSIT' ? (
-                              <>
-                                <button type="button" className="btn-primary" onClick={() => handlePayRemaining(req)}>
-                                  Thanh toán phần còn lại
-                                </button>
-                                <button type="button" className="btn-ghost" style={{ color: 'var(--danger)' }} onClick={() => setShowCancelModal(req)}>
-                                  Hủy yêu cầu
-                                </button>
-                              </>
-                            ) : null}
+                            {/* Redundant partial payment block removed */}
 
                             {activeTab === 'MY' && req.status === 'CONFIRMED' && req.paymentStatus === 'PAID_FULL' ? (
                                <button type="button" className="btn-ghost" style={{ color: 'var(--danger)' }} onClick={() => setShowCancelModal(req)}>

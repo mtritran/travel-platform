@@ -33,4 +33,22 @@ public interface TourRequestRepository extends JpaRepository<TourRequest, String
     
     @Query("SELECT tr FROM TourRequest tr WHERE tr.isDisputed = true")
     List<TourRequest> findAllByIsDisputedTrue();
+
+    @Query("SELECT COUNT(tr) > 0 FROM TourRequest tr " +
+           "WHERE tr.user = :user AND tr.plannedDate = :date " +
+           "AND tr.status IN ('ACCEPTED', 'COMPLETED') " +
+           "AND tr.startTime < :endTime AND :startTime < tr.endTime")
+    boolean existsOverlappingRequest(@Param("user") com.mtritran.travelplatform.entity.User user, 
+                                     @Param("date") java.time.LocalDate date,
+                                     @Param("startTime") java.time.LocalTime startTime,
+                                     @Param("endTime") java.time.LocalTime endTime);
+
+    @Query("SELECT COUNT(tr) > 0 FROM TourRequest tr " +
+           "WHERE tr.guide = :guide AND tr.plannedDate = :date " +
+           "AND tr.status IN ('ACCEPTED', 'COMPLETED') " +
+           "AND tr.startTime < :endTime AND :startTime < tr.endTime")
+    boolean existsOverlappingGuideRequest(@Param("guide") com.mtritran.travelplatform.entity.User guide, 
+                                          @Param("date") java.time.LocalDate date,
+                                          @Param("startTime") java.time.LocalTime startTime,
+                                          @Param("endTime") java.time.LocalTime endTime);
 }

@@ -19,6 +19,7 @@ import com.mtritran.travelplatform.repository.ReviewRepository;
 import com.mtritran.travelplatform.repository.TransactionRepository;
 import com.mtritran.travelplatform.repository.UserRepository;
 import com.mtritran.travelplatform.repository.TourRepository;
+import com.mtritran.travelplatform.repository.TourRequestRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -52,6 +53,7 @@ public class BookingService {
     TransactionRepository transactionRepository;
     PenaltyService penaltyService;
     StorageService storageService;
+    TourRequestRepository tourRequestRepository;
 
     public BookingResponse getBookingById(String id) {
         Booking booking = bookingRepository.findById(id)
@@ -99,6 +101,11 @@ public class BookingService {
             throw new AppException(ErrorCode.IDENTITY_NOT_UPGRADED);
         }
 
+        // Check if customer is banned from booking
+        if (user.getCustomerBannedUntil() != null && user.getCustomerBannedUntil().isAfter(Instant.now())) {
+            throw new AppException(ErrorCode.USER_BANNED);
+        }
+
         // Concurrency handling: lock the tour row
         Tour tour = tourRepository.findByIdWithLock(request.getTourId())
                 .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
@@ -126,6 +133,20 @@ public class BookingService {
             throw new AppException(ErrorCode.ALREADY_HAS_ACTIVE_BOOKING);
         }
 
+        // Schedule overlap check: customer cannot be in two tours at the same time
+        LocalTime tourStart = tour.getStartTime();
+        LocalTime tourEnd = tour.getEndTime() != null ? tour.getEndTime() : tourStart.plusHours(4); // Default 4h if not set
+
+        boolean hasOverlapInBookings = bookingRepository.existsOverlappingBooking(
+                user, request.getBookingDate(), tourStart, tourEnd);
+        
+        boolean hasOverlapInRequests = tourRequestRepository.existsOverlappingRequest(
+                user, request.getBookingDate(), tourStart, tourEnd);
+
+        if (hasOverlapInBookings || hasOverlapInRequests) {
+            throw new AppException(ErrorCode.OVERLAPPING_SCHEDULE);
+        }
+
         // Capacity check: count confirmed AND active reservations (within 10 mins)
         if (tour.getMaxGuests() != null) {
             Instant expiryTime = Instant.now().minus(Duration.ofMinutes(10));
@@ -149,9 +170,9 @@ public class BookingService {
         BigDecimal pricePerGuest = tour.getPrice();
         BigDecimal total = pricePerGuest.multiply(BigDecimal.valueOf(request.getNumberOfGuests()));
 
-        //Phan tram giu cho
+        // Phan tram giu cho (mac dinh 100% cho mo hinh thanh toan truoc)
         BigDecimal depositPerc = tour.getDepositPercentage() != null ? tour.getDepositPercentage()
-                : BigDecimal.valueOf(30);
+                : BigDecimal.valueOf(100);
 
         //Tinh tien coc
         BigDecimal depositAmount = total.multiply(depositPerc).divide(BigDecimal.valueOf(100), 0,
@@ -245,7 +266,7 @@ public class BookingService {
             return mapToResponse(booking);
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         LocalDateTime tourStart = LocalDateTime.of(booking.getBookingDate(),
                 booking.getTour().getStartTime() != null ? booking.getTour().getStartTime() : LocalTime.of(0, 0));
 
@@ -264,28 +285,36 @@ public class BookingService {
                     "Hướng dẫn viên " + booking.getTour().getGuide().getFullName() + " đã hủy việc đặt tour cho '" + booking.getTour().getTitle() + "'.", 
                     "BOOKING_CANCELLED");
         } else {
-            // Customer cancels -> 3-tier refund policy per system report
+            // Customer cancels -> 3-tier refund policy based on deposit amount
             Duration timeUntilTour = Duration.between(now, tourStart);
             long hoursLeft = timeUntilTour.toHours();
+
+            System.out.println("DEBUG CANCEL: Now=" + now + ", Start=" + tourStart + ", MinutesLeft=" + hoursLeft);
+
+            // Tinh phi phat dua tren 30% tong gia tri (giu nguyen muc bu tien cu cho HDV)
+            BigDecimal penaltyBasis = booking.getTotalPrice().multiply(new BigDecimal("0.30"));
 
             if (hoursLeft >= 48) {
                 // Early cancellation (> 48h): 100% refund
                 refundAmount = booking.getPaidAmount();
+                penaltyFee = BigDecimal.ZERO;
             } else if (hoursLeft >= 24) {
-                // Mid cancellation (24-48h): 50% refund, 50% penalty
-                penaltyFee = booking.getPaidAmount().multiply(new BigDecimal("0.50"))
+                // Mid cancellation (24-48h): 50% of penaltyBasis is penalty, rest is refunded
+                penaltyFee = penaltyBasis.multiply(new BigDecimal("0.50"))
                         .setScale(0, RoundingMode.HALF_UP);
-                refundAmount = booking.getPaidAmount().subtract(penaltyFee);
+                refundAmount = booking.getPaidAmount().subtract(penaltyFee).max(BigDecimal.ZERO);
+                penaltyFee = booking.getPaidAmount().subtract(refundAmount);
 
-                user.setCancellationCount((user.getCancellationCount() != null ? user.getCancellationCount() : 0) + 1);
-                booking.setPayoutAt(Instant.now().plus(24, ChronoUnit.HOURS));
+                penaltyService.addCustomerPenalty(user.getId(), "Hủy tour từ 24-48h trước khởi hành: " + booking.getTour().getTitle());
+                booking.setPayoutAt(Instant.now());
             } else {
-                // Late cancellation (< 24h): 0% refund, hold 24h for dispute window
-                penaltyFee = booking.getPaidAmount();
-                refundAmount = BigDecimal.ZERO;
+                // Late cancellation (< 24h): 100% of deposit is penalty, rest is refunded (if any)
+                penaltyFee = penaltyBasis;
+                refundAmount = booking.getPaidAmount().subtract(penaltyFee).max(BigDecimal.ZERO);
+                penaltyFee = booking.getPaidAmount().subtract(refundAmount);
 
-                user.setCancellationCount((user.getCancellationCount() != null ? user.getCancellationCount() : 0) + 1);
-                booking.setPayoutAt(Instant.now().plus(24, ChronoUnit.HOURS));
+                penaltyService.addCustomerPenalty(user.getId(), "Hủy tour muộn (<24h): " + booking.getTour().getTitle());
+                booking.setPayoutAt(Instant.now());
             }
 
             notificationService.sendNotification(booking.getTour().getGuide().getId(), 
@@ -344,7 +373,11 @@ public class BookingService {
         }
 
         booking.setPaidAmount(booking.getDepositAmount());
-        booking.setStatus(BookingStatus.CONFIRMED);
+        if (booking.getPaidAmount().compareTo(booking.getTotalPrice()) >= 0) {
+            booking.setStatus(BookingStatus.PAID_FULL);
+        } else {
+            booking.setStatus(BookingStatus.CONFIRMED);
+        }
         // Set Payout time: Tour end time + 24 hours (Dispute window)
         LocalDateTime endDateTime = LocalDateTime.of(booking.getTour().getEndDate(),
                 booking.getTour().getEndTime());
@@ -355,8 +388,8 @@ public class BookingService {
 
         // Notify Guide real-time
         notificationService.sendNotification(booking.getTour().getGuide().getId(), 
-                "Thanh toán cọc mới", 
-                "Khách hàng đã thanh toán cọc cho tour: " + booking.getTour().getTitle(), 
+                "Thanh toán mới", 
+                "Khách hàng đã thanh toán cho tour: " + booking.getTour().getTitle(), 
                 "PAYMENT_CONFIRMED");
 
         return mapToResponse(saved);
@@ -378,7 +411,11 @@ public class BookingService {
             throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
         }
         booking.setPaidAmount(booking.getDepositAmount());
-        booking.setStatus(BookingStatus.CONFIRMED);
+        if (booking.getPaidAmount().compareTo(booking.getTotalPrice()) >= 0) {
+            booking.setStatus(BookingStatus.PAID_FULL);
+        } else {
+            booking.setStatus(BookingStatus.CONFIRMED);
+        }
         
         // Set Payout time: Tour end time + 24 hours (Dispute window)
         LocalDateTime endDateTime = LocalDateTime.of(booking.getTour().getEndDate(),
@@ -394,11 +431,11 @@ public class BookingService {
                 .user(admin)
                 .amount(booking.getDepositAmount())
                 .type(TransactionType.REVENUE)
-                .note("Thanh toán tiền cọc cho tour: " + booking.getTour().getTitle())
+                .note("Thanh toán tiền tour: " + booking.getTour().getTitle())
                 .build());
         notificationService.sendNotification(booking.getTour().getGuide().getId(), 
-                "Thanh toán cọc mới", 
-                "Khách hàng đã thanh toán cọc cho tour: " + booking.getTour().getTitle(), 
+                "Thanh toán mới", 
+                "Khách hàng đã thanh toán cho tour: " + booking.getTour().getTitle(), 
                 "PAYMENT_CONFIRMED");
     }
 
@@ -504,11 +541,13 @@ public class BookingService {
         
         // Ensure payoutAt is set (24h after tour end) if not already set
         if (booking.getPayoutAt() == null) {
-            LocalDateTime endTime = LocalDateTime.of(booking.getBookingDate(), 
+            LocalDateTime endTime = LocalDateTime.of(booking.getBookingDate(),
                 booking.getTour().getEndTime() != null ? booking.getTour().getEndTime() : LocalTime.of(23, 59));
             booking.setPayoutAt(endTime.atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toInstant()
                 .plus(24, ChronoUnit.HOURS));
         }
+
+//        booking.setPayoutAt(Instant.now().plus(5, ChronoUnit.SECONDS));
 
         Booking saved = bookingRepository.save(booking);
 
@@ -610,7 +649,9 @@ public class BookingService {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
-        if (booking.getStatus() != BookingStatus.COMPLETED && booking.getStatus() != BookingStatus.PAID_FULL) {
+        if (booking.getStatus() != BookingStatus.COMPLETED && 
+            booking.getStatus() != BookingStatus.PAID_FULL &&
+            booking.getStatus() != BookingStatus.CONFIRMED) {
             throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
         }
 
@@ -618,8 +659,8 @@ public class BookingService {
             throw new AppException(ErrorCode.ALREADY_DISPUTED);
         }
 
-        // Verify timing: must be before payoutAt
-        if (Instant.now().isAfter(booking.getPayoutAt())) {
+        // Verify timing: must be before payoutAt (if scheduled)
+        if (booking.getPayoutAt() != null && Instant.now().isAfter(booking.getPayoutAt())) {
             throw new AppException(ErrorCode.DISPUTE_WINDOW_EXPIRED);
         }
 

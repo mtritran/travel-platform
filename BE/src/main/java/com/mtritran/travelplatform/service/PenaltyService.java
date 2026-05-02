@@ -48,4 +48,31 @@ public class PenaltyService {
 
         userRepository.save(user);
     }
+
+    @Transactional
+    public void addCustomerPenalty(String userId, String reason) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+
+        int currentCount = user.getCancellationCount() != null ? user.getCancellationCount() : 0;
+        int newCount = currentCount + 1;
+        user.setCancellationCount(newCount);
+
+        String message = "Bạn vừa bị ghi nhận 1 lần hủy tour. Lý do: " + reason + ". Tổng số lần hủy của bạn: " + newCount;
+        
+        if (newCount >= 5) {
+            // Ban customer from booking for 15 days
+            Instant banUntil = Instant.now().plus(15, ChronoUnit.DAYS);
+            user.setCustomerBannedUntil(banUntil);
+            user.setCancellationCount(0); // Reset count after banning
+            
+            message += ". Bạn đã hủy tour 5 lần và bị tạm khóa chức năng đặt tour trong 15 ngày (đến: " + banUntil.toString() + ")";
+            
+            notificationService.sendNotification(userId, "Tài khoản bị giới hạn đặt tour", message, "ACCOUNT_BANNED");
+        } else {
+            notificationService.sendNotification(userId, "Cảnh báo hủy tour", message, "PENALTY_ADDED");
+        }
+
+        userRepository.save(user);
+    }
 }

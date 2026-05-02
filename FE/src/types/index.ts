@@ -11,6 +11,9 @@ export interface User {
   yearsOfExperience?: number;
   specialties?: string;
   avatarUrl?: string;
+  currentLat?: number;
+  currentLong?: number;
+  currentAddress?: string;
 }
 
 export interface Role {
@@ -56,6 +59,7 @@ export type TourStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED' | 'INACTIVE'
 
 export interface Tour {
   id: string;
+  guideId: string;
   guideName: string;
   guideAvatarUrl?: string;
   locationName: string;
@@ -83,6 +87,7 @@ export interface Tour {
   occupiedGuests?: number;
   bookingCutoffMinutes?: number;
   hiddenReason?: string;
+  distance?: number;
   createdAt: string;
 }
 

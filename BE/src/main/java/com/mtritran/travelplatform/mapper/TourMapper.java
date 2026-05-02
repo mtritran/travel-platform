@@ -7,6 +7,7 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface TourMapper {
+    @Mapping(target = "guideId", source = "guide.id")
     @Mapping(target = "guideName", source = "guide.fullName")
     @Mapping(target = "locationName", source = "location.name")
     @Mapping(target = "locationAddress", source = "location.address")

@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   Clock,
   MapPin,
+  MessageCircle,
   Minus,
   Navigation,
   Plus,
@@ -20,7 +21,9 @@ import { ENDPOINTS } from '../constants/endpoints';
 import { formatVND, getFileUrl } from '../utils/format';
 import DashboardLayout from '../layouts/DashboardLayout';
 import LocationPicker from '../components/common/LocationPicker';
+import P2PChatWindow from '../components/P2PChatWindow';
 import { useAuth } from '../context/AuthContext';
+import { useLocation } from '../context/LocationContext';
 
 type ApiError = {
   response?: {
@@ -32,6 +35,7 @@ type ApiError = {
 
 const TourDetailPage: React.FC = () => {
   const { user } = useAuth();
+  const { location: currentUserLocation } = useLocation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [tour, setTour] = useState<Tour | null>(null);
@@ -45,6 +49,7 @@ const TourDetailPage: React.FC = () => {
   const [customPickup, setCustomPickup] = useState<{ lat: number; lng: number; address: string } | null>(
     null,
   );
+  const [isP2PChatOpen, setIsP2PChatOpen] = useState(false);
 
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -52,6 +57,17 @@ const TourDetailPage: React.FC = () => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Pre-fill custom pickup if user location is available
+  useEffect(() => {
+    if (meetingOption === 'custom' && !customPickup && currentUserLocation?.latitude && currentUserLocation?.longitude) {
+      setCustomPickup({
+        lat: currentUserLocation.latitude,
+        lng: currentUserLocation.longitude,
+        address: currentUserLocation.address || ''
+      });
+    }
+  }, [meetingOption, currentUserLocation, customPickup]);
 
   useEffect(() => {
     if (tour?.startDate) {
@@ -84,7 +100,15 @@ const TourDetailPage: React.FC = () => {
   const handleBook = async () => {
     if (!id || !tour) return;
 
-    if (!user?.phone || !user?.hasPaymentPin) {
+    if (!user) {
+      setMessage({
+        type: 'error',
+        text: 'Bạn cần đăng nhập để có thể đặt tour.'
+      });
+      return;
+    }
+
+    if (!user.phone || !user.hasPaymentPin) {
       setMessage({
         type: 'error',
         text: 'Bạn cần cập nhật Số điện thoại và Mã PIN thanh toán trong hồ sơ để có thể đặt tour.'
@@ -134,7 +158,7 @@ const TourDetailPage: React.FC = () => {
 
       setMessage({
         type: 'success',
-        text: 'Chúng tôi đã tạm giữ chỗ cho bạn trong 10 phút. Vui lòng thanh toán cọc ngay để hoàn tất đặt tour.',
+        text: 'Chúng tôi đã tạm giữ chỗ cho bạn trong 10 phút. Vui lòng thanh toán ngay để hoàn tất đặt tour.',
       });
       setTimeout(() => navigate('/bookings'), 2500);
     } catch (err) {
@@ -593,11 +617,33 @@ const TourDetailPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                <button 
+                  type="button" 
+                  className="btn-ai-trigger" 
+                  style={{ width: '100%', marginTop: '16px', background: 'var(--success)', color: 'white' }}
+                  onClick={() => {
+                    if (!user) {
+                      setMessage({ type: 'error', text: 'Bạn cần đăng nhập để chat với hướng dẫn viên.' });
+                      return;
+                    }
+                    setIsP2PChatOpen(true);
+                  }}
+                >
+                  <MessageCircle size={18} />
+                  Chat với hướng dẫn viên
+                </button>
               </div>
             </div>
           </aside>
         </div>
       </div>
+      {isP2PChatOpen && tour && (
+        <P2PChatWindow 
+          recipientId={tour.guideId} 
+          recipientName={tour.guideName} 
+          onClose={() => setIsP2PChatOpen(false)} 
+        />
+      )}
     </DashboardLayout>
   );
 };

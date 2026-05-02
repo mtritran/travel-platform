@@ -169,13 +169,13 @@ const MyBookingsPage: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'CONFIRMED':
-        return { className: 'badge badge-secondary', label: 'Đã cọc - Chờ thanh toán phần còn lại', icon: <Clock size={14} /> };
+        return { className: 'badge badge-secondary', label: 'Đã xác nhận', icon: <Clock size={14} /> };
       case 'PAID_FULL':
         return { className: 'badge badge-success', label: 'Đã thanh toán 100%', icon: <Wallet size={14} /> };
       case 'CANCELLED':
         return { className: 'badge', label: 'Đã hủy', icon: <XCircle size={14} />, style: { background: 'var(--danger-soft)', color: 'var(--danger)' } };
       case 'AWAITING_DEPOSIT':
-        return { className: 'badge badge-secondary', label: 'Chờ đặt cọc', icon: <Clock size={14} /> };
+        return { className: 'badge badge-secondary', label: 'Chờ thanh toán', icon: <Clock size={14} /> };
       case 'PENDING':
         return { className: 'badge', label: 'Chờ xác nhận', icon: <AlertCircle size={14} />, style: { background: '#fff7ed', color: '#b45309' } };
       case 'COMPLETED':
@@ -276,7 +276,7 @@ const MyBookingsPage: React.FC = () => {
                     {booking.status === 'AWAITING_DEPOSIT' ? (
                       <>
                         <button type="button" className="btn-secondary" onClick={() => setPayingBooking(booking)} style={{ color: '#b45309' }}>
-                          Thanh toán cọc
+                          Thanh toán ngay
                         </button>
                         <button type="button" className="btn-ghost" onClick={() => handleCancelClick(booking)}>
                           Hủy tour
@@ -291,9 +291,9 @@ const MyBookingsPage: React.FC = () => {
                           Hủy tour
                         </button>
                       </>
-                    ) : (booking.status === 'COMPLETED' || (booking.status === 'PAID_FULL' && new Date().getTime() > new Date(booking.tourStartDate + 'T' + (booking.tourStartTime || '00:00:00')).getTime())) ? (
+                    ) : (booking.status === 'COMPLETED' || (['CONFIRMED', 'PAID_FULL'].includes(booking.status) && new Date().getTime() > new Date(booking.tourStartDate + 'T' + (booking.tourStartTime || '00:00:00')).getTime())) ? (
                       <div style={{ display: 'flex', gap: '10px' }}>
-                        {!booking.isDisputed && (!booking.payoutAt || new Date().getTime() < new Date(booking.payoutAt).getTime()) && (
+                        {!booking.isDisputed && (!booking.payoutAt || booking.payoutAt === null || new Date().getTime() < new Date(booking.payoutAt).getTime()) && (
                           <button 
                             type="button" 
                             className="btn-primary" 
@@ -401,8 +401,8 @@ const MyBookingsPage: React.FC = () => {
                   </span>
                   <h2 className="section-title" style={{ marginTop: '14px', marginBottom: '8px', fontSize: '1.55rem' }}>
                     {payingBooking.status === 'AWAITING_DEPOSIT'
-                      ? 'Hoàn tất khoản đặt cọc'
-                      : 'Thanh toán phần còn lại'}
+                      ? 'Xác nhận thanh toán'
+                      : 'Hoàn tất thanh toán'}
                   </h2>
                   <p className="page-subtitle" style={{ margin: 0, lineHeight: 1.7 }}>
                     Thanh toán cho tour <strong>{payingBooking.tourTitle}</strong> qua VNPay để giữ chỗ nhanh chóng và an toàn.
@@ -433,7 +433,7 @@ const MyBookingsPage: React.FC = () => {
               <div className="booking-box" style={{ marginTop: '18px', padding: '20px', borderRadius: '22px' }}>
                 <div className="booking-row">
                   <span className="muted-text">Hạng mục</span>
-                  <strong>{payingBooking.status === 'AWAITING_DEPOSIT' ? 'Khoản đặt cọc' : 'Khoản thanh toán còn lại'}</strong>
+                  <strong>{payingBooking.status === 'AWAITING_DEPOSIT' ? 'Tổng tiền tour' : 'Khoản thanh toán còn lại'}</strong>
                 </div>
                 <div className="booking-row">
                   <span className="muted-text">Cổng thanh toán</span>
@@ -526,13 +526,13 @@ const MyBookingsPage: React.FC = () => {
 
                 if (diffHours > 48) {
                   refundInfo = `Hoàn 100%: ${formatVND(showCancelModal.paidAmount)}`;
-                  refundNote = 'Chính sách: Hủy trước 48h được hoàn cọc đầy đủ.';
+                  refundNote = 'Chính sách: Hủy trước 48h được hoàn tiền đầy đủ.';
                 } else if (diffHours > 24) {
                   refundInfo = `Hoàn 50%: ${formatVND(showCancelModal.paidAmount * 0.5)}`;
-                  refundNote = 'Chính sách: Hủy trước 24h được hoàn 50% cọc.';
+                  refundNote = 'Chính sách: Hủy trước 24h được hoàn 50% tiền.';
                 } else {
-                  refundInfo = 'Không được hoàn cọc';
-                  refundNote = 'Chính sách: Hủy dưới 24h không hỗ trợ hoàn cọc.';
+                  refundInfo = 'Không được hoàn tiền';
+                  refundNote = 'Chính sách: Hủy dưới 24h không hỗ trợ hoàn tiền.';
                 }
 
                 return (
@@ -673,6 +673,7 @@ const MyBookingsPage: React.FC = () => {
             }}
           />
         )}
+
       </div>
     </DashboardLayout>
   );

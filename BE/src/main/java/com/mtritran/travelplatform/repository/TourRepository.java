@@ -63,4 +63,14 @@ public interface TourRepository extends JpaRepository<Tour, String> {
                                @Param("date") LocalDate date,
                                @Param("time") LocalTime time,
                                @Param("expiryTime") Instant expiryTime);
+    @Query("SELECT COUNT(t) > 0 FROM Tour t " +
+           "WHERE t.guide = :guide AND t.startDate = :date " +
+           "AND t.status IN ('ACTIVE', 'PENDING_APPROVAL') " +
+           "AND (:excludeId IS NULL OR t.id != :excludeId) " +
+           "AND t.startTime < :endTime AND :startTime < t.endTime")
+    boolean existsOverlappingTourListing(@Param("guide") User guide, 
+                                          @Param("date") LocalDate date,
+                                          @Param("startTime") LocalTime startTime,
+                                          @Param("endTime") LocalTime endTime,
+                                          @Param("excludeId") String excludeId);
 }

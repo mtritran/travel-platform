@@ -268,7 +268,7 @@ const CreateTourRequestPage: React.FC = () => {
         meetingLongitude: formData.meetingLongitude,
         startTime: formData.startTime,
         endTime: formData.endTime,
-        depositPercentage: 30,
+        depositPercentage: 100,
       };
 
       if (editMode && existingReq) {

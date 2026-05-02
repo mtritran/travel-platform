@@ -15,7 +15,9 @@ import com.mtritran.travelplatform.repository.BookingRepository;
 import com.mtritran.travelplatform.repository.LocationRepository;
 import com.mtritran.travelplatform.repository.ReviewRepository;
 import com.mtritran.travelplatform.repository.TourRepository;
+import com.mtritran.travelplatform.repository.TourRequestRepository;
 import com.mtritran.travelplatform.repository.UserRepository;
+import com.mtritran.travelplatform.service.ai.TourEmbeddingService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -39,6 +41,8 @@ public class TourService {
     BookingRepository bookingRepository;
     ReviewRepository reviewRepository;
     TourMapper tourMapper;
+    TourRequestRepository tourRequestRepository;
+    TourEmbeddingService tourEmbeddingService;
 
     private TourResponse mapWithRating(Tour tour) {
         TourResponse response = tourMapper.toResponse(tour);
@@ -88,6 +92,18 @@ public class TourService {
             throw new AppException(ErrorCode.INVALID_TOUR_DATE);
         }
 
+        // Schedule overlap check for Guide
+        LocalTime tourStart = request.getStartTime();
+        LocalTime tourEnd = request.getEndTime() != null ? request.getEndTime() : tourStart.plusHours(4);
+
+        boolean hasOverlapListing = tourRepository.existsOverlappingTourListing(guide, request.getStartDate(), tourStart, tourEnd, null);
+        boolean hasOverlapBooking = bookingRepository.existsOverlappingGuideBooking(guide, request.getStartDate(), tourStart, tourEnd);
+        boolean hasOverlapRequest = tourRequestRepository.existsOverlappingGuideRequest(guide, request.getStartDate(), tourStart, tourEnd);
+
+        if (hasOverlapListing || hasOverlapBooking || hasOverlapRequest) {
+            throw new AppException(ErrorCode.OVERLAPPING_SCHEDULE);
+        }
+
         Tour tour = Tour.builder()
                 .guide(guide)
                 .location(location)
@@ -105,7 +121,9 @@ public class TourService {
                 .status(TourStatus.ACTIVE)
                 .build();
 
-        return mapWithRating(tourRepository.save(tour));
+        Tour saved = tourRepository.save(tour);
+        tourEmbeddingService.indexTour(saved); // Auto-index vào Vector DB
+        return mapWithRating(saved);
     }
 
     public List<TourResponse> getMyTours() {
@@ -117,18 +135,49 @@ public class TourService {
                 .toList();
     }
 
-    public List<TourResponse> getAllActiveTours() {
+    private double haversine(double lat1, double lon1, double lat2, double lon2) {
+        double R = 6371; // Earth radius in km
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    public List<TourResponse> getAllActiveTours(Double lat, Double lng) {
         ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
         Instant expiryTime = Instant.now().minus(Duration.ofMinutes(10));
         LocalDateTime vnNow = LocalDateTime.now(zoneId);
-        return tourRepository.findAvailableTours(LocalDate.now(zoneId), LocalTime.now(zoneId), expiryTime).stream()
+        
+        List<TourResponse> tours = tourRepository.findAvailableTours(LocalDate.now(zoneId), LocalTime.now(zoneId), expiryTime).stream()
                 .filter(t -> {
                     Integer cutoff = t.getBookingCutoffMinutes() != null ? t.getBookingCutoffMinutes() : 60;
                     LocalDateTime cutoffPoint = LocalDateTime.of(t.getStartDate(), t.getStartTime()).minusMinutes(cutoff);
                     return vnNow.isBefore(cutoffPoint);
                 })
-                .map(this::mapWithRating)
+                .map(t -> {
+                    TourResponse resp = mapWithRating(t);
+                    if (lat != null && lng != null && t.getLocation() != null) {
+                        double dist = haversine(lat, lng, t.getLocation().getLatitude(), t.getLocation().getLongitude());
+                        resp.setDistance(dist);
+                    }
+                    return resp;
+                })
                 .toList();
+
+        if (lat != null && lng != null) {
+            return tours.stream()
+                    .sorted((t1, t2) -> {
+                        if (t1.getDistance() == null) return 1;
+                        if (t2.getDistance() == null) return -1;
+                        return t1.getDistance().compareTo(t2.getDistance());
+                    })
+                    .toList();
+        }
+
+        return tours;
     }
 
     public List<TourResponse> getNearbyTours(double lat, double lng, double radius) {
@@ -220,14 +269,26 @@ public class TourService {
 
         // Validate new timing
         int newCutoff = request.getBookingCutoffMinutes() != null ? request.getBookingCutoffMinutes() : 60;
-        LocalDateTime newStart = LocalDateTime.of(request.getStartDate(), request.getStartTime());
-        LocalDateTime newCutoffPoint = newStart.minusMinutes(newCutoff);
+        LocalDateTime newStartDateTime = LocalDateTime.of(request.getStartDate(), request.getStartTime());
+        LocalDateTime newCutoffPoint = newStartDateTime.minusMinutes(newCutoff);
         
         if (newCutoffPoint.isBefore(LocalDateTime.now())) {
             throw new AppException(ErrorCode.INVALID_TOUR_DATE);
         }
 
-        return mapWithRating(tourRepository.save(tour));
+        // Schedule overlap check for Guide (on update)
+        LocalTime startTime = request.getStartTime();
+        LocalTime endTime = request.getEndTime() != null ? request.getEndTime() : startTime.plusHours(4);
+
+        if (tourRepository.existsOverlappingTourListing(tour.getGuide(), request.getStartDate(), startTime, endTime, tour.getId()) ||
+            bookingRepository.existsOverlappingGuideBooking(tour.getGuide(), request.getStartDate(), startTime, endTime) ||
+            tourRequestRepository.existsOverlappingGuideRequest(tour.getGuide(), request.getStartDate(), startTime, endTime)) {
+            throw new AppException(ErrorCode.OVERLAPPING_SCHEDULE);
+        }
+
+        Tour saved = tourRepository.save(tour);
+        tourEmbeddingService.indexTour(saved); // Re-index khi tour được cập nhật
+        return mapWithRating(saved);
     }
 
     public TourResponse updateTourStatus(String id, TourStatus status, String reason) {

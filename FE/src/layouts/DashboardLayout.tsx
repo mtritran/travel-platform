@@ -10,10 +10,12 @@ import {
   ShieldCheck,
   User,
   Wallet,
-  ChevronDown
+  ChevronDown,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Footer from '../components/Footer';
+import TourChatWidget from '../components/TourChatWidget';
 import { getFileUrl } from '../utils/format';
 
 interface DashboardLayoutProps {
@@ -69,7 +71,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     ]
     : [{ to: '/become-guide', label: 'Trở thành HDV', icon: <ShieldCheck size={16} /> }];
 
-  const navLinks = isAdmin ? adminLinks : [...customerLinks, ...guideLinks];
+  const navLinks = !user 
+    ? [] 
+    : (isAdmin 
+        ? adminLinks 
+        : [
+            ...customerLinks, 
+            ...guideLinks, 
+            { to: '/messages', label: 'Trò chuyện', icon: <MessageSquare size={16} /> }
+          ]);
 
   const handleLogout = () => {
     logout();
@@ -82,7 +92,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         <div className="app-header-wrap">
           <header className="glass-panel app-header">
             <div className="header-main">
-              <Link to="/" className="brand-link">
+              <Link to="/" className="brand-link" style={{ flexShrink: 0 }}>
                 <span className="brand-mark">
                   <Compass size={24} />
                 </span>
@@ -92,12 +102,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 </span>
               </Link>
 
-              <nav className="header-nav">
+              <nav className="header-nav" style={{ flex: 1, justifyContent: 'center', gap: '8px', overflow: 'hidden' }}>
                 {navLinks.map((link) => (
                   <NavLink
                     key={link.to}
                     to={link.to}
                     className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+                    style={{ whiteSpace: 'nowrap', fontSize: '13px', padding: '8px 10px' }}
                   >
                     {link.icon}
                     <span>{link.label}</span>
@@ -107,75 +118,87 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </div>
 
             <div className="header-actions">
-              <button type="button" className="icon-button" aria-label="Thông báo">
-                <Bell size={18} />
-              </button>
+              {user ? (
+                <>
+                  <button type="button" className="icon-button" aria-label="Thông báo">
+                    <Bell size={18} />
+                  </button>
 
-              <div style={{ position: 'relative' }} ref={menuRef}>
-                <button
-                  type="button"
-                  className="profile-chip"
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  style={{ cursor: 'pointer', border: 'none', background: 'var(--surface-hover)' }}
-                >
-                  <div className="profile-chip-meta">
-                    <span className="profile-chip-name">{user?.fullName || 'Người khám phá'}</span>
-                    <span className="profile-chip-role">{roleLabel}</span>
-                  </div>
-                  <span className="avatar-pill" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {user?.avatarUrl ? (
-                      <img
-                        src={getFileUrl(user.avatarUrl)}
-                        alt="Avatar"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <User size={18} />
-                    )}
-                  </span>
-                  <ChevronDown size={14} style={{ color: 'var(--text-secondary)', marginLeft: '4px', transform: isMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-                </button>
-
-                {isMenuOpen && (
-                  <div className="glass-panel" style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 12px)',
-                    right: 0,
-                    width: '220px',
-                    padding: '8px',
-                    zIndex: 1000,
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                  }}>
-                    {!isAdmin && (
-                      <>
-                        <Link to="/profile" className="nav-link" onClick={() => setIsMenuOpen(false)} style={{ margin: 0, padding: '10px 12px' }}>
-                          <User size={16} /> <span>Thông tin cá nhân</span>
-                        </Link>
-                        <Link to="/wallet" className="nav-link" onClick={() => setIsMenuOpen(false)} style={{ margin: 0, padding: '10px 12px' }}>
-                          <Wallet size={16} /> <span>Ví của tôi</span>
-                        </Link>
-                        <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '4px 0' }} />
-                      </>
-                    )}
+                  <div style={{ position: 'relative' }} ref={menuRef}>
                     <button
-                      onClick={handleLogout}
-                      className="nav-link"
-                      style={{ border: 'none', background: 'none', cursor: 'pointer', width: '100%', color: 'var(--error)', margin: 0, padding: '10px 12px' }}
+                      type="button"
+                      className="profile-chip"
+                      onClick={() => setIsMenuOpen(!isMenuOpen)}
+                      style={{ cursor: 'pointer', border: 'none', background: 'var(--surface-hover)' }}
                     >
-                      <LogOut size={16} /> <span>Đăng xuất</span>
+                      <div className="profile-chip-meta">
+                        <span className="profile-chip-name">{user?.fullName || 'Người khám phá'}</span>
+                        <span className="profile-chip-role">{roleLabel}</span>
+                      </div>
+                      <span className="avatar-pill" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {user?.avatarUrl ? (
+                          <img
+                            src={getFileUrl(user.avatarUrl)}
+                            alt="Avatar"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <User size={18} />
+                        )}
+                      </span>
+                      <ChevronDown size={14} style={{ color: 'var(--text-secondary)', marginLeft: '4px', transform: isMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                     </button>
+
+                    {isMenuOpen && (
+                      <div className="glass-panel" style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 12px)',
+                        right: 0,
+                        width: '220px',
+                        padding: '8px',
+                        zIndex: 1000,
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}>
+                        {!isAdmin && (
+                          <>
+                            <Link to="/profile" className="nav-link" onClick={() => setIsMenuOpen(false)} style={{ margin: 0, padding: '10px 12px' }}>
+                              <User size={16} /> <span>Thông tin cá nhân</span>
+                            </Link>
+                            <Link to="/wallet" className="nav-link" onClick={() => setIsMenuOpen(false)} style={{ margin: 0, padding: '10px 12px' }}>
+                              <Wallet size={16} /> <span>Ví của tôi</span>
+                            </Link>
+                            <hr style={{ border: 'none', borderTop: '1px solid var(--glass-border)', margin: '4px 0' }} />
+                          </>
+                        )}
+                        <button
+                          onClick={handleLogout}
+                          className="nav-link"
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', width: '100%', color: 'var(--error)', margin: 0, padding: '10px 12px' }}
+                        >
+                          <LogOut size={16} /> <span>Đăng xuất</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <Link to="/login" className="nav-link" style={{ margin: 0, fontWeight: 500 }}>Đăng nhập</Link>
+                  <Link to="/register" className="glass-button" style={{ padding: '8px 16px', borderRadius: '12px', textDecoration: 'none', fontSize: '14px' }}>
+                    Đăng ký
+                  </Link>
+                </div>
+              )}
             </div>
           </header>
         </div>
 
         <main style={{ padding: '53px 0 40px', flex: 1 }}>{children}</main>
         <Footer />
+        <TourChatWidget />
       </div>
     </div>
   );

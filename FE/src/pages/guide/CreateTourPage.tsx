@@ -13,9 +13,11 @@ import DashboardLayout from '../../layouts/DashboardLayout';
 import LocationPicker from '../../components/common/LocationPicker';
 import IdentityUpgradeBanner from '../../components/common/IdentityUpgradeBanner';
 import { useAuth } from '../../context/AuthContext';
+import { useLocation } from '../../context/LocationContext';
 
 const CreateTourPage: React.FC = () => {
   const { user } = useAuth();
+  const { location: currentUserLocation } = useLocation();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
@@ -44,12 +46,25 @@ const CreateTourPage: React.FC = () => {
       startTime: formatTime(startHour),
       endTime: formatTime(endHour),
       maxGuests: '4',
-      depositPercentage: '30',
+      depositPercentage: '100',
       bookingCutoffMinutes: '60'
     };
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Pre-fill meeting point if guide location is available
+  React.useEffect(() => {
+    if (!formData.meetingLatitude && currentUserLocation?.latitude && currentUserLocation?.longitude) {
+      setFormData(prev => ({
+        ...prev,
+        meetingLatitude: currentUserLocation.latitude,
+        meetingLongitude: currentUserLocation.longitude,
+        meetingAddress: currentUserLocation.address || '',
+        meetingLocationName: currentUserLocation.address || 'Vị trí hiện tại của tôi'
+      }));
+    }
+  }, [currentUserLocation, formData.meetingLatitude]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -201,7 +216,7 @@ const CreateTourPage: React.FC = () => {
         startTime: formData.startTime,
         endTime: formData.endTime,
         maxGuests: Number(formData.maxGuests),
-        depositPercentage: 30,
+        depositPercentage: 100,
         bookingCutoffMinutes: Number(formData.bookingCutoffMinutes)
       });
 

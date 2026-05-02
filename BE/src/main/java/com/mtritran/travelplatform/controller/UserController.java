@@ -1,5 +1,6 @@
 package com.mtritran.travelplatform.controller;
 
+import com.mtritran.travelplatform.dto.request.LocationUpdateRequest;
 import com.mtritran.travelplatform.dto.request.UserCreateRequest;
 import com.mtritran.travelplatform.dto.request.UserUpdateRequest;
 import com.mtritran.travelplatform.dto.response.ApiResponse;
@@ -103,6 +104,14 @@ public class UserController {
     public ApiResponse<UserResponse> updateAvatar(@RequestParam("file") MultipartFile file) {
         return ApiResponse.<UserResponse>builder()
                 .result(userService.updateAvatar(file))
+                .build();
+    }
+
+    @Operation(summary = "Update my location")
+    @PutMapping("/location")
+    public ApiResponse<UserResponse> updateLocation(@Valid @RequestBody LocationUpdateRequest request) {
+        return ApiResponse.<UserResponse>builder()
+                .result(userService.updateLocation(request))
                 .build();
     }
 

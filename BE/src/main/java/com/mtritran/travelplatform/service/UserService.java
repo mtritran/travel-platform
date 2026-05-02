@@ -1,5 +1,6 @@
 package com.mtritran.travelplatform.service;
 
+import com.mtritran.travelplatform.dto.request.LocationUpdateRequest;
 import com.mtritran.travelplatform.dto.request.UserCreateRequest;
 import com.mtritran.travelplatform.dto.request.UserUpdateRequest;
 import com.mtritran.travelplatform.dto.response.UserResponse;
@@ -11,6 +12,7 @@ import com.mtritran.travelplatform.exception.ErrorCode;
 import com.mtritran.travelplatform.mapper.UserMapper;
 import com.mtritran.travelplatform.repository.RoleRepository;
 import com.mtritran.travelplatform.repository.UserRepository;
+import com.mtritran.travelplatform.service.ai.GuideRecommendationService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -35,6 +38,7 @@ public class UserService {
     PasswordEncoder passwordEncoder;
     OtpService otpService;
     StorageService storageService;
+    GuideRecommendationService guideRecommendationService;
 
     public UserResponse createUser(UserCreateRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -143,30 +147,58 @@ public class UserService {
         User user = userRepository.findByEmail(name).orElseThrow(
                 () -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-        if (request.getFullName() != null)
-            user.setFullName(request.getFullName());
-        if (request.getPhone() != null)
-            user.setPhone(request.getPhone());
+        User.UserBuilder userBuilder = user.toBuilder();
+
+        if (request.getFullName() != null) userBuilder.fullName(request.getFullName());
+        if (request.getPhone() != null) userBuilder.phone(request.getPhone());
+        
         if (request.getPaymentPin() != null && !request.getPaymentPin().isBlank()) {
-            user.setPaymentPin(passwordEncoder.encode(request.getPaymentPin()));
+            userBuilder.paymentPin(passwordEncoder.encode(request.getPaymentPin()));
         }
+        
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             if (request.getOldPassword() == null || request.getOldPassword().isBlank()
                     || !passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
                 throw new AppException(ErrorCode.PASSWORD_INCORRECT);
             }
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
+            userBuilder.password(passwordEncoder.encode(request.getPassword()));
         }
 
-        if (request.getBiography() != null)
-            user.setBiography(request.getBiography());
-        if (request.getLanguages() != null)
-            user.setLanguages(request.getLanguages());
-        if (request.getYearsOfExperience() != null)
-            user.setYearsOfExperience(request.getYearsOfExperience());
-        if (request.getSpecialties() != null)
-            user.setSpecialties(request.getSpecialties());
+        if (request.getBiography() != null) userBuilder.biography(request.getBiography());
+        if (request.getLanguages() != null) userBuilder.languages(request.getLanguages());
+        if (request.getYearsOfExperience() != null) userBuilder.yearsOfExperience(request.getYearsOfExperience());
+        if (request.getSpecialties() != null) userBuilder.specialties(request.getSpecialties());
 
-        return userMapper.toResponse(userRepository.save(user));
+        User savedUser = userRepository.save(userBuilder.build());
+
+        // If guide updates RAG-relevant profile fields → re-index into Vector DB
+        boolean isGuide = savedUser.getRoles().stream()
+                .anyMatch(r -> r.getName() == RoleName.GUIDE);
+        boolean ragFieldChanged = request.getBiography() != null
+                || request.getLanguages() != null
+                || request.getYearsOfExperience() != null
+                || request.getSpecialties() != null;
+
+        if (isGuide && ragFieldChanged) {
+            guideRecommendationService.indexGuide(savedUser);
+        }
+
+        return userMapper.toResponse(savedUser);
+    }
+
+    @Transactional
+    public UserResponse updateLocation(LocationUpdateRequest request) {
+        String name = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(name).orElseThrow(
+                () -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        User updatedUser = user.toBuilder()
+                .currentLat(request.getLatitude())
+                .currentLong(request.getLongitude())
+                .currentAddress(request.getAddress())
+                .lastLocationUpdate(Instant.now())
+                .build();
+
+        return userMapper.toResponse(userRepository.save(updatedUser));
     }
 }

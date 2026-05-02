@@ -20,6 +20,8 @@ import com.mtritran.travelplatform.repository.TourRequestInterestRepository;
 import com.mtritran.travelplatform.repository.TourRequestRepository;
 import com.mtritran.travelplatform.repository.TransactionRepository;
 import com.mtritran.travelplatform.repository.UserRepository;
+import com.mtritran.travelplatform.repository.TourRepository;
+import com.mtritran.travelplatform.repository.BookingRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -53,11 +55,18 @@ public class TourRequestService {
         TransactionRepository transactionRepository;
         PenaltyService penaltyService;
         StorageService storageService;
+        TourRepository tourRepository;
+        BookingRepository bookingRepository;
 
         public TourRequestResponse createRequest(TourRequestCreateRequest request) {
                 String email = SecurityContextHolder.getContext().getAuthentication().getName();
                 User user = userRepository.findByEmail(email)
                                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+
+                // Check if customer is banned from booking
+                if (user.getCustomerBannedUntil() != null && user.getCustomerBannedUntil().isAfter(Instant.now())) {
+                        throw new AppException(ErrorCode.USER_BANNED);
+                }
 
                 Location location = null;
                 if (request.getLocationId() != null) {
@@ -87,7 +96,7 @@ public class TourRequestService {
                                 .endTime(request.getEndTime())
                                 .depositPercentage(
                                                 request.getDepositPercentage() != null ? request.getDepositPercentage()
-                                                                : BigDecimal.valueOf(30))
+                                                                : BigDecimal.valueOf(100))
                                 .paymentStatus(TourRequestPaymentStatus.PENDING)
                                 .build();
 
@@ -277,6 +286,16 @@ public class TourRequestService {
                         throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
                 }
 
+                // Schedule overlap check for Guide
+                LocalTime tourStart = tourRequest.getStartTime();
+                LocalTime tourEnd = tourRequest.getEndTime() != null ? tourRequest.getEndTime() : tourStart.plusHours(4);
+
+                if (tourRepository.existsOverlappingTourListing(guide, tourRequest.getPlannedDate(), tourStart, tourEnd, null) ||
+                    bookingRepository.existsOverlappingGuideBooking(guide, tourRequest.getPlannedDate(), tourStart, tourEnd) ||
+                    tourRequestRepository.existsOverlappingGuideRequest(guide, tourRequest.getPlannedDate(), tourStart, tourEnd)) {
+                        throw new AppException(ErrorCode.OVERLAPPING_SCHEDULE);
+                }
+
                 tourRequest.setStatus(TourRequestStatus.WAITING_PAYMENT);
 
                 // Calculate deposit amount
@@ -284,7 +303,7 @@ public class TourRequestService {
                         BigDecimal total = tourRequest.getBudget();
                         BigDecimal depositPercent = tourRequest.getDepositPercentage() != null
                                         ? tourRequest.getDepositPercentage()
-                                        : BigDecimal.valueOf(30);
+                                        : BigDecimal.valueOf(100);
                         BigDecimal depositAmount = total.multiply(depositPercent).divide(BigDecimal.valueOf(100));
                         tourRequest.setDepositAmount(depositAmount);
                 }
@@ -377,28 +396,34 @@ public class TourRequestService {
                         Duration timeUntilTour = Duration.between(now, tourStart);
                         long hoursLeft = timeUntilTour.toHours();
 
+                        // Tinh phi phat dua tren 30% tong gia tri (giu nguyen muc bu tien cu cho HDV)
+                        BigDecimal penaltyBasis = (tourRequest.getBudget() != null 
+                                          ? tourRequest.getBudget().multiply(new BigDecimal("0.30")) 
+                                          : BigDecimal.ZERO);
+
                         if (hoursLeft >= 48) {
                                 // Early cancellation (> 48h): 100% refund
                                 refundAmount = tourRequest.getPaidAmount();
+                                platformFee = BigDecimal.ZERO;
                         } else if (hoursLeft >= 24) {
-                                // Mid cancellation (24-48h): 50% refund, 50% penalty
-                                platformFee = tourRequest.getPaidAmount().multiply(new BigDecimal("0.50"))
+                                // Mid cancellation (24-48h): 50% of deposit is penalty, rest is refunded
+                                platformFee = penaltyBasis.multiply(new BigDecimal("0.50"))
                                                 .setScale(0, RoundingMode.HALF_UP);
-                                refundAmount = tourRequest.getPaidAmount().subtract(platformFee);
+                                                
+                                refundAmount = tourRequest.getPaidAmount().subtract(platformFee).max(BigDecimal.ZERO);
+                                platformFee = tourRequest.getPaidAmount().subtract(refundAmount);
 
-                                user.setCancellationCount(
-                                                (user.getCancellationCount() != null ? user.getCancellationCount() : 0)
-                                                                + 1);
+                                penaltyService.addCustomerPenalty(user.getId(), "Hủy tour yêu cầu từ 24-48h trước khởi hành: " + tourRequest.getTitle());
                                 tourRequest.setPayoutAt(Instant.now().plus(24, ChronoUnit.HOURS));
                         } else {
-                                // Late cancellation (< 24h): 0% refund, hold 24h for dispute window
-                                platformFee = tourRequest.getPaidAmount();
-                                refundAmount = BigDecimal.ZERO;
+                                // Late cancellation (< 24h): 100% of deposit is penalty, rest is refunded (if any)
+                                platformFee = penaltyBasis;
+                                
+                                refundAmount = tourRequest.getPaidAmount().subtract(platformFee).max(BigDecimal.ZERO);
+                                platformFee = tourRequest.getPaidAmount().subtract(refundAmount);
 
-                                user.setCancellationCount(
-                                                (user.getCancellationCount() != null ? user.getCancellationCount() : 0)
-                                                                + 1);
-                                tourRequest.setPayoutAt(Instant.now().plus(24, ChronoUnit.HOURS));
+                                penaltyService.addCustomerPenalty(user.getId(), "Hủy tour yêu cầu muộn (<24h): " + tourRequest.getTitle());
+                                tourRequest.setPayoutAt(Instant.now());
                         }
 
                         BigDecimal currentBalance = user.getBalance() != null ? user.getBalance() : BigDecimal.ZERO;
@@ -505,7 +530,11 @@ public class TourRequestService {
                 userRepository.save(customer);
 
                 tourRequest.setPaidAmount(deposit);
-                tourRequest.setPaymentStatus(TourRequestPaymentStatus.PAID_DEPOSIT);
+                if (tourRequest.getBudget() != null && tourRequest.getPaidAmount().compareTo(tourRequest.getBudget()) >= 0) {
+                        tourRequest.setPaymentStatus(TourRequestPaymentStatus.PAID_FULL);
+                } else {
+                        tourRequest.setPaymentStatus(TourRequestPaymentStatus.PAID_DEPOSIT);
+                }
                 tourRequest.setStatus(TourRequestStatus.CONFIRMED);
 
                 // Set Payout time: Tour end time + 24 hours (Dispute window)
@@ -519,8 +548,8 @@ public class TourRequestService {
 
                 // Notify Guide
                 notificationService.sendNotification(tourRequest.getGuide().getId(),
-                                "Khách đã đặt cọc",
-                                "Khách hàng " + customer.getFullName() + " đã thanh toán cọc cho yêu cầu: "
+                                "Khách đã thanh toán",
+                                "Khách hàng " + customer.getFullName() + " đã thanh toán cho yêu cầu: "
                                                 + tourRequest.getTitle(),
                                 "TOUR_REQUEST_PAID");
 
@@ -571,7 +600,11 @@ public class TourRequestService {
 
                 BigDecimal deposit = tourReq.getDepositAmount() != null ? tourReq.getDepositAmount() : BigDecimal.ZERO;
                 tourReq.setPaidAmount(deposit);
-                tourReq.setPaymentStatus(TourRequestPaymentStatus.PAID_DEPOSIT);
+                if (tourReq.getBudget() != null && tourReq.getPaidAmount().compareTo(tourReq.getBudget()) >= 0) {
+                        tourReq.setPaymentStatus(TourRequestPaymentStatus.PAID_FULL);
+                } else {
+                        tourReq.setPaymentStatus(TourRequestPaymentStatus.PAID_DEPOSIT);
+                }
                 tourReq.setStatus(TourRequestStatus.CONFIRMED);
 
                 // Set Payout time
@@ -589,15 +622,15 @@ public class TourRequestService {
                                 .user(admin)
                                 .amount(deposit)
                                 .type(TransactionType.REVENUE)
-                                .note("Thanh toán tiền cọc cho yêu cầu: " + tourReq.getTitle())
+                                .note("Thanh toán tiền tour (Yêu cầu): " + tourReq.getTitle())
                                 .build());
 
                 // Notify Guide
                 if (tourReq.getGuide() != null) {
                         notificationService.sendNotification(tourReq.getGuide().getId(),
-                                        "Khách đã đặt cọc",
+                                        "Khách đã thanh toán",
                                         "Khách hàng " + tourReq.getUser().getFullName()
-                                                        + " đã thanh toán cọc cho yêu cầu: " + tourReq.getTitle(),
+                                                        + " đã thanh toán cho yêu cầu: " + tourReq.getTitle(),
                                         "TOUR_REQUEST_PAID");
                 }
         }
@@ -647,9 +680,11 @@ public class TourRequestService {
                 // Logic check: only allow completion after the tour has started
                 LocalDateTime now = LocalDateTime.now();
                 LocalDateTime tourStart = LocalDateTime.of(tourRequest.getPlannedDate(), tourRequest.getStartTime());
-                // if (now.isBefore(tourStart)) {
-                // throw new AppException(ErrorCode.TOUR_NOT_STARTED_YET);
-                // }
+
+                //Check current time
+                 if (now.isBefore(tourStart)) {
+                 throw new AppException(ErrorCode.TOUR_NOT_STARTED_YET);
+                 }
 
                 tourRequest.setStatus(TourRequestStatus.COMPLETED);
 
@@ -706,7 +741,8 @@ public class TourRequestService {
                 }
 
                 if (tourRequest.getStatus() != TourRequestStatus.COMPLETED
-                                && tourRequest.getPaymentStatus() != TourRequestPaymentStatus.PAID_FULL) {
+                                && tourRequest.getPaymentStatus() != TourRequestPaymentStatus.PAID_FULL
+                                && tourRequest.getPaymentStatus() != TourRequestPaymentStatus.PAID_DEPOSIT) {
                         throw new AppException(ErrorCode.INVALID_BOOKING_STATUS);
                 }
 
@@ -714,8 +750,8 @@ public class TourRequestService {
                         throw new AppException(ErrorCode.ALREADY_DISPUTED);
                 }
 
-                // Verify timing: must be before payoutAt
-                if (Instant.now().isAfter(tourRequest.getPayoutAt())) {
+                // Verify timing: must be before payoutAt (if scheduled)
+                if (tourRequest.getPayoutAt() != null && Instant.now().isAfter(tourRequest.getPayoutAt())) {
                         throw new AppException(ErrorCode.DISPUTE_WINDOW_EXPIRED);
                 }
 

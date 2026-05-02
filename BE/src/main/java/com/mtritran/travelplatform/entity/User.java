@@ -19,7 +19,7 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class User {
     @Id
@@ -62,6 +62,18 @@ public class User {
     Integer yearsOfExperience;
 
     String specialties;
+    
+    @Column(columnDefinition = "TEXT")
+    String operatingAreas;
+
+    // --- Location & GPS ---
+    Double currentLat;
+    Double currentLong;
+    
+    @Column(columnDefinition = "TEXT")
+    String currentAddress;
+
+    Instant lastLocationUpdate;
 
     @Builder.Default
     Integer penaltyPoints = 0;
@@ -70,8 +82,12 @@ public class User {
     Integer cancellationCount = 0;
 
     Instant guideBannedUntil;
+    Instant customerBannedUntil;
 
     String avatarUrl;
+    
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    GuideApplication guideApplication;
 
     @CreationTimestamp
     Instant createdAt;
