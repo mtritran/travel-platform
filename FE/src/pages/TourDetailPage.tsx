@@ -14,6 +14,10 @@ import {
   Star,
   User,
   Users,
+  Car,
+  Coffee,
+  Home,
+  AlertTriangle
 } from 'lucide-react';
 import api from '../services/api';
 import type { ApiResponse, Review, Tour } from '../types';
@@ -39,16 +43,13 @@ const TourDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [tour, setTour] = useState<Tour | null>(null);
+  const [showItinerary, setShowItinerary] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [bookingDate, setBookingDate] = useState('');
   const [numberOfGuests, setNumberOfGuests] = useState(1);
-  const [meetingOption, setMeetingOption] = useState<'default' | 'custom'>('default');
-  const [customPickup, setCustomPickup] = useState<{ lat: number; lng: number; address: string } | null>(
-    null,
-  );
   const [isP2PChatOpen, setIsP2PChatOpen] = useState(false);
 
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -58,16 +59,6 @@ const TourDetailPage: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Pre-fill custom pickup if user location is available
-  useEffect(() => {
-    if (meetingOption === 'custom' && !customPickup && currentUserLocation?.latitude && currentUserLocation?.longitude) {
-      setCustomPickup({
-        lat: currentUserLocation.latitude,
-        lng: currentUserLocation.longitude,
-        address: currentUserLocation.address || ''
-      });
-    }
-  }, [meetingOption, currentUserLocation, customPickup]);
 
   useEffect(() => {
     if (tour?.startDate) {
@@ -130,30 +121,10 @@ const TourDetailPage: React.FC = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      let pickupLocationId = undefined;
-
-      if (meetingOption === 'custom') {
-        if (!customPickup) {
-          setMessage({ type: 'error', text: 'Vui lòng chọn điểm đón trên bản đồ.' });
-          setBookingLoading(false);
-          return;
-        }
-
-        const locResponse = await api.post(ENDPOINTS.LOCATION.CREATE, {
-          name: 'Điểm đón yêu cầu',
-          address: customPickup.address,
-          latitude: customPickup.lat,
-          longitude: customPickup.lng,
-          imageUrl: tour.imageUrl,
-        });
-        pickupLocationId = locResponse.data.result.id;
-      }
-
       await api.post(ENDPOINTS.BOOKING.CREATE, {
         tourId: id,
         bookingDate,
         numberOfGuests: Number(numberOfGuests),
-        pickupLocationId,
       });
 
       setMessage({
@@ -324,6 +295,11 @@ const TourDetailPage: React.FC = () => {
                   <div className="feature-label">Quy mô</div>
                   <div className="feature-value">
                     Tối đa {tour.maxGuests || 1} khách
+                    {tour.minGuests && tour.minGuests > 1 && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '4px' }}>
+                        Tối thiểu {tour.minGuests} khách để khởi hành
+                      </div>
+                    )}
                     {remainingSlots <= 5 && remainingSlots > 0 && (
                       <div style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '4px', fontWeight: 600 }}>
                         Chỉ còn {remainingSlots} chỗ!
@@ -339,10 +315,109 @@ const TourDetailPage: React.FC = () => {
                 <div className="feature-card">
                   <Calendar size={20} />
                   <div className="feature-label">Lịch trình</div>
-                  <div className="feature-value">{scheduleLabel}</div>
+                  <div className="feature-value">
+                    {scheduleLabel}
+                    {tour.itineraries && tour.itineraries.length > 0 && (
+                      <button 
+                        onClick={() => setShowItinerary(!showItinerary)}
+                        style={{ display: 'block', marginTop: '6px', fontSize: '0.8rem', color: 'var(--brand-primary)', border: 'none', background: 'transparent', padding: 0, fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        {showItinerary ? 'Thu gọn' : 'Xem lịch trình dự kiến'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {(tour.transportType || tour.mealInfo || tour.accommodationInfo) && (
+                <div style={{ marginTop: '32px' }}>
+                  <h2 className="section-title">Dịch vụ & Tiện ích</h2>
+                  <div className="feature-grid" style={{ marginTop: '16px' }}>
+                    {tour.transportType && (
+                      <div className="feature-card">
+                        <Car size={20} />
+                        <div className="feature-label">Phương tiện</div>
+                        <div className="feature-value">
+                          {tour.transportType}
+                          {tour.transportInfo && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-soft)', marginTop: '4px' }}>
+                              {tour.transportInfo}
+                            </div>
+                          )}
+                          {tour.transportImagesUrl && (
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+                              {tour.transportImagesUrl.split(';').filter(u => u.trim()).map((url, idx) => (
+                                <div 
+                                  key={idx}
+                                  style={{ width: '60px', height: '45px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--line)', cursor: 'zoom-in' }}
+                                  onClick={() => window.open(getFileUrl(url), '_blank')}
+                                >
+                                  <img src={getFileUrl(url)} alt={`Transport ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </section>
+
+            {showItinerary && tour.itineraries && tour.itineraries.length > 0 && (
+              <section className="glass-panel" style={{ padding: '28px' }}>
+                <h2 className="section-title">Lịch trình chi tiết</h2>
+                <p className="muted-text" style={{ marginTop: '6px', marginBottom: '24px' }}>
+                  Hành trình dự kiến giúp bạn chuẩn bị tốt nhất cho chuyến đi.
+                </p>
+                
+                <div className="timeline" style={{ paddingLeft: '12px' }}>
+                  {tour.itineraries.map((item, idx) => (
+                    <div key={idx} style={{ 
+                      position: 'relative', 
+                      paddingLeft: '32px', 
+                      paddingBottom: idx === tour.itineraries.length - 1 ? '0' : '32px',
+                      borderLeft: idx === tour.itineraries.length - 1 ? 'none' : '2px solid rgba(102, 84, 60, 0.1)'
+                    }}>
+                      <div style={{ 
+                        position: 'absolute', 
+                        left: '-9px', 
+                        top: '0', 
+                        width: '16px', 
+                        height: '16px', 
+                        borderRadius: '50%', 
+                        background: 'var(--brand-primary)', 
+                        border: '3px solid white',
+                        boxShadow: '0 0 0 2px rgba(102, 84, 60, 0.1)'
+                      }} />
+                      
+                      <div style={{ display: 'flex', gap: '20px', flexDirection: window.innerWidth < 768 ? 'column' : 'row' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ fontWeight: 800, color: 'var(--brand-primary)', fontSize: '1rem' }}>{item.timeSlot}</span>
+                            <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>- {item.activity}</span>
+                          </div>
+                          {item.description && (
+                            <p className="muted-text" style={{ lineHeight: 1.6, fontSize: '0.95rem' }}>
+                              {item.description}
+                            </p>
+                          )}
+                        </div>
+                        {item.imageUrl && (
+                          <div 
+                            style={{ width: '180px', height: '120px', borderRadius: '16px', overflow: 'hidden', flexShrink: 0, cursor: 'zoom-in', border: '4px solid white', boxShadow: '0 8px 20px -8px rgba(0,0,0,0.1)' }}
+                            onClick={() => window.open(getFileUrl(item.imageUrl!), '_blank')}
+                          >
+                            <img src={getFileUrl(item.imageUrl)} alt={item.activity} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section className="glass-panel" style={{ padding: '28px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center' }}>
@@ -508,55 +583,21 @@ const TourDetailPage: React.FC = () => {
 
               <div className="booking-box">
                 <div className="booking-label" style={{ marginBottom: '12px' }}>
-                  Điểm tập trung / đón khách
+                  Điểm tập trung
                 </div>
 
-                <div className="meeting-toggle">
-                  <button
-                    type="button"
-                    className={`meeting-option${meetingOption === 'default' ? ' active' : ''}`}
-                    onClick={() => setMeetingOption('default')}
-                  >
-                    Mặc định
-                  </button>
-                  <button
-                    type="button"
-                    className={`meeting-option${meetingOption === 'custom' ? ' active' : ''}`}
-                    onClick={() => setMeetingOption('custom')}
-                  >
-                    Tự chọn nơi đón
-                  </button>
+                <div className="info-strip">
+                  <Navigation size={18} color="var(--primary)" />
+                  <div>
+                    <div style={{ fontWeight: 800 }}>{tour.meetingLocationName || 'Điểm tập trung'}</div>
+                    <div className="muted-text" style={{ fontSize: '0.88rem', marginTop: '4px' }}>
+                      {tour.meetingLocationAddress || 'Theo hướng dẫn của guide'}
+                    </div>
+                  </div>
                 </div>
-
-                {meetingOption === 'default' ? (
-                  <div className="info-strip" style={{ marginTop: '14px' }}>
-                    <Navigation size={18} color="var(--primary)" />
-                    <div>
-                      <div style={{ fontWeight: 800 }}>{tour.meetingLocationName || 'Điểm tập trung'}</div>
-                      <div className="muted-text" style={{ fontSize: '0.88rem', marginTop: '4px' }}>
-                        {tour.meetingLocationAddress || 'Theo hướng dẫn của guide'}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gap: '12px', marginTop: '14px' }}>
-                    <div className="map-frame">
-                      <LocationPicker
-                        onLocationSelect={(lat, lng, address) => setCustomPickup({ lat, lng, address })}
-                        initialLat={tour.meetingLatitude}
-                        initialLng={tour.meetingLongitude}
-                      />
-                    </div>
-                    {customPickup ? (
-                      <div className="status-message success">
-                        <strong>Vị trí đón yêu cầu:</strong> {customPickup.address}
-                      </div>
-                    ) : null}
-                    <p className="muted-text" style={{ fontSize: '0.82rem' }}>
-                      Ghé đón tận nơi có thể phát sinh thêm phí hoặc bị từ chối nếu quá xa.
-                    </p>
-                  </div>
-                )}
+                <p className="muted-text" style={{ fontSize: '0.82rem', marginTop: '12px' }}>
+                  Quý khách vui lòng có mặt tại điểm tập trung đúng giờ để bắt đầu hành trình.
+                </p>
               </div>
 
               {message.text ? <div className={`status-message ${message.type}`}>{message.text}</div> : null}

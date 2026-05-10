@@ -7,6 +7,7 @@ import com.mtritran.travelplatform.entity.User;
 import com.mtritran.travelplatform.exception.AppException;
 import com.mtritran.travelplatform.exception.ErrorCode;
 import com.mtritran.travelplatform.repository.BookingRepository;
+import com.mtritran.travelplatform.repository.ChatMessageRepository;
 import com.mtritran.travelplatform.repository.TourRequestRepository;
 import com.mtritran.travelplatform.repository.UserRepository;
 import dev.langchain4j.data.embedding.Embedding;
@@ -40,6 +41,7 @@ public class SupportChatService {
     ChatModel chatModel;
     EmbeddingModel embeddingModel;
     EmbeddingStore<TextSegment> policyEmbeddingStore;
+    ChatMessageRepository chatMessageRepository;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -49,13 +51,15 @@ public class SupportChatService {
             TourRequestRepository tourRequestRepository,
             ChatModel chatModel,
             EmbeddingModel embeddingModel,
-            @Qualifier("policyEmbeddingStore") EmbeddingStore<TextSegment> policyEmbeddingStore) {
+            @Qualifier("policyEmbeddingStore") EmbeddingStore<TextSegment> policyEmbeddingStore,
+            ChatMessageRepository chatMessageRepository) {
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
         this.tourRequestRepository = tourRequestRepository;
         this.chatModel = chatModel;
         this.embeddingModel = embeddingModel;
         this.policyEmbeddingStore = policyEmbeddingStore;
+        this.chatMessageRepository = chatMessageRepository;
     }
 
     public String chat(TourChatRequest request) {
@@ -119,7 +123,21 @@ public class SupportChatService {
                 CÂU HỎI MỚI NHẤT: "%s"
                 """, chatHistoryContext, user.getFullName(), historyContext, policyContext, userQuestion);
 
-        return chatModel.chat(prompt);
+        String answer = chatModel.chat(prompt);
+
+        // --- LƯU VÀO DATABASE ĐỂ DUY TRÌ LỊCH SỬ ---
+        try {
+            // Lưu câu hỏi của user
+            chatMessageRepository.save(com.mtritran.travelplatform.entity.ChatMessage.builder()
+                    .user(user).content(userQuestion).role("USER").isBot(true).build());
+            // Lưu câu trả lời của AI
+            chatMessageRepository.save(com.mtritran.travelplatform.entity.ChatMessage.builder()
+                    .user(user).content(answer).role("AI").isBot(true).build());
+        } catch (Exception e) {
+            log.warn("[SupportChat] Failed to save chat messages", e);
+        }
+
+        return answer;
     }
 
     private String buildHistoryContext(List<Booking> bookings, List<TourRequest> requests) {

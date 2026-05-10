@@ -17,6 +17,9 @@ import java.util.List;
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, String> {
     List<Booking> findAllByUser(User user);
+
+    @Query("SELECT b FROM Booking b WHERE b.tour.id = :tourId AND b.bookingDate = :date AND b.status NOT IN ('CANCELLED', 'COMPLETED')")
+    List<Booking> findAllActiveByTourAndDate(@Param("tourId") String tourId, @Param("date") LocalDate date);
     
     @Query("SELECT b FROM Booking b WHERE b.user = :user ORDER BY b.createdAt DESC")
     List<Booking> findAllByUserOrderByCreatedAtDesc(@Param("user") User user);

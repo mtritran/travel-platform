@@ -6,6 +6,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -21,25 +22,30 @@ public class TourCreateRequest {
 
     @NotBlank(message = "TITLE_REQUIRED")
     String title;
-    
+
     String description;
-    
+
     @NotNull(message = "PRICE_REQUIRED")
     BigDecimal price;
-    
+
     String imageUrl;
-    
+
     @NotNull(message = "START_DATE_REQUIRED")
     java.time.LocalDate startDate;
-    
+
     java.time.LocalDate endDate;
-    
+
     @NotNull(message = "START_TIME_REQUIRED")
     java.time.LocalTime startTime;
-    
+
     java.time.LocalTime endTime;
-    
+
     Integer maxGuests;
     BigDecimal depositPercentage;
     Integer bookingCutoffMinutes;
+    Integer minGuests;
+    com.mtritran.travelplatform.enums.TransportType transportType;
+    String transportInfo;
+    String transportImagesUrl;
+    List<ItineraryRequest> itineraries;
 }

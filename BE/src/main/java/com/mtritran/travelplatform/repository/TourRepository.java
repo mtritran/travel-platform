@@ -23,6 +23,10 @@ public interface TourRepository extends JpaRepository<Tour, String> {
     List<Tour> findAllByGuide(User guide);
 
     List<Tour> findAllByStatus(TourStatus status);
+
+    @Query("SELECT t FROM Tour t WHERE t.status = 'ACTIVE' " +
+           "AND (t.startDate < :date OR (t.startDate = :date AND t.startTime <= :time))")
+    List<Tour> findToursPastCutoff(@Param("date") LocalDate date, @Param("time") LocalTime time);
     
     @Modifying
     @Transactional

@@ -1,15 +1,9 @@
 package com.mtritran.travelplatform.service;
 
-import com.mtritran.travelplatform.entity.Booking;
-import com.mtritran.travelplatform.entity.TourRequest;
-import com.mtritran.travelplatform.entity.Transaction;
-import com.mtritran.travelplatform.entity.User;
+import com.mtritran.travelplatform.entity.*;
 import com.mtritran.travelplatform.enums.RoleName;
 import com.mtritran.travelplatform.enums.TransactionType;
-import com.mtritran.travelplatform.repository.BookingRepository;
-import com.mtritran.travelplatform.repository.TourRequestRepository;
-import com.mtritran.travelplatform.repository.TransactionRepository;
-import com.mtritran.travelplatform.repository.UserRepository;
+import com.mtritran.travelplatform.repository.*;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -32,6 +26,8 @@ public class ScheduledTasks {
     UserRepository userRepository;
     TransactionRepository transactionRepository;
     NotificationService notificationService;
+    TourRepository tourRepository;
+    BookingService bookingService;
 
     /**
      * Chạy mỗi giờ để quét và giải ngân các tour đã hoàn thành hoặc khách hủy trễ (>24h).
@@ -165,5 +161,67 @@ public class ScheduledTasks {
             "Giải ngân thành công", 
             "Tiền từ yêu cầu tour: " + tourRequest.getTitle() + " đã được chuyển vào ví của bạn.", 
             "PAYOUT_COMPLETED");
+    }
+
+    /**
+     * Quét các tour đã đến giờ cutoff. 
+     * Nếu không đủ minGuests, tự động hủy và hoàn tiền.
+     * Chạy mỗi 30 phút.
+     */
+    @Scheduled(fixedRate = 1800000)
+    @Transactional
+    public void checkTourMinGuests() {
+        log.info("Checking tour minGuests at {}", Instant.now());
+        java.time.ZoneId vnZone = java.time.ZoneId.of("Asia/Ho_Chi_Minh");
+        java.time.LocalDateTime now = java.time.LocalDateTime.now(vnZone);
+
+        // Lấy các tour ACTIVE đang ở trạng thái chuẩn bị bắt đầu (đã qua cutoff)
+        // Lưu ý: Logic đơn giản là lấy các tour có startDate <= hôm nay
+        List<Tour> activeTours = tourRepository.findAllByStatus(com.mtritran.travelplatform.enums.TourStatus.ACTIVE);
+
+        for (Tour tour : activeTours) {
+            java.time.LocalDateTime cutoffTime = java.time.LocalDateTime.of(tour.getStartDate(), tour.getStartTime())
+                    .minusMinutes(tour.getBookingCutoffMinutes() != null ? tour.getBookingCutoffMinutes() : 60);
+
+            if (now.isAfter(cutoffTime)) {
+                // Kiểm tra số khách hiện tại
+                Integer occupied = bookingRepository.sumOccupiedSlots(
+                        tour.getId(), 
+                        tour.getStartDate(), 
+                        tour.getStartTime(), 
+                        Instant.now().minus(java.time.Duration.ofMinutes(10)));
+                
+                if (occupied == null) occupied = 0;
+
+                if (occupied < (tour.getMinGuests() != null ? tour.getMinGuests() : 1)) {
+                    log.info("Tour {} (ID: {}) failed minGuests check ({} < {}). Cancelling...", 
+                            tour.getTitle(), tour.getId(), occupied, tour.getMinGuests());
+                    
+                    cancelTourDueToLowGuests(tour);
+                }
+            }
+        }
+    }
+
+    private void cancelTourDueToLowGuests(Tour tour) {
+        List<Booking> bookings = bookingRepository.findAllActiveByTourAndDate(tour.getId(), tour.getStartDate());
+        
+        for (Booking booking : bookings) {
+            try {
+                bookingService.cancelBySystem(booking.getId(), "không đủ số lượng người đăng ký tối thiểu");
+            } catch (Exception e) {
+                log.error("Failed to auto-cancel booking {}: {}", booking.getId(), e.getMessage());
+            }
+        }
+
+        // Đánh dấu tour là INACTIVE hoặc có thể tạo status mới là CANCELLED
+        tour.setStatus(com.mtritran.travelplatform.enums.TourStatus.INACTIVE);
+        tourRepository.save(tour);
+
+        // Thông báo cho HDV
+        notificationService.sendNotification(tour.getGuide().getId(), 
+                "Tour bị hủy tự động", 
+                "Tour '" + tour.getTitle() + "' đã bị hủy do không đủ số lượng khách tối thiểu.", 
+                "TOUR_CANCELLED_MIN_GUESTS");
     }
 }

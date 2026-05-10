@@ -1,0 +1,9 @@
+tunnel: 351d8bc7-85ce-485d-b6d2-33a89956232c
+credentials-file: C:\Users\Devops Engineer\.cloudflared\351d8bc7-85ce-485d-b6d2-33a89956232c.json
+
+ingress:
+  - hostname: mtritran.click
+    service: http://localhost:5173
+  - hostname: api.mtritran.click
+    service: http://localhost:8080
+  - service: http_status:404

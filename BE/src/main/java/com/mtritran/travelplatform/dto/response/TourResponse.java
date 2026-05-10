@@ -5,6 +5,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -47,5 +48,10 @@ public class TourResponse {
     Integer bookingCutoffMinutes;
     String hiddenReason;
     Double distance;
+    Integer minGuests;
+    com.mtritran.travelplatform.enums.TransportType transportType;
+    String transportInfo;
+    String transportImagesUrl;
+    List<ItineraryResponse> itineraries;
     LocalDateTime createdAt;
 }

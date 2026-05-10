@@ -1,6 +1,7 @@
 package com.mtritran.travelplatform.entity;
 
 import com.mtritran.travelplatform.enums.TourStatus;
+import com.mtritran.travelplatform.enums.TransportType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -11,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Entity
 @Table(name = "tours")
@@ -80,6 +82,25 @@ public class Tour {
 
     @Column(columnDefinition = "TEXT")
     String hiddenReason;
+
+    @Column(nullable = false)
+    @Builder.Default
+    Integer minGuests = 1;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    TransportType transportType = TransportType.WALKING;
+
+    @Column(columnDefinition = "TEXT")
+    String transportInfo;
+
+    @Column(columnDefinition = "TEXT")
+    String transportImagesUrl;
+
+    @OneToMany(mappedBy = "tour", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("stepOrder ASC")
+    List<TourItinerary> itineraries;
 
     @CreationTimestamp
     LocalDateTime createdAt;

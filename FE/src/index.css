@@ -5077,8 +5077,13 @@ input[type="number"] {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(112, 78, 43, 0.12) transparent;
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.tour-chat-messages::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, and Opera */
 }
 
 .tour-chat-bubble-wrap {
@@ -5477,8 +5482,15 @@ input.error:focus,
 }
 
 @keyframes p2p-slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .p2p-chat-header {
@@ -5539,8 +5551,13 @@ input.error:focus,
   flex-direction: column;
 }
 
-.p2p-chat-bubble-wrap.me { align-items: flex-end; }
-.p2p-chat-bubble-wrap.them { align-items: flex-start; }
+.p2p-chat-bubble-wrap.me {
+  align-items: flex-end;
+}
+
+.p2p-chat-bubble-wrap.them {
+  align-items: flex-start;
+}
 
 .p2p-chat-bubble {
   max-width: 85%;
@@ -5548,7 +5565,7 @@ input.error:focus,
   border-radius: 16px;
   font-size: 0.85rem;
   line-height: 1.4;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .p2p-chat-bubble.me {
@@ -5760,8 +5777,15 @@ input.error:focus,
   max-width: 70%;
 }
 
-.msg-bubble-wrap.me { align-self: flex-end; align-items: flex-end; }
-.msg-bubble-wrap.them { align-self: flex-start; align-items: flex-start; }
+.msg-bubble-wrap.me {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.msg-bubble-wrap.them {
+  align-self: flex-start;
+  align-items: flex-start;
+}
 
 .msg-bubble {
   padding: 10px 16px;
@@ -5836,9 +5860,20 @@ input.error:focus,
 }
 
 @media (max-width: 768px) {
-  .messages-sidebar { width: 100px; }
-  .partner-name, .conv-preview, .conv-time, .search-box { display: none; }
-  .conversation-item { justify-content: center; }
+  .messages-sidebar {
+    width: 100px;
+  }
+
+  .partner-name,
+  .conv-preview,
+  .conv-time,
+  .search-box {
+    display: none;
+  }
+
+  .conversation-item {
+    justify-content: center;
+  }
 }
 
 /* ─── Conversation delete button (hiện khi hover) ─── */
@@ -5993,6 +6028,13 @@ input.error:focus,
 }
 
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }

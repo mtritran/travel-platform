@@ -353,6 +353,42 @@ public class BookingService {
         return mapToResponse(saved);
     }
 
+    @Transactional
+    public void cancelBySystem(String bookingId, String reason) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND));
+
+        if (booking.getStatus() == BookingStatus.CANCELLED || booking.getStatus() == BookingStatus.COMPLETED) {
+            return;
+        }
+
+        BigDecimal refundAmount = booking.getPaidAmount();
+
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+            User customer = booking.getUser();
+            customer.setBalance((customer.getBalance() != null ? customer.getBalance() : BigDecimal.ZERO).add(refundAmount));
+            userRepository.save(customer);
+
+            transactionRepository.save(Transaction.builder()
+                    .booking(booking)
+                    .user(customer)
+                    .amount(refundAmount)
+                    .type(TransactionType.REFUND)
+                    .note("Hệ thống hủy tour: " + booking.getTour().getTitle() + " (" + reason + ")")
+                    .build());
+
+            notificationService.sendNotification(customer.getId(),
+                    "Thông báo hủy tour",
+                    "Tour '" + booking.getTour().getTitle() + "' đã bị hệ thống hủy do " + reason + ". Bạn được hoàn trả " + refundAmount + " VND.",
+                    "TOUR_CANCELLED_SYSTEM");
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setRefundAmount(refundAmount);
+        booking.setPaidAmount(BigDecimal.ZERO);
+        bookingRepository.save(booking);
+    }
+
     // Money distribution now handled by ScheduledTasks.java using payoutAt
 
     // Payout and Penalty distribution logic moved to ScheduledTasks.java using payoutAt

@@ -57,6 +57,15 @@ export interface Location {
 
 export type TourStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'REJECTED' | 'INACTIVE';
 
+export interface TourItinerary {
+  id?: string;
+  timeSlot: string;
+  activity: string;
+  description?: string;
+  imageUrl?: string;
+  stepOrder: number;
+}
+
 export interface Tour {
   id: string;
   guideId: string;
@@ -88,6 +97,11 @@ export interface Tour {
   bookingCutoffMinutes?: number;
   hiddenReason?: string;
   distance?: number;
+  minGuests?: number;
+  transportType?: string;
+  transportInfo?: string;
+  transportImagesUrl?: string;
+  itineraries: TourItinerary[];
   createdAt: string;
 }
 

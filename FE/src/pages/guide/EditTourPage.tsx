@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  FileText, Image as ImageIcon, 
+import {
+  FileText, Image as ImageIcon,
   MapPin, CheckCircle2, Navigation, Calendar, Clock, Clock3, Users
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
@@ -109,7 +109,7 @@ const EditTourPage: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'price') {
       const numericValue = value.replace(/\D/g, '');
       const formattedValue = numericValue ? new Intl.NumberFormat('en-US').format(parseInt(numericValue)) : '';
@@ -134,33 +134,33 @@ const EditTourPage: React.FC = () => {
         break;
       case 'startDate':
         if (!value) {
-            error = 'Vui lòng chọn ngày diễn ra tour';
+          error = 'Vui lòng chọn ngày diễn ra tour';
         } else {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const selectedDate = new Date(value);
-            selectedDate.setHours(0, 0, 0, 0);
-            if (selectedDate < today) error = 'Ngày diễn ra không được ở trong quá khứ';
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const selectedDate = new Date(value);
+          selectedDate.setHours(0, 0, 0, 0);
+          if (selectedDate < today) error = 'Ngày diễn ra không được ở trong quá khứ';
         }
         break;
       case 'startTime':
         if (!value) {
-            error = 'Vui lòng chọn giờ bắt đầu';
+          error = 'Vui lòng chọn giờ bắt đầu';
         } else if (formData.startDate) {
-            const selectedDateTime = new Date(formData.startDate + 'T' + value);
-            const cutoff = Number(formData.bookingCutoffMinutes) || 60;
-            const cutoffTime = new Date(selectedDateTime.getTime() - (cutoff * 60000));
-            
-            if (cutoffTime < now) {
-                error = `Thời gian quá gần (cần chừa ít nhất ${cutoff} phút để khách chuẩn bị/đặt)`;
-            }
+          const selectedDateTime = new Date(formData.startDate + 'T' + value);
+          const cutoff = Number(formData.bookingCutoffMinutes) || 60;
+          const cutoffTime = new Date(selectedDateTime.getTime() - (cutoff * 60000));
+
+          if (cutoffTime < now) {
+            error = `Thời gian quá gần (cần chừa ít nhất ${cutoff} phút để khách chuẩn bị/đặt)`;
+          }
         }
         break;
       case 'endTime':
         if (!value) {
-            error = 'Vui lòng chọn giờ kết thúc';
+          error = 'Vui lòng chọn giờ kết thúc';
         } else if (formData.startTime && value <= formData.startTime) {
-            error = 'Giờ kết thúc phải sau giờ bắt đầu';
+          error = 'Giờ kết thúc phải sau giờ bắt đầu';
         }
         break;
       case 'maxGuests':
@@ -208,14 +208,14 @@ const EditTourPage: React.FC = () => {
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {};
     const fieldsToValidate = ['title', 'price', 'startDate', 'startTime', 'endTime', 'maxGuests', 'description', 'imageUrl'];
-    
+
     let isValid = true;
     fieldsToValidate.forEach(field => {
-        const error = validateField(field, (formData as any)[field]);
-        if (error) {
-            newErrors[field] = error;
-            isValid = false;
-        }
+      const error = validateField(field, (formData as any)[field]);
+      if (error) {
+        newErrors[field] = error;
+        isValid = false;
+      }
     });
 
     setErrors(newErrors);
@@ -289,30 +289,30 @@ const EditTourPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', background: 'var(--surface)', padding: '8px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
-          <div 
+          <div
             onClick={() => step < 3 && setStep(1)}
-            style={{ 
-              flex: 1, padding: '16px', 
-              background: step === 1 ? 'var(--primary)' : 'transparent', 
-              borderRadius: '16px', 
-              color: step === 1 ? 'white' : 'var(--text-secondary)', 
-              fontWeight: '700', textAlign: 'center', 
+            style={{
+              flex: 1, padding: '16px',
+              background: step === 1 ? 'var(--primary)' : 'transparent',
+              borderRadius: '16px',
+              color: step === 1 ? 'white' : 'var(--text-secondary)',
+              fontWeight: '700', textAlign: 'center',
               transition: 'all 0.3s ease',
               cursor: step === 2 ? 'pointer' : 'default'
             }}
           >
             1. Thông tin cơ bản
           </div>
-          <div 
+          <div
             onClick={() => {
               if (step === 1 && validateStep1()) setStep(2);
             }}
-            style={{ 
-              flex: 1, padding: '16px', 
-              background: step === 2 ? 'var(--primary)' : 'transparent', 
-              borderRadius: '16px', 
-              color: step === 2 ? 'white' : 'var(--text-secondary)', 
-              fontWeight: '700', textAlign: 'center', 
+            style={{
+              flex: 1, padding: '16px',
+              background: step === 2 ? 'var(--primary)' : 'transparent',
+              borderRadius: '16px',
+              color: step === 2 ? 'white' : 'var(--text-secondary)',
+              fontWeight: '700', textAlign: 'center',
               transition: 'all 0.3s ease',
               cursor: step === 1 ? 'pointer' : 'default'
             }}
@@ -332,12 +332,12 @@ const EditTourPage: React.FC = () => {
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Tiêu đề Tour</label>
                   <div style={{ position: 'relative', width: '100%' }}>
                     <FileText size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="title"
                       className={errors.title ? 'error' : ''}
-                      placeholder="Ví dụ: Khám phá Phố cổ Hội An về đêm" 
-                      style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
+                      placeholder="Ví dụ: Khám phá Phố cổ Hội An về đêm"
+                      style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }}
                       value={formData.title}
                       onChange={handleChange}
                     />
@@ -348,12 +348,12 @@ const EditTourPage: React.FC = () => {
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Giá tour (VND)</label>
                   <div style={{ position: 'relative', width: '100%' }}>
                     <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: 'var(--primary)', opacity: 0.5 }}>₫</span>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="price"
                       className={errors.price ? 'error' : ''}
-                      placeholder="500,000" 
-                      style={{ padding: '16px 16px 16px 40px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1.1rem', fontWeight: 700 }} 
+                      placeholder="500,000"
+                      style={{ padding: '16px 16px 16px 40px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1.1rem', fontWeight: 700 }}
                       value={formData.price}
                       onChange={handleChange}
                     />
@@ -386,13 +386,13 @@ const EditTourPage: React.FC = () => {
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Số khách tối đa</label>
                   <div style={{ position: 'relative', width: '100%' }}>
                     <Users size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} />
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       name="maxGuests"
                       min="1"
                       className={errors.maxGuests ? 'error' : ''}
-                      placeholder="8" 
-                      style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
+                      placeholder="8"
+                      style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }}
                       value={formData.maxGuests}
                       onChange={handleChange}
                     />
@@ -451,12 +451,12 @@ const EditTourPage: React.FC = () => {
                   <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Thời gian chuẩn bị tối thiểu (phút)</label>
                   <div style={{ position: 'relative', width: '100%' }}>
                     <Clock3 size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} />
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       name="bookingCutoffMinutes"
                       min="0"
-                      placeholder="60" 
-                      style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
+                      placeholder="60"
+                      style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }}
                       value={formData.bookingCutoffMinutes}
                       onChange={handleChange}
                     />
@@ -476,12 +476,12 @@ const EditTourPage: React.FC = () => {
                 <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Mô tả chuyến đi</label>
                 <div style={{ position: 'relative', width: '100%' }}>
                   <FileText size={20} style={{ position: 'absolute', left: '16px', top: '18px', color: 'var(--primary)', opacity: 0.5 }} />
-                  <textarea 
-                    rows={6} 
+                  <textarea
+                    rows={6}
                     name="description"
                     className={errors.description ? 'error' : ''}
-                    placeholder="Bạn sẽ dẫn khách đi những đâu? Những điểm thú vị của tour này là gì?" 
-                    style={{ padding: '16px 16px 16px 48px', width: '100%', resize: 'none', borderRadius: '20px', border: '2px solid var(--glass-border)', fontSize: '1rem', lineHeight: 1.6 }} 
+                    placeholder="Bạn sẽ dẫn khách đi những đâu? Những điểm thú vị của tour này là gì?"
+                    style={{ padding: '16px 16px 16px 48px', width: '100%', resize: 'none', borderRadius: '20px', border: '2px solid var(--glass-border)', fontSize: '1rem', lineHeight: 1.6 }}
                     value={formData.description}
                     onChange={handleChange}
                   />
@@ -493,11 +493,11 @@ const EditTourPage: React.FC = () => {
                 <label style={{ fontWeight: 700, marginBottom: '10px', display: 'block' }}>Hình ảnh minh họa (URL)</label>
                 <div style={{ position: 'relative', width: '100%' }}>
                   <ImageIcon size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)', opacity: 0.5 }} />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     name="imageUrl"
-                    placeholder="Dán link ảnh tại đây..." 
-                    style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }} 
+                    placeholder="Dán link ảnh tại đây..."
+                    style={{ padding: '16px 16px 16px 48px', width: '100%', borderRadius: '16px', border: '2px solid var(--glass-border)', fontSize: '1rem' }}
                     value={formData.imageUrl}
                     onChange={handleChange}
                   />
@@ -511,8 +511,8 @@ const EditTourPage: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
-                <button 
-                  className="btn-primary" 
+                <button
+                  className="btn-primary"
                   type="button"
                   style={{ padding: '18px 60px', borderRadius: '18px', fontSize: '1.1rem', fontWeight: 800, boxShadow: '0 10px 15px -3px rgba(var(--primary-rgb), 0.3)' }}
                   onClick={() => {
@@ -534,21 +534,21 @@ const EditTourPage: React.FC = () => {
                   </div>
                   <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800' }}>1. Địa điểm tham quan chính</h3>
                 </div>
-                <LocationPicker 
+                <LocationPicker
                   initialLat={formData.latitude || undefined}
                   initialLng={formData.longitude || undefined}
                   onLocationSelect={(lat, lng, addr) => {
-                    setFormData({...formData, latitude: lat, longitude: lng, address: addr, locationName: addr});
+                    setFormData({ ...formData, latitude: lat, longitude: lng, address: addr, locationName: addr });
                     setErrors(prev => ({ ...prev, location: '' }));
                   }}
                 />
                 <div style={{ marginTop: '20px' }}>
                   <p style={{ fontWeight: '700', marginBottom: '8px' }}>Tên địa danh hiển thị:</p>
-                  <input 
-                    type="text" 
-                    placeholder="Ví dụ: Phố cổ Hội An..." 
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: Phố cổ Hội An..."
                     value={formData.locationName}
-                    onChange={e => setFormData({...formData, locationName: e.target.value})}
+                    onChange={e => setFormData({ ...formData, locationName: e.target.value })}
                     style={{ padding: '16px', borderRadius: '16px', border: '2px solid var(--glass-border)', width: '100%', fontSize: '1rem' }}
                   />
                 </div>
@@ -561,21 +561,21 @@ const EditTourPage: React.FC = () => {
                   </div>
                   <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800' }}>2. Điểm tập trung gặp khách</h3>
                 </div>
-                <LocationPicker 
+                <LocationPicker
                   initialLat={formData.meetingLatitude || undefined}
                   initialLng={formData.meetingLongitude || undefined}
                   onLocationSelect={(lat, lng, addr) => {
-                    setFormData({...formData, meetingLatitude: lat, meetingLongitude: lng, meetingAddress: addr, meetingLocationName: addr});
+                    setFormData({ ...formData, meetingLatitude: lat, meetingLongitude: lng, meetingAddress: addr, meetingLocationName: addr });
                     setErrors(prev => ({ ...prev, meetingLocation: '' }));
                   }}
                 />
                 <div style={{ marginTop: '20px' }}>
                   <p style={{ fontWeight: '700', marginBottom: '8px' }}>Tên điểm hẹn (ví dụ: Sảnh khách sạn ABC):</p>
-                  <input 
-                    type="text" 
-                    placeholder="Ví dụ: Cổng chính SVĐ Mỹ Đình..." 
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: Cổng chính SVĐ Mỹ Đình..."
                     value={formData.meetingLocationName}
-                    onChange={e => setFormData({...formData, meetingLocationName: e.target.value})}
+                    onChange={e => setFormData({ ...formData, meetingLocationName: e.target.value })}
                     style={{ padding: '16px', borderRadius: '16px', border: '2px solid var(--glass-border)', width: '100%', fontSize: '1rem' }}
                   />
                 </div>
@@ -583,9 +583,9 @@ const EditTourPage: React.FC = () => {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px' }}>
                 <button className="btn-secondary" onClick={() => setStep(1)} style={{ padding: '16px 40px', borderRadius: '16px', fontWeight: 700 }}>← Quay lại</button>
-                <button 
-                  className="btn-primary" 
-                  style={{ padding: '18px 60px', borderRadius: '18px', fontSize: '1.1rem', fontWeight: 800, boxShadow: '0 10px 15px -3px rgba(var(--primary-rgb), 0.3)' }} 
+                <button
+                  className="btn-primary"
+                  style={{ padding: '18px 60px', borderRadius: '18px', fontSize: '1.1rem', fontWeight: 800, boxShadow: '0 10px 15px -3px rgba(var(--primary-rgb), 0.3)' }}
                   onClick={(e) => {
                     if (validateStep2()) handleSubmit(e as any);
                     else alert('Vui lòng chọn địa điểm trên bản đồ.');
@@ -606,7 +606,7 @@ const EditTourPage: React.FC = () => {
               <h3 style={{ fontSize: '2.5rem', fontWeight: '900', marginBottom: '16px', background: 'linear-gradient(to right, #059669, #10b981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Thành công!</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto 40px', lineHeight: 1.6 }}>Thông tin tour của bạn đã được cập nhật thành công và đang hiển thị trên TravelX.</p>
               <div style={{ display: 'flex', gap: '24px', justifyContent: 'center' }}>
-                <button 
+                <button
                   onClick={() => navigate('/guide/tours')}
                   style={{ padding: '20px 48px', fontSize: '1.1rem', fontWeight: '800', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '20px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 10px 15px -3px rgba(var(--primary-rgb), 0.3)' }}
                 >

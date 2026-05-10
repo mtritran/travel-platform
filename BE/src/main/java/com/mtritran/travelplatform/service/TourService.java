@@ -1,22 +1,19 @@
 package com.mtritran.travelplatform.service;
 
 import com.mtritran.travelplatform.dto.request.TourCreateRequest;
+import com.mtritran.travelplatform.dto.response.ItineraryResponse;
 import com.mtritran.travelplatform.dto.response.TourResponse;
 import com.mtritran.travelplatform.entity.Location;
 import com.mtritran.travelplatform.entity.Review;
 import com.mtritran.travelplatform.entity.Tour;
+import com.mtritran.travelplatform.entity.TourItinerary;
 import com.mtritran.travelplatform.entity.User;
 import com.mtritran.travelplatform.enums.RoleName;
 import com.mtritran.travelplatform.enums.TourStatus;
 import com.mtritran.travelplatform.exception.AppException;
 import com.mtritran.travelplatform.exception.ErrorCode;
 import com.mtritran.travelplatform.mapper.TourMapper;
-import com.mtritran.travelplatform.repository.BookingRepository;
-import com.mtritran.travelplatform.repository.LocationRepository;
-import com.mtritran.travelplatform.repository.ReviewRepository;
-import com.mtritran.travelplatform.repository.TourRepository;
-import com.mtritran.travelplatform.repository.TourRequestRepository;
-import com.mtritran.travelplatform.repository.UserRepository;
+import com.mtritran.travelplatform.repository.*;
 import com.mtritran.travelplatform.service.ai.TourEmbeddingService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +27,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.*;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class TourService {
     TourRepository tourRepository;
@@ -43,6 +42,7 @@ public class TourService {
     TourMapper tourMapper;
     TourRequestRepository tourRequestRepository;
     TourEmbeddingService tourEmbeddingService;
+    TourItineraryRepository itineraryRepository;
 
     private TourResponse mapWithRating(Tour tour) {
         TourResponse response = tourMapper.toResponse(tour);
@@ -61,8 +61,22 @@ public class TourService {
 
         // Calculate occupied guests for the specific tour slot
         Instant expiryTime = Instant.now().minus(Duration.ofMinutes(10));
-        Integer occupied = bookingRepository.sumOccupiedSlots(tour.getId(), tour.getStartDate(), tour.getStartTime(), expiryTime);
+        Integer occupied = bookingRepository.sumOccupiedSlots(tour.getId(), tour.getStartDate(), tour.getStartTime(),
+                expiryTime);
         response.setOccupiedGuests(occupied != null ? occupied : 0);
+
+        if (tour.getItineraries() != null) {
+            response.setItineraries(tour.getItineraries().stream()
+                    .map(it -> ItineraryResponse.builder()
+                            .id(it.getId())
+                            .timeSlot(it.getTimeSlot())
+                            .activity(it.getActivity())
+                            .description(it.getDescription())
+                            .imageUrl(it.getImageUrl())
+                            .stepOrder(it.getStepOrder())
+                            .build())
+                    .toList());
+        }
 
         return response;
     }
@@ -96,9 +110,12 @@ public class TourService {
         LocalTime tourStart = request.getStartTime();
         LocalTime tourEnd = request.getEndTime() != null ? request.getEndTime() : tourStart.plusHours(4);
 
-        boolean hasOverlapListing = tourRepository.existsOverlappingTourListing(guide, request.getStartDate(), tourStart, tourEnd, null);
-        boolean hasOverlapBooking = bookingRepository.existsOverlappingGuideBooking(guide, request.getStartDate(), tourStart, tourEnd);
-        boolean hasOverlapRequest = tourRequestRepository.existsOverlappingGuideRequest(guide, request.getStartDate(), tourStart, tourEnd);
+        boolean hasOverlapListing = tourRepository.existsOverlappingTourListing(guide, request.getStartDate(),
+                tourStart, tourEnd, null);
+        boolean hasOverlapBooking = bookingRepository.existsOverlappingGuideBooking(guide, request.getStartDate(),
+                tourStart, tourEnd);
+        boolean hasOverlapRequest = tourRequestRepository.existsOverlappingGuideRequest(guide, request.getStartDate(),
+                tourStart, tourEnd);
 
         if (hasOverlapListing || hasOverlapBooking || hasOverlapRequest) {
             throw new AppException(ErrorCode.OVERLAPPING_SCHEDULE);
@@ -117,11 +134,32 @@ public class TourService {
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .maxGuests(request.getMaxGuests() != null ? request.getMaxGuests() : 1)
-                .bookingCutoffMinutes(request.getBookingCutoffMinutes() != null ? request.getBookingCutoffMinutes() : 60)
+                .bookingCutoffMinutes(
+                        request.getBookingCutoffMinutes() != null ? request.getBookingCutoffMinutes() : 60)
+                .minGuests(request.getMinGuests() != null ? request.getMinGuests() : 1)
+                .transportType(request.getTransportType() != null ? request.getTransportType() : com.mtritran.travelplatform.enums.TransportType.WALKING)
+                .transportInfo(request.getTransportInfo())
+                .transportImagesUrl(request.getTransportImagesUrl())
                 .status(TourStatus.ACTIVE)
                 .build();
 
         Tour saved = tourRepository.save(tour);
+
+        // Save itineraries
+        if (request.getItineraries() != null) {
+            List<TourItinerary> itineraries = request.getItineraries().stream()
+                    .map(itReq -> TourItinerary.builder()
+                            .tour(saved)
+                            .timeSlot(itReq.getTimeSlot())
+                            .activity(itReq.getActivity())
+                            .description(itReq.getDescription())
+                            .imageUrl(itReq.getImageUrl())
+                            .stepOrder(itReq.getStepOrder())
+                            .build())
+                    .toList();
+            itineraryRepository.saveAll(itineraries);
+            saved.setItineraries(itineraries);
+        }
         tourEmbeddingService.indexTour(saved); // Auto-index vào Vector DB
         return mapWithRating(saved);
     }
@@ -150,17 +188,20 @@ public class TourService {
         ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
         Instant expiryTime = Instant.now().minus(Duration.ofMinutes(10));
         LocalDateTime vnNow = LocalDateTime.now(zoneId);
-        
-        List<TourResponse> tours = tourRepository.findAvailableTours(LocalDate.now(zoneId), LocalTime.now(zoneId), expiryTime).stream()
+
+        List<TourResponse> tours = tourRepository
+                .findAvailableTours(LocalDate.now(zoneId), LocalTime.now(zoneId), expiryTime).stream()
                 .filter(t -> {
                     Integer cutoff = t.getBookingCutoffMinutes() != null ? t.getBookingCutoffMinutes() : 60;
-                    LocalDateTime cutoffPoint = LocalDateTime.of(t.getStartDate(), t.getStartTime()).minusMinutes(cutoff);
+                    LocalDateTime cutoffPoint = LocalDateTime.of(t.getStartDate(), t.getStartTime())
+                            .minusMinutes(cutoff);
                     return vnNow.isBefore(cutoffPoint);
                 })
                 .map(t -> {
                     TourResponse resp = mapWithRating(t);
                     if (lat != null && lng != null && t.getLocation() != null) {
-                        double dist = haversine(lat, lng, t.getLocation().getLatitude(), t.getLocation().getLongitude());
+                        double dist = haversine(lat, lng, t.getLocation().getLatitude(),
+                                t.getLocation().getLongitude());
                         resp.setDistance(dist);
                     }
                     return resp;
@@ -170,8 +211,10 @@ public class TourService {
         if (lat != null && lng != null) {
             return tours.stream()
                     .sorted((t1, t2) -> {
-                        if (t1.getDistance() == null) return 1;
-                        if (t2.getDistance() == null) return -1;
+                        if (t1.getDistance() == null)
+                            return 1;
+                        if (t2.getDistance() == null)
+                            return -1;
                         return t1.getDistance().compareTo(t2.getDistance());
                     })
                     .toList();
@@ -184,10 +227,12 @@ public class TourService {
         ZoneId zoneId = ZoneId.of("Asia/Ho_Chi_Minh");
         Instant expiryTime = Instant.now().minus(Duration.ofMinutes(10));
         LocalDateTime vnNow = LocalDateTime.now(zoneId);
-        return tourRepository.findNearbyTours(lat, lng, radius, LocalDate.now(zoneId), LocalTime.now(zoneId), expiryTime).stream()
+        return tourRepository
+                .findNearbyTours(lat, lng, radius, LocalDate.now(zoneId), LocalTime.now(zoneId), expiryTime).stream()
                 .filter(t -> {
                     Integer cutoff = t.getBookingCutoffMinutes() != null ? t.getBookingCutoffMinutes() : 60;
-                    LocalDateTime cutoffPoint = LocalDateTime.of(t.getStartDate(), t.getStartTime()).minusMinutes(cutoff);
+                    LocalDateTime cutoffPoint = LocalDateTime.of(t.getStartDate(), t.getStartTime())
+                            .minusMinutes(cutoff);
                     return vnNow.isBefore(cutoffPoint);
                 })
                 .map(this::mapWithRating)
@@ -208,7 +253,7 @@ public class TourService {
     public TourResponse updateTour(String id, TourCreateRequest request) {
         Tour tour = tourRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
-        
+
         // Basic check for guide ownership
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         if (!tour.getGuide().getEmail().equals(email)) {
@@ -221,10 +266,14 @@ public class TourService {
 
         ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
         LocalDateTime vnNow = LocalDateTime.now(vnZone);
-        
-        // Use endDate and endTime to determine completion. Fallback to start if end missing.
+
+        // Use endDate and endTime to determine completion. Fallback to start if end
+        // missing.
         LocalDate effectiveEndDate = tour.getEndDate() != null ? tour.getEndDate() : tour.getStartDate();
-        LocalTime effectiveEndTime = tour.getEndTime() != null ? tour.getEndTime() : tour.getStartTime().plusHours(4); // default 4h if missing
+        LocalTime effectiveEndTime = tour.getEndTime() != null ? tour.getEndTime() : tour.getStartTime().plusHours(4); // default
+                                                                                                                       // 4h
+                                                                                                                       // if
+                                                                                                                       // missing
         LocalDateTime tourEnd = LocalDateTime.of(effectiveEndDate, effectiveEndTime);
 
         if (activeCount > 0 && vnNow.isBefore(tourEnd)) {
@@ -233,10 +282,12 @@ public class TourService {
                     || !tour.getStartTime().equals(request.getStartTime())
                     || tour.getPrice().compareTo(request.getPrice()) != 0
                     || !tour.getLocation().getId().equals(request.getLocationId());
-            
+
             // Also check endDate/endTime specifically
-            if (tour.getEndDate() != null && !tour.getEndDate().equals(request.getEndDate())) criticalChanged = true;
-            if (tour.getEndTime() != null && !tour.getEndTime().equals(request.getEndTime())) criticalChanged = true;
+            if (tour.getEndDate() != null && !tour.getEndDate().equals(request.getEndDate()))
+                criticalChanged = true;
+            if (tour.getEndTime() != null && !tour.getEndTime().equals(request.getEndTime()))
+                criticalChanged = true;
 
             if (criticalChanged) {
                 throw new AppException(ErrorCode.TOUR_CANNOT_UPDATE_DATE_TIME);
@@ -254,7 +305,28 @@ public class TourService {
         tour.setMaxGuests(request.getMaxGuests() != null ? request.getMaxGuests() : 1);
         tour.setDepositPercentage(request.getDepositPercentage());
         tour.setBookingCutoffMinutes(request.getBookingCutoffMinutes());
-        
+        tour.setMinGuests(request.getMinGuests() != null ? request.getMinGuests() : 1);
+        tour.setTransportType(request.getTransportType() != null ? request.getTransportType() : tour.getTransportType());
+        tour.setTransportInfo(request.getTransportInfo());
+        tour.setTransportImagesUrl(request.getTransportImagesUrl());
+
+        // Update itineraries
+        itineraryRepository.deleteAllByTour(tour);
+        if (request.getItineraries() != null) {
+            List<TourItinerary> itineraries = request.getItineraries().stream()
+                    .map(itReq -> TourItinerary.builder()
+                            .tour(tour)
+                            .timeSlot(itReq.getTimeSlot())
+                            .activity(itReq.getActivity())
+                            .description(itReq.getDescription())
+                            .imageUrl(itReq.getImageUrl())
+                            .stepOrder(itReq.getStepOrder())
+                            .build())
+                    .toList();
+            itineraryRepository.saveAll(itineraries);
+            tour.setItineraries(itineraries);
+        }
+
         if (request.getLocationId() != null) {
             Location location = locationRepository.findById(request.getLocationId())
                     .orElseThrow(() -> new AppException(ErrorCode.LOCATION_NOT_FOUND));
@@ -271,7 +343,7 @@ public class TourService {
         int newCutoff = request.getBookingCutoffMinutes() != null ? request.getBookingCutoffMinutes() : 60;
         LocalDateTime newStartDateTime = LocalDateTime.of(request.getStartDate(), request.getStartTime());
         LocalDateTime newCutoffPoint = newStartDateTime.minusMinutes(newCutoff);
-        
+
         if (newCutoffPoint.isBefore(LocalDateTime.now())) {
             throw new AppException(ErrorCode.INVALID_TOUR_DATE);
         }
@@ -280,9 +352,14 @@ public class TourService {
         LocalTime startTime = request.getStartTime();
         LocalTime endTime = request.getEndTime() != null ? request.getEndTime() : startTime.plusHours(4);
 
-        if (tourRepository.existsOverlappingTourListing(tour.getGuide(), request.getStartDate(), startTime, endTime, tour.getId()) ||
-            bookingRepository.existsOverlappingGuideBooking(tour.getGuide(), request.getStartDate(), startTime, endTime) ||
-            tourRequestRepository.existsOverlappingGuideRequest(tour.getGuide(), request.getStartDate(), startTime, endTime)) {
+        if (tourRepository
+                .existsOverlappingTourListing(tour.getGuide(), request.getStartDate(), startTime, endTime, tour.getId())
+                ||
+                bookingRepository.existsOverlappingGuideBooking(tour.getGuide(), request.getStartDate(), startTime,
+                        endTime)
+                ||
+                tourRequestRepository.existsOverlappingGuideRequest(tour.getGuide(), request.getStartDate(), startTime,
+                        endTime)) {
             throw new AppException(ErrorCode.OVERLAPPING_SCHEDULE);
         }
 
@@ -294,12 +371,12 @@ public class TourService {
     public TourResponse updateTourStatus(String id, TourStatus status, String reason) {
         Tour tour = tourRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.TOUR_NOT_FOUND));
-        
+
         // Ownership or admin check
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
-        
+
         boolean isAdmin = currentUser.getRoles().stream().anyMatch(r -> r.getName() == RoleName.ADMIN);
         boolean isOwner = tour.getGuide().getId().equals(currentUser.getId());
 
@@ -311,9 +388,10 @@ public class TourService {
                 tour.setHiddenReason(reason);
             }
         } else if (isOwner) {
-            // Guide can only toggle between ACTIVE and INACTIVE, and only if it was already approved
+            // Guide can only toggle between ACTIVE and INACTIVE, and only if it was already
+            // approved
             if (tour.getStatus() == TourStatus.PENDING_APPROVAL || tour.getStatus() == TourStatus.REJECTED) {
-                 throw new AppException(ErrorCode.UNAUTHORIZED);
+                throw new AppException(ErrorCode.UNAUTHORIZED);
             }
             if (status == TourStatus.ACTIVE || status == TourStatus.INACTIVE) {
                 tour.setStatus(status);

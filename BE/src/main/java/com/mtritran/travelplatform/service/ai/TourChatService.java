@@ -345,6 +345,10 @@ public class TourChatService {
     }
 
     public List<ChatMessage> getChatHistory(String email) {
+        if (email == null || email.equals("anonymousUser")) {
+            return Collections.emptyList();
+        }
+        log.info("[ChatHistory] Fetching history for user: {}", email);
         return userRepository.findByEmail(email)
                 .map(chatMessageRepository::findAllByUserAndIsBotTrueOrderByCreatedAtAsc)
                 .orElse(Collections.emptyList());

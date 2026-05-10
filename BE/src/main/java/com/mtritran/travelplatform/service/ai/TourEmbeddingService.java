@@ -78,6 +78,22 @@ public class TourEmbeddingService {
         if (tour.getDescription() != null && !tour.getDescription().isBlank())
             sb.append("Mô tả: ").append(tour.getDescription()).append("\n");
 
+        sb.append("Phương tiện: ").append(tour.getTransportType()).append("\n");
+        if (tour.getTransportInfo() != null && !tour.getTransportInfo().isBlank())
+            sb.append("Chi tiết xe: ").append(tour.getTransportInfo()).append("\n");
+
+        // Thêm lịch trình chi tiết để Chatbot tư vấn chính xác
+        if (tour.getItineraries() != null && !tour.getItineraries().isEmpty()) {
+            sb.append("Lịch trình chi tiết:\n");
+            tour.getItineraries().forEach(it -> {
+                sb.append("- ").append(it.getTimeSlot()).append(": ").append(it.getActivity());
+                if (it.getDescription() != null && !it.getDescription().isBlank()) {
+                    sb.append(" (").append(it.getDescription()).append(")");
+                }
+                sb.append("\n");
+            });
+        }
+
         // Thêm reviews để LLM hiểu được chất lượng thực tế
         List<Review> reviews = reviewRepository.findAllByTour(tour);
         if (!reviews.isEmpty()) {
@@ -109,7 +125,7 @@ public class TourEmbeddingService {
      * Chạy lúc startup và mỗi đêm lúc 3h sáng.
      */
     @Async
-    @Scheduled(cron = "0 0 3 * * ?") // TODO: Đổi lại thành cron = "0 0 3 * * ?" trước khi production
+    @Scheduled(cron = "0 0 3 * * ?")
     public void indexAllActiveTours() {
         log.info("[TourRAG] Starting full tour index sync...");
         List<Tour> activeTours = tourRepository.findAllByStatus(TourStatus.ACTIVE);

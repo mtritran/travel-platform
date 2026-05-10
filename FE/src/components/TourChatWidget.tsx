@@ -16,6 +16,7 @@ import type { ApiResponse, Tour, TourChatResponse } from '../types';
 import { ENDPOINTS } from '../constants/endpoints';
 import { formatVND } from '../utils/format';
 import { useLocation as useUserLocation } from '../context/LocationContext';
+import { useAuth } from '../context/AuthContext';
 
 interface Message {
   id: string;
@@ -117,48 +118,70 @@ const TourChatWidget: React.FC<TourChatWidgetProps> = ({ isOpen, onClose, mode =
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isLoggedIn = !!localStorage.getItem('token');
+  const { user, loading: authLoading } = useAuth();
+  const isLoggedIn = !!user;
 
-  // Load history on mount
+  // Load history when user changes or component mounts
   useEffect(() => {
+    if (authLoading) return;
+
     const loadInitialHistory = async () => {
+      let combinedMessages: Message[] = [];
+      const welcome = getWelcomeMessage();
+
+      // 1. Lấy từ Database nếu đã đăng nhập
       if (isLoggedIn) {
         try {
           const res = await api.get<ApiResponse<any[]>>('/tours/chat-history');
           const dbHistory = res.data.result;
           if (dbHistory && dbHistory.length > 0) {
-            const mapped = dbHistory.map(m => ({
+            combinedMessages = dbHistory.map(m => ({
               id: m.id,
               role: m.role.toLowerCase() === 'user' ? 'user' : 'assistant',
               text: m.content,
               ts: m.createdAt
             } as Message));
-            setMessages(mapped);
-            return;
           }
         } catch (err) {
           console.error('[ChatHistory] Failed to load from DB', err);
         }
       }
 
-      // Fallback or LocalStorage for guests
+      // 2. Lấy từ LocalStorage (cho khách hoặc dự phòng)
       try {
         const raw = localStorage.getItem(storageKey);
         if (raw) {
-          const parsed = JSON.parse(raw) as Message[];
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setMessages(parsed);
-            return;
+          const localHistory = JSON.parse(raw) as Message[];
+          if (Array.isArray(localHistory)) {
+            // Gộp và loại bỏ trùng lặp dựa trên nội dung và thời gian
+            localHistory.forEach(localMsg => {
+              const exists = combinedMessages.some(dbMsg => 
+                dbMsg.text === localMsg.text && 
+                Math.abs(new Date(dbMsg.ts).getTime() - new Date(localMsg.ts).getTime()) < 10000
+              );
+              if (!exists && localMsg.id !== welcome.id) {
+                combinedMessages.push(localMsg);
+              }
+            });
           }
         }
-      } catch {
-        localStorage.removeItem(storageKey);
+      } catch (err) {
+        console.warn('[ChatHistory] Failed to parse local history', err);
       }
-      setMessages([getWelcomeMessage()]);
+
+      // 3. Sắp xếp theo thời gian
+      combinedMessages.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+
+      // 4. Đảm bảo luôn có tin nhắn chào mừng ở đầu nếu rỗng
+      if (combinedMessages.length === 0 || !combinedMessages.some(m => m.id === welcome.id)) {
+        combinedMessages.unshift(welcome);
+      }
+
+      setMessages(combinedMessages);
     };
 
     loadInitialHistory();
-  }, [isLoggedIn, storageKey]);
+  }, [isLoggedIn, authLoading, storageKey, mode]);
 
   useEffect(() => {
     // Only save to localStorage for guests
